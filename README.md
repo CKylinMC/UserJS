@@ -4,7 +4,8 @@
 
 [![查看我的脚本](https://shields.io/badge/%E7%82%B9%E5%87%BB%E6%9F%A5%E7%9C%8B-%E6%88%91%E7%9A%84Bilibili%E8%84%9A%E6%9C%AC%E5%90%88%E9%9B%86-%23670000?logo=tampermonkey&style=for-the-badge)](https://greasyfork.org/zh-CN/scripts?language=all&set=403506)
 
-[TOC]
+<!-- START doctoc -->
+<!-- END doctoc -->
 
 ## 内容列表
 
