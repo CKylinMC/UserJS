@@ -1,0 +1,16 @@
+/* ==UserStyle==
+@name           [Youtube] 去他妈的评论区
+@name:en        [Youtube] View-Only
+@description    移除网页版Youtube的评论区
+@description:en Remove comments from Youtube website.
+@author         CKylinMC
+@namespace      ckylin-style-deletefuckingcomments-ytb
+@version        1.0.0
+@license        WTFPL
+==/UserStyle== */
+
+@-moz-document domain("youtube.com") {
+    ytd-comments#comments{
+        display:none;
+    }
+}

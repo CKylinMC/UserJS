@@ -1,0 +1,47 @@
+/* ==UserStyle==
+@name        哔哩哔哩播放器模糊效果
+@description 为哔哩哔哩播放器添加模糊效果
+@author      CKylinMC
+@namespace   ckylin-style-bilibiliplayerblur
+@version     1.0.1
+@license     GPLv3
+==/UserStyle== */
+
+@-moz-document domain("bilibili.com") {
+    .video-control-show .bilibili-player-video-control-wrap {
+        backdrop-filter: blur(12px);
+    }
+    .bilibili-player-video-toast-bottom .bilibili-player-video-toast-item {
+        backdrop-filter: blur(12px);
+        background: #00000066;
+    }
+    .bilibili-player-video-toast-item-jump {
+        font-weight: bold;
+        color: #f25d8e;
+        /* text-shadow: 0 0 5px white; */
+        background: #00000061;
+    }
+    .bilibili-player-video-toast-item-jump:hover {
+        color: #ff85ad;
+        background-color: hsla(0, 0%, 0%, 0.2);
+    }
+    .bilibili-player-context-menu-container.black,
+    .bilibili-player-video-info-container.active,
+    .bilibili-player-event-log-container.active,
+    .bilibili-player-color-panel,
+    .bl-audio-panel,
+    .bilibili-player-hotkey-panel-container.active
+    {
+        background: rgba(28, 28, 28, 0.64);
+        backdrop-filter: blur(12px);
+    }
+    .n-fix .n-inner {
+        box-shadow: 0 0 5px 2px #00000080 !important;
+    }
+
+    .bilibili-player-video-danmaku-setting-box {
+        background: rgb(21 21 21 / 66%)!important;
+        border-radius: 2px!important;
+        backdrop-filter: blur(10px);
+    }
+}

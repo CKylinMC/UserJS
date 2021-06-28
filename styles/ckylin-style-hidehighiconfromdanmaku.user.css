@@ -1,0 +1,15 @@
+/* ==UserStyle==
+@name        哔哩哔哩-隐藏高能弹幕的前缀图标
+@description 删除高能弹幕前的小图标
+@author      CKylinMC
+@namespace   ckylin-style-hidehighiconfromdanmaku
+@version     1.0.1
+@license     GPLv3
+@match       *.bilibili.com
+==/UserStyle== */
+
+@-moz-document domain("bilibili.com") {
+    .bilibili-player-video-danmaku .b-danmaku-high-icon{
+        display:none !important;
+    }
+}

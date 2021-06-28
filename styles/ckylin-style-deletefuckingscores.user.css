@@ -1,0 +1,33 @@
+/* ==UserStyle==
+@name           [Bilibili] 去他妈的评分
+@name:en        [Bilibili] Delete Fucking Scores!
+@description    移除网页版哔哩哔哩的番剧点评和评分
+@description:en Remove scores from Bilibili website.
+@author         CKylinMC
+@namespace      ckylin-style-deletefuckingscores
+@version        1.0.0
+@license        WTFPL
+==/UserStyle== */
+@-moz-document url-prefix("https://www.bilibili.com/bangumi/play/") {
+    .media-rating,.btn-rating,#review_module{
+        display:none;
+    }
+    .webkit-ellipsis{
+        -webkit-line-clamp:unset!important;
+    }
+}
+
+@-moz-document url-prefix("https://www.bilibili.com/bangumi/media/") {
+    .media-info-score,.bangumi-media{
+        display:none;
+    }
+    .media-tab-nav>ul>li:nth-child(2),.media-tab-nav>ul>li:nth-child(3){
+        display:none;
+    }
+}
+
+@-moz-document url-prefix("https://search.bilibili.com/") {
+    div.score{
+        display:none;
+    }
+}

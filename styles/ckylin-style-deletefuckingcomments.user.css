@@ -1,0 +1,20 @@
+/* ==UserStyle==
+@name           [Bilibili] 去他妈的评论区
+@name:en        [Bilibili] Delete Fucking Comments!
+@description    移除网页版哔哩哔哩的评论区
+@description:en Remove comments from Bilibili website.
+@author         CKylinMC
+@namespace      ckylin-style-deletefuckingcomments
+@version        1.0.1
+@license        WTFPL
+==/UserStyle== */
+@-moz-document domain("bilibili.com") {
+    #comment,
+    .comment-m,
+    .bb-comment,
+    .forw-area
+    {
+        display:none!important;
+    }
+
+}
