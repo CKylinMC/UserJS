@@ -48,7 +48,7 @@
 
 **仓库文件:**
 
-[ckylin-bilibili-display-video-id.user.js](script/ckylin-bilibili-display-video-id.user.js)
+[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-display-video-id.user.js)
 
 
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频旋转和缩放
@@ -65,7 +65,7 @@
 
 **仓库文件:**
 
-[ckylin-script-bilibili-rotate.user.js](script/ckylin-script-bilibili-rotate.user.js)
+[ckylin-script-bilibili-rotate.user.js](scripts/ckylin-script-bilibili-rotate.user.js)
 
 ------
 
@@ -85,7 +85,7 @@
 
 **仓库文件:**
 
-[ckylin-bilibili-show-links-target.user.js](script/ckylin-bilibili-show-links-target.user.js)
+[ckylin-bilibili-show-links-target.user.js](scripts/ckylin-bilibili-show-links-target.user.js)
 
 
 ------
@@ -106,7 +106,7 @@
 
 **仓库文件:**
 
-[ckylin-bilibili-resize-miniplayer.user.js](script/ckylin-bilibili-resize-miniplayer.user.js)
+[ckylin-bilibili-resize-miniplayer.user.js](scripts/ckylin-bilibili-resize-miniplayer.user.js)
 
 ------
 
@@ -127,7 +127,7 @@
 **仓库文件:**
 
 [
-ckylin-bilibili-comments-filter.user.js](script/
+ckylin-bilibili-comments-filter.user.js](scripts/
 ckylin-bilibili-comments-filter.user.js)
 
 ------
@@ -148,7 +148,7 @@ ckylin-bilibili-comments-filter.user.js)
 
 **仓库文件:**
 
-[ckylin-bilibili-animated-showfullinfo.user.js](script/ckylin-bilibili-animated-showfullinfo.user.js)
+[ckylin-bilibili-animated-showfullinfo.user.js](scripts/ckylin-bilibili-animated-showfullinfo.user.js)
 
 ------
 
@@ -166,7 +166,7 @@ ckylin-bilibili-comments-filter.user.js)
 
 **仓库文件:**
 
-[ckylin-script-bilibili-wide-screen-no-scroll.user.js](script/ckylin-script-bilibili-wide-screen-no-scroll.user.js)
+[ckylin-script-bilibili-wide-screen-no-scroll.user.js](scripts/ckylin-script-bilibili-wide-screen-no-scroll.user.js)
 
 ------
 
@@ -184,7 +184,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 **仓库文件:**
 
-[ckylin-script-bilibili-abloop.user.js](script/ckylin-script-bilibili-abloop.user.js)
+[ckylin-script-bilibili-abloop.user.js](scripts/ckylin-script-bilibili-abloop.user.js)
 
 ------
 
@@ -202,7 +202,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 **仓库文件:**
 
-[ckylin-script-ytb-comments-blocker.user.js](script/ckylin-script-ytb-comments-blocker.user.js)
+[ckylin-script-ytb-comments-blocker.user.js](scripts/ckylin-script-ytb-comments-blocker.user.js)
 
 ### 用户样式
 
