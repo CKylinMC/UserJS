@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         [Bilibili] 视频旋转 Lab
-// @namespace    ckylin-script-bilibili-rotate-lab
+// @name         [Bilibili] 视频旋转
+// @namespace    ckylin-script-bilibili-rotate
 // @version      0.4
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
