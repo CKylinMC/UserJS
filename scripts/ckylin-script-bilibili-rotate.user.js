@@ -1,210 +1,214 @@
 // ==UserScript==
-// @name         [Bilibili] 视频旋转
-// @namespace    ckylin-script-bilibili-rotate
+// @name         [Bilibili] 视频旋转 Lab
+// @namespace    ckylin-script-bilibili-rotate-lab
 // @version      0.3
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
+// @include      http*://www.bilibili.com/medialist/play/*
+// @include      http*://www.bilibili.com/bangumi/play/*
+// @include      http*://bangumi.bilibili.com/anime/*/play*
+// @include      http*://bangumi.bilibili.com/movie/*
 // @grant        GM_registerMenuCommand
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // @grant        unsafeWindow
 // @license      GPLv3 License
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
     let effects = [];
-    const wait = (t) => { return new Promise(r => setTimeout(r, t)); }
+    const wait = (t) => {
+        return new Promise(r => setTimeout(r, t));
+    }
 
-    async function playerReady(){
-        let i=50;
-        while(--i>=0){
+    async function playerReady() {
+        let i = 50;
+        while (--i >= 0) {
             await wait(100);
-            if(!('player' in unsafeWindow)) continue;
-            if(!('isInitialized' in unsafeWindow.player)) continue;
-            if(!unsafeWindow.player.isInitialized()) continue;
+            if (!('player' in unsafeWindow)) continue;
+            if (!('isInitialized' in unsafeWindow.player)) continue;
+            if (!unsafeWindow.player.isInitialized()) continue;
             return true;
         }
         return false;
     }
 
-    function bindKeys(){
-        unsafeWindow.addEventListener("keypress", e=>{
-            if(e.key=="Q"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+    function bindKeys() {
+        unsafeWindow.addEventListener("keypress", e => {
+            if (e.key == "Q") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 leftR();
                 e.preventDefault();
-            }else
-            if(e.key=="E"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "E") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 rightR();
                 e.preventDefault();
-            }else
-            if(e.key=="A"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "A") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 smartLR();
                 e.preventDefault();
-            }else
-            if(e.key=="D"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "D") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 smartRR();
                 e.preventDefault();
-            }else
-            if(e.key=="R"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "R") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 cleanEffects();
                 clearStyles();
                 e.preventDefault();
-            }else
-            if(e.key=="+"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "+") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 zoomIn();
                 e.preventDefault();
-            }else
-            if(e.key=="-"){
-                if(!e.shiftKey)return;
-                if(["INPUT","TEXTARREA"].includes(e.target.tagName))return;
+            } else if (e.key == "-") {
+                if (!e.shiftKey) return;
+                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
                 zoomOut();
                 e.preventDefault();
             }
         });
     }
 
-    function addEffects(name,value,wait=false){
-        let effect = effects.filter(e=>e.name==name);
-        if(effect.length){
-            effect[0].value+=value;
-        }else{
-            effects.push({name,value});
+    function addEffects(name, value, wait = false) {
+        let effect = effects.filter(e => e.name == name);
+        if (effect.length) {
+            effect[0].value += value;
+        } else {
+            effects.push({name, value});
         }
-        if(!wait)applyEffects();
+        if (!wait) applyEffects();
     }
 
-    function delEffect(name,wait=false){
-        effects.forEach((e,i)=>{
-            if(e.name==name)
-                effects.splice(i,1);
+    function delEffect(name, wait = false) {
+        effects.forEach((e, i) => {
+            if (e.name == name)
+                effects.splice(i, 1);
         })
-        if(!wait)applyEffects();
+        if (!wait) applyEffects();
     }
 
-    function applyEffects(){
+    function applyEffects() {
         let style = ".bilibili-player-video video { transform: ";
-        effects.forEach(e=>{
+        effects.forEach(e => {
             let key = e.name;
-            let value = e.value+"";
-            switch(key){
+            let value = e.value + "";
+            switch (key) {
                 case "rotate":
-                    value+="deg";
+                    value += "deg";
                     break;
                 case "transformY":
                 case "transformX":
-                    value+="px";
+                    value += "px";
                     break;
                 case "scale":
-                    value = (1-e.value)+"";
+                    value = (1 - e.value) + "";
                     break;
             }
-            style+=` ${key}(${value})`;
+            style += ` ${key}(${value})`;
         });
-        style+="}";
+        style += "}";
         console.log(style);
         clearStyles();
         addStyle(style);
     }
 
-    function cleanEffects(){
+    function cleanEffects() {
         effects = [];
     }
 
-    function clearStyles(className="CKROTATE"){
-        let dom = document.querySelectorAll("style."+className);
-        if(dom) [...dom].forEach(e=>e.remove());
+    function clearStyles(className = "CKROTATE") {
+        let dom = document.querySelectorAll("style." + className);
+        if (dom) [...dom].forEach(e => e.remove());
     }
 
-    function addStyle(s,className="CKROTATE"){
+    function addStyle(s, className = "CKROTATE") {
         let style = document.createElement("style");
         style.classList.add(className);
         style.innerHTML = s;
         document.body.appendChild(style);
     }
 
-    function leftR(){
-        addEffects("rotate",-90);
+    function leftR() {
+        addEffects("rotate", -90);
     }
 
-    function rightR(){
-        addEffects("rotate",90);
+    function rightR() {
+        //debug
+        //alert("rightR");
+        addEffects("rotate", 90);
     }
 
-    function upR(){
-        addEffects("rotate",180);
+    function upR() {
+        addEffects("rotate", 180);
     }
 
-    function cR(){
+    function cR() {
         delEffect("rotate");
     }
 
-    function zoomIn(){
-        addEffects("scale",-0.1);
+    function zoomIn() {
+        addEffects("scale", -0.1);
     }
 
-    function zoomOut(){
-        addEffects("scale",0.1);
+    function zoomOut() {
+        addEffects("scale", 0.1);
     }
 
-    function cZ(){
+    function cZ() {
         delEffect("scale");
     }
 
-    function moveUp(){
-        addEffects("transformY",-10);
+    function moveUp() {
+        addEffects("transformY", -10);
     }
 
-    function moveDown(){
-        addEffects("transformY",10);
+    function moveDown() {
+        addEffects("transformY", 10);
     }
 
-    function moveLeft(){
-        addEffects("transformX",-10);
+    function moveLeft() {
+        addEffects("transformX", -10);
     }
 
-    function moveRight(){
-        addEffects("transformX",10);
+    function moveRight() {
+        addEffects("transformX", 10);
     }
 
-    function cM(){
+    function cM() {
         delEffect("transformX");
         delEffect("transformY");
     }
 
-    function smartLR(){
+    function smartLR() {
         let dom = document.querySelector(".bilibili-player-video video");
-        if(!dom) return;
+        if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
-        let s = h/w;
+        let s = h / w;
         clearStyles();
         cleanEffects();
-        addEffects("rotate",-90,true);
-        addEffects("scale",1-s);
+        addEffects("rotate", -90, true);
+        addEffects("scale", 1 - s);
     }
 
-    function smartRR(){
+    function smartRR() {
         let dom = document.querySelector(".bilibili-player-video video");
-        if(!dom) return;
+        if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
-        let s = h/w;
+        let s = h / w;
         clearStyles();
         cleanEffects();
-        addEffects("rotate",90,true);
-        addEffects("scale",1-s);
+        addEffects("rotate", 90, true);
+        addEffects("scale", 1 - s);
     }
 
     function showTip() {
@@ -227,7 +231,7 @@
                 background: #424242;
                 color: white;
             }
- 
+
             #CKToast button{
                 border: none;
                 background: #2196f3;
@@ -282,7 +286,7 @@
         }
         toast.appendChild(close);
         document.body.appendChild(toast);
-        setTimeout(closeTip,10000);
+        setTimeout(closeTip, 10000);
     }
 
     function closeTip() {
@@ -290,14 +294,14 @@
         if (toast) {
             toast.style.animation = null;
             toast.style.animation = "CKToastOut cubic-bezier(0.93, -0.32, 1, 1) .5s forwards";
-            setTimeout(() => toast.remove(),500);
+            setTimeout(() => toast.remove(), 500);
         }
     }
 
     async function videoDetect() {
         if (!(await playerReady())) return;
         let dom = document.querySelector(".bilibili-player-video video");
-        if(!dom) return;
+        if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
         if (h > w) {
@@ -345,7 +349,165 @@
         cleanEffects();
         clearStyles();
     });
+
+    /* Thanks for yoringboy's contributings! */
+    function makeButton(icon,contents,revertIcon = false) {
+        document.head.innerHTML+=`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
+        let ico = document.createElement("i");
+        ico.classList.add("mdi","mdi-18px","mdi-"+icon);
+        if(revertIcon) ico.style.transform = "rotateY(180deg)";
+        let btn = document.createElement("div");
+        btn.classList.add("ckrotate-btn");
+        // btn.innerHTML = contents;
+        btn.appendChild(ico);
+        btn.setAttribute("data-btnname",contents);
+        return btn
+    }
+    function injectButtons(){
+        addStyle(`
+        #ckrotate-hidden-btn{
+            position: fixed;
+            left: -15px;
+            width: 30px;
+            height: 30px;
+            background: black;
+            opacity: 0.75;
+            color: white;
+            cursor: pointer;
+            border-radius: 50%;
+            text-align: right;
+            line-height: 30px;
+            transition: all .3s;
+            top: 120px;
+            top: 30vh;
+        }
+        #ckrotate-hidden-btn:hover{
+            background: white;
+            color: black;
+        }
+        #ckrotate-hidden-btn.hide{
+            left: -40px;
+        }
+        #ckrotate-btn-base{
+            position: fixed;
+            top: 55px;
+            left: 15px;
+            width: 55px;
+            background: black;
+            opacity: 0.75;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all .3s;
+        }
+        #ckrotate-btn-base.hide{
+            left: -60px;
+        }
+        #ckrotate-btn-base .ckrotate-btn{
+            display: flex;
+            flex-flow: column;
+            min-height: 55px;
+            flex-wrap: nowrap;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+            transition: all .3s;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover{
+            background: white;
+            color: transparent;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover>*{
+            opacity: 0;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover::after{
+            color: black;
+            content: attr(data-btnname);
+            transform: translateY(-80%);
+        }
+        `,"CKRotateBtnsStyle");
+        const togglePanel = show=>{
+            const btn = document.querySelector("#ckrotate-hidden-btn");
+            const panel = document.querySelector("#ckrotate-btn-base");
+            if(show){
+                btn.className = "hide";
+                panel.className = "show";
+            }else{
+                btn.className = "show";
+                panel.className = "hide";
+            }
+        };
+        const toggle = document.createElement("div");
+        toggle.id="ckrotate-hidden-btn";
+        toggle.innerHTML = `<i class="mdi mdi-18px mdi-chevron-right"></i>`;
+        toggle.onclick = ()=>togglePanel(true);
+        const btnRoot = document.createElement("div");
+        btnRoot.id="ckrotate-btn-base";
+        btnRoot.classList.add("hide");
+        let toggleBtn = makeButton("chevron-left","隐藏");
+        toggleBtn.onclick = ()=>togglePanel(false);
+        btnRoot.appendChild(toggleBtn);
+        let LRBtn = makeButton("rotate-left","左转90");
+        LRBtn.onclick = function () {
+            leftR();
+        };
+        btnRoot.appendChild(LRBtn);
+        let step_value = 45;
+        let RRBtn = makeButton("rotate-right","右转90");
+        RRBtn.onclick = function () {
+            rightR();
+        };
+        btnRoot.appendChild(RRBtn);
+        let SLRBtn = makeButton("undo","智能左转");
+        SLRBtn.onclick = function () {
+            smartLR();
+        };
+        btnRoot.appendChild(SLRBtn);
+        let SRRBtn = makeButton("redo","智能右转");
+        SRRBtn.onclick = function () {
+            smartRR();
+        };
+        btnRoot.appendChild(SRRBtn);
+        let RVBtn = makeButton("rotate-3d-variant","翻转");
+        RVBtn.onclick = function () {
+            upR();
+        };
+        btnRoot.appendChild(RVBtn);
+        let ZOBtn = makeButton("magnify-plus-outline","放大");
+        ZOBtn.onclick = function () {
+            zoomIn();
+        };
+        btnRoot.appendChild(ZOBtn);
+        let ZIBtn = makeButton("magnify-minus-outline","缩小");
+        ZIBtn.onclick = function () {
+            zoomOut();
+        };
+        btnRoot.appendChild(ZIBtn);
+        let CRBtn = makeButton("format-rotate-90","清除旋转");
+        CRBtn.onclick = function () {
+            cR();
+        };
+        btnRoot.appendChild(CRBtn);
+        let CZBtn = makeButton("magnify-remove-outline","清除缩放");
+        CZBtn.onclick = function () {
+            cZ();
+        };
+        btnRoot.appendChild(CZBtn);
+        let RSBtn = makeButton("close-circle-outline","重置");
+        RSBtn.onclick = function () {
+            cleanEffects();
+            clearStyles();
+        };
+        btnRoot.appendChild(RSBtn);
+        document.body.appendChild(toggle);
+        document.body.appendChild(btnRoot);
+    }
+
     addStyle(".bilibili-player-video video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
     bindKeys();
+    injectButtons();
     videoDetect();
 })();
