@@ -1,15 +1,17 @@
 // ==UserScript==
-// @name         [Bilibili] 视频旋转
-// @namespace    ckylin-script-bilibili-rotate
+// @name         [Bilibili] 视频旋转 Lab
+// @namespace    ckylin-script-bilibili-rotate-lab
 // @version      0.3
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
-// @include     http*://www.bilibili.com/medialist/play/*
-// @include     http*://www.bilibili.com/bangumi/play/*
-// @include     http*://bangumi.bilibili.com/anime/*/play*
-// @include     http*://bangumi.bilibili.com/movie/*
+// @include      http*://www.bilibili.com/medialist/play/*
+// @include      http*://www.bilibili.com/bangumi/play/*
+// @include      http*://bangumi.bilibili.com/anime/*/play*
+// @include      http*://bangumi.bilibili.com/movie/*
 // @grant        GM_registerMenuCommand
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // @grant        unsafeWindow
 // @license      GPLv3 License
 // ==/UserScript==
@@ -348,117 +350,164 @@
         clearStyles();
     });
 
-
-//------------------------------------------
-    //https://blog.csdn.net/qq_41298974/article/details/108434838
-    function func_button_1(var_param0, var_btn_name) {
-        //一个是新元素，一个是body元素
-        var mybutton, beasetag;
-        //创建新元素
-        mybutton = document.createElement("div");
-        //搜寻body元素
-        beasetag = document.querySelector("body");
-        //将新元素作为子节点插入到body元素的最后一个子节点之后
-        beasetag.appendChild(mybutton);
-        //可以通过mybutton.innerHTML = "<button type='button'>启动</button><br><button type='button'>关闭</button>"来写入其他元素，如多个按钮
-        //mybutton.innerHTML = "按钮";
-        mybutton.innerHTML = var_btn_name;
-        //css样式为
-        //position:fixed;生成固定定位的元素，相对于浏览器窗口进行定位。元素的位置通过 "left", "top", "right" 以及 "bottom" 属性进行规定。
-        //bottom:15px;距窗口底部15px
-        //right:15px;距窗口右边15px
-        //width:60px;内容的宽度60px
-        //height:60px;内容的高度60px
-        //background:black;内边距的颜色和内容的颜色设置为黑色，不包括外边距和边框
-        //opacity:0.75;不透明度设置为0.75，1为完全不透明
-        //color:white;指定文本的颜色为白色
-        //text-align:center;指定元素文本的水平对齐方式为居中对齐
-        //line-height:60px;设置行高，通过设置为等于该元素的内容高度的值，配合text-align:center;可以使div的文字居中
-        //cursor:pointer;定义了鼠标指针放在一个元素边界范围内时所用的光标形状为一只手
-        mybutton.style = var_param0
-        // //通过匿名函数，设置点击该悬浮按钮后执行的函数
-        // mybutton.onclick = function(){bindKeys22222();};
-        return mybutton
-
+    /* Thanks for yoringboy's contributings! */
+    function makeButton(icon,contents,revertIcon = false) {
+        document.head.innerHTML+=`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
+        let ico = document.createElement("i");
+        ico.classList.add("mdi","mdi-18px","mdi-"+icon);
+        if(revertIcon) ico.style.transform = "rotateY(180deg)";
+        let btn = document.createElement("div");
+        btn.classList.add("ckrotate-btn");
+        // btn.innerHTML = contents;
+        btn.appendChild(ico);
+        btn.setAttribute("data-btnname",contents);
+        return btn
     }
-
-    //左转90
-    //右转90
-    //智能左转90
-    //智能右转90
-    //180°
-    //放大
-    //缩小
-    //清除旋转
-    //清除缩放
-    //重置
-
-
-    var ballStyle22 = "position:fixed;top:46px;left:5px;width:55px;height:55px;background:black;opacity:0.75;color:white;text-align:center;line-height:55px;cursor:pointer;";
-    var ballStyle = ballStyle22;
-    var mybutton = func_button_1(ballStyle, "左转90");
-    mybutton.onclick = function () {
-        leftR();
-    };
-    //------------------------------------------
-    var step_value = 45;
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 1));
-    mybutton = func_button_1(ballStyle, "右转90");
-    mybutton.onclick = function () {
-        rightR();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 2));
-    mybutton = func_button_1(ballStyle, "智能左转90");
-    mybutton.onclick = function () {
-        smartLR();
-    };
-    //------------------------------------------
-
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 3));
-    mybutton = func_button_1(ballStyle, "智能右转90");
-    mybutton.onclick = function () {
-        smartRR();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 4));
-    mybutton = func_button_1(ballStyle, "180°");
-    mybutton.onclick = function () {
-        upR();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 5));
-    mybutton = func_button_1(ballStyle, "放大°");
-    mybutton.onclick = function () {
-        zoomIn();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 6));
-    mybutton = func_button_1(ballStyle, "缩小°");
-    mybutton.onclick = function () {
-        zoomOut();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 7));
-    mybutton = func_button_1(ballStyle, "清除旋转°");
-    mybutton.onclick = function () {
-        cR();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 8));
-    mybutton = func_button_1(ballStyle, "清除缩放°");
-    mybutton.onclick = function () {
-        cZ();
-    };
-    //------------------------------------------
-    ballStyle = ballStyle22.replace("46", String(46 + step_value * 9));
-    mybutton = func_button_1(ballStyle, "重置°");
-    mybutton.onclick = function () {
-        cleanEffects();
-    };
-    //------------------------------------------
+    function injectButtons(){
+        addStyle(`
+        #ckrotate-hidden-btn{
+            position: fixed;
+            left: -15px;
+            width: 30px;
+            height: 30px;
+            background: black;
+            opacity: 0.75;
+            color: white;
+            cursor: pointer;
+            border-radius: 50%;
+            text-align: right;
+            line-height: 30px;
+            transition: all .3s;
+            top: 120px;
+            top: 30vh;
+        }
+        #ckrotate-hidden-btn:hover{
+            background: white;
+            color: black;
+        }
+        #ckrotate-hidden-btn.hide{
+            left: -40px;
+        }
+        #ckrotate-btn-base{
+            position: fixed;
+            top: 55px;
+            left: 15px;
+            width: 55px;
+            background: black;
+            opacity: 0.75;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all .3s;
+        }
+        #ckrotate-btn-base.hide{
+            left: -60px;
+        }
+        #ckrotate-btn-base .ckrotate-btn{
+            display: flex;
+            flex-flow: column;
+            min-height: 55px;
+            flex-wrap: nowrap;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+            transition: all .3s;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover{
+            background: white;
+            color: transparent;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover>*{
+            opacity: 0;
+        }
+        #ckrotate-btn-base .ckrotate-btn:hover::after{
+            color: black;
+            content: attr(data-btnname);
+            transform: translateY(-80%);
+        }
+        `,"CKRotateBtnsStyle");
+        const togglePanel = show=>{
+            const btn = document.querySelector("#ckrotate-hidden-btn");
+            const panel = document.querySelector("#ckrotate-btn-base");
+            if(show){
+                btn.className = "hide";
+                panel.className = "show";
+            }else{
+                btn.className = "show";
+                panel.className = "hide";
+            }
+        };
+        const toggle = document.createElement("div");
+        toggle.id="ckrotate-hidden-btn";
+        toggle.innerHTML = `<i class="mdi mdi-18px mdi-chevron-right"></i>`;
+        toggle.onclick = ()=>togglePanel(true);
+        const btnRoot = document.createElement("div");
+        btnRoot.id="ckrotate-btn-base";
+        btnRoot.classList.add("hide");
+        let toggleBtn = makeButton("chevron-left","隐藏");
+        toggleBtn.onclick = ()=>togglePanel(false);
+        btnRoot.appendChild(toggleBtn);
+        let LRBtn = makeButton("rotate-left","左转90");
+        LRBtn.onclick = function () {
+            leftR();
+        };
+        btnRoot.appendChild(LRBtn);
+        let step_value = 45;
+        let RRBtn = makeButton("rotate-right","右转90");
+        RRBtn.onclick = function () {
+            rightR();
+        };
+        btnRoot.appendChild(RRBtn);
+        let SLRBtn = makeButton("undo","智能左转");
+        SLRBtn.onclick = function () {
+            smartLR();
+        };
+        btnRoot.appendChild(SLRBtn);
+        let SRRBtn = makeButton("redo","智能右转");
+        SRRBtn.onclick = function () {
+            smartRR();
+        };
+        btnRoot.appendChild(SRRBtn);
+        let RVBtn = makeButton("rotate-3d-variant","翻转");
+        RVBtn.onclick = function () {
+            upR();
+        };
+        btnRoot.appendChild(RVBtn);
+        let ZOBtn = makeButton("magnify-plus-outline","放大");
+        ZOBtn.onclick = function () {
+            zoomIn();
+        };
+        btnRoot.appendChild(ZOBtn);
+        let ZIBtn = makeButton("magnify-minus-outline","缩小");
+        ZIBtn.onclick = function () {
+            zoomOut();
+        };
+        btnRoot.appendChild(ZIBtn);
+        let CRBtn = makeButton("format-rotate-90","清除旋转");
+        CRBtn.onclick = function () {
+            cR();
+        };
+        btnRoot.appendChild(CRBtn);
+        let CZBtn = makeButton("magnify-remove-outline","清除缩放");
+        CZBtn.onclick = function () {
+            cZ();
+        };
+        btnRoot.appendChild(CZBtn);
+        let RSBtn = makeButton("close-circle-outline","重置");
+        RSBtn.onclick = function () {
+            cleanEffects();
+            clearStyles();
+        };
+        btnRoot.appendChild(RSBtn);
+        document.body.appendChild(toggle);
+        document.body.appendChild(btnRoot);
+    }
 
     addStyle(".bilibili-player-video video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
     bindKeys();
+    injectButtons();
     videoDetect();
 })();
