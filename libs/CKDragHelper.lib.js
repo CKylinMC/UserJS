@@ -7,7 +7,7 @@
 // @license      GPLv3 License
 // ==/UserScript==
 if(!("wait" in window)){
-    const wait = (t) => {
+    window.wait = (t) => {
         return new Promise(r => setTimeout(r, t));
     }
 }
