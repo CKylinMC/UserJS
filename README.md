@@ -119,16 +119,13 @@
 **安装链接**:
 
 * [Greasyfork](https://greasyfork.org/scripts/408186-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9-%E8%AF%84%E8%AE%BA%E8%BF%87%E6%BB%A4/code/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9-%E8%AF%84%E8%AE%BA%E8%BF%87%E6%BB%A4.user.js)
-* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/
-  ckylin-bilibili-comments-filter.user.js)
-* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/
-  ckylin-bilibili-comments-filter.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-bilibili-comments-filter.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-comments-filter.user.js)
 
 **仓库文件:**
 
 [
-ckylin-bilibili-comments-filter.user.js](scripts/
-ckylin-bilibili-comments-filter.user.js)
+ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter.user.js)
 
 ------
 
