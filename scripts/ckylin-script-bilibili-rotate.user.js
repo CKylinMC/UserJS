@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         [Bilibili] 视频旋转
-// @namespace    ckylin-script-bilibili-rotate
+// @name         [Bilibili] 视频旋转 Lab
+// @namespace    ckylin-script-bilibili-rotate-lab
 // @version      0.4
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
@@ -104,8 +104,8 @@
                 case "rotate":
                     value += "deg";
                     break;
-                case "transformY":
-                case "transformX":
+                case "translateY":
+                case "translateX":
                     value += "px";
                     break;
                 case "scale":
@@ -167,24 +167,24 @@
     }
 
     function moveUp() {
-        addEffects("transformY", -10);
+        addEffects("translateY", -10);
     }
 
     function moveDown() {
-        addEffects("transformY", 10);
+        addEffects("translateY", 10);
     }
 
     function moveLeft() {
-        addEffects("transformX", -10);
+        addEffects("translateX", -10);
     }
 
     function moveRight() {
-        addEffects("transformX", 10);
+        addEffects("translateX", 10);
     }
 
     function cM() {
-        delEffect("transformX");
-        delEffect("transformY");
+        delEffect("translateX");
+        delEffect("translateY");
     }
 
     function smartLR() {
@@ -337,6 +337,22 @@
         zoomOut();
     });
 
+    GM_registerMenuCommand("向上", () => {
+        moveUp();
+    });
+
+    GM_registerMenuCommand("向下", () => {
+        moveDown();
+    });
+
+    GM_registerMenuCommand("向左", () => {
+        moveLeft();
+    });
+
+    GM_registerMenuCommand("向右", () => {
+        moveRight();
+    });
+
     GM_registerMenuCommand("清除旋转", () => {
         cR();
     });
@@ -345,17 +361,21 @@
         cZ();
     });
 
+    GM_registerMenuCommand("清除位移", () => {
+        cM();
+    });
+
     GM_registerMenuCommand("重置", () => {
         cleanEffects();
         clearStyles();
     });
 
     /* Thanks for yoringboy's contributings! */
-    function makeButton(icon,contents,revertIcon = false) {
+    function makeButton(icon,contents,color) {
         document.head.innerHTML+=`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
         let ico = document.createElement("i");
         ico.classList.add("mdi","mdi-18px","mdi-"+icon);
-        if(revertIcon) ico.style.transform = "rotateY(180deg)";
+        if(color) ico.style.color = color;
         let btn = document.createElement("div");
         btn.classList.add("ckrotate-btn");
         // btn.innerHTML = contents;
@@ -391,23 +411,33 @@
         #ckrotate-btn-base{
             position: fixed;
             top: 55px;
-            left: 15px;
-            width: 55px;
-            background: black;
+            left: 20px;
+            width: 110px;
+            height: 450px;
             opacity: 0.75;
+            background: black;
             color: white;
             text-align: center;
             cursor: pointer;
             flex: 1;
             border-radius: 8px;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            align-content: stretch;
+            justify-content: space-between;
+            align-items: center;
+            max-height: 90vh;
             transition: all .3s;
         }
         #ckrotate-btn-base.hide{
-            left: -60px;
+            left: -120px;
+            opacity: 0;
         }
         #ckrotate-btn-base .ckrotate-btn{
             display: flex;
+            width: 55px;
             flex-flow: column;
             min-height: 55px;
             flex-wrap: nowrap;
@@ -415,6 +445,8 @@
             justify-content: center;
             align-items: center;
             transition: all .3s;
+            border-radius: 8px;
+            background: black;
         }
         #ckrotate-btn-base .ckrotate-btn:hover{
             background: white;
@@ -450,53 +482,77 @@
         let toggleBtn = makeButton("chevron-left","隐藏");
         toggleBtn.onclick = ()=>togglePanel(false);
         btnRoot.appendChild(toggleBtn);
-        let LRBtn = makeButton("rotate-left","左转90");
+        let LRBtn = makeButton("rotate-left","左转90","orange");
         LRBtn.onclick = function () {
             leftR();
         };
         btnRoot.appendChild(LRBtn);
-        let step_value = 45;
-        let RRBtn = makeButton("rotate-right","右转90");
+        let RRBtn = makeButton("rotate-right","右转90","orange");
         RRBtn.onclick = function () {
             rightR();
         };
         btnRoot.appendChild(RRBtn);
-        let SLRBtn = makeButton("undo","智能左转");
-        SLRBtn.onclick = function () {
-            smartLR();
-        };
-        btnRoot.appendChild(SLRBtn);
-        let SRRBtn = makeButton("redo","智能右转");
-        SRRBtn.onclick = function () {
-            smartRR();
-        };
-        btnRoot.appendChild(SRRBtn);
-        let RVBtn = makeButton("rotate-3d-variant","翻转");
+        let RVBtn = makeButton("rotate-3d-variant","翻转","orange");
         RVBtn.onclick = function () {
             upR();
         };
         btnRoot.appendChild(RVBtn);
-        let ZOBtn = makeButton("magnify-plus-outline","放大");
+        let SLRBtn = makeButton("undo","智能左转","yellow");
+        SLRBtn.onclick = function () {
+            smartLR();
+        };
+        btnRoot.appendChild(SLRBtn);
+        let SRRBtn = makeButton("redo","智能右转","yellow");
+        SRRBtn.onclick = function () {
+            smartRR();
+        };
+        btnRoot.appendChild(SRRBtn);
+        let ZOBtn = makeButton("arrow-expand-all","放大","cadetblue");
         ZOBtn.onclick = function () {
             zoomIn();
         };
         btnRoot.appendChild(ZOBtn);
-        let ZIBtn = makeButton("magnify-minus-outline","缩小");
+        let ZIBtn = makeButton("arrow-collapse-all","缩小","cadetblue");
         ZIBtn.onclick = function () {
             zoomOut();
         };
         btnRoot.appendChild(ZIBtn);
-        let CRBtn = makeButton("format-rotate-90","清除旋转");
+        let MUBtn = makeButton("pan-up","上移","forestgreen");
+        MUBtn.onclick = function () {
+            moveUp();
+        };
+        btnRoot.appendChild(MUBtn);
+        let MDBtn = makeButton("pan-down","下移","forestgreen");
+        MDBtn.onclick = function () {
+            moveDown();
+        };
+        btnRoot.appendChild(MDBtn);
+        let MLBtn = makeButton("pan-left","左移","forestgreen");
+        MLBtn.onclick = function () {
+            moveLeft();
+        };
+        btnRoot.appendChild(MLBtn);
+        let MRBtn = makeButton("pan-right","右移","forestgreen");
+        MRBtn.onclick = function () {
+            moveRight();
+        };
+        btnRoot.appendChild(MRBtn);
+        let CRBtn = makeButton("backup-restore","清除旋转","orange");
         CRBtn.onclick = function () {
             cR();
         };
         btnRoot.appendChild(CRBtn);
-        let CZBtn = makeButton("magnify-remove-outline","清除缩放");
+        let CZBtn = makeButton("magnify-remove-outline","清除缩放","cadetblue");
         CZBtn.onclick = function () {
             cZ();
         };
         btnRoot.appendChild(CZBtn);
-        let RSBtn = makeButton("close-circle-outline","重置");
+        let CMBtn = makeButton("pan","清除位移","forestgreen");
+        CMBtn.onclick = function () {
+            cM();
+        };
+        btnRoot.appendChild(CMBtn);
+        let RSBtn = makeButton("close-circle-outline","重置","orangered");
         RSBtn.onclick = function () {
             cleanEffects();
             clearStyles();
