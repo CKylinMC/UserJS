@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.5
+// @version      0.6
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -562,8 +562,12 @@
         document.body.appendChild(btnRoot);
     }
 
-    addStyle(".bilibili-player-video video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
-    bindKeys();
-    injectButtons();
-    videoDetect();
+    async function startInject(){
+        addStyle(".bilibili-player-video video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
+        bindKeys();
+        videoDetect();
+        while(!(await playerReady())) await wait(100);
+        injectButtons();
+    }
+    startInject();
 })();
