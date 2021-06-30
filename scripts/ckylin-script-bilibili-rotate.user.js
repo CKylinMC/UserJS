@@ -608,29 +608,33 @@
         document.head.innerHTML += `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
         addStyle(`
         #ckrotate-hidden-btn{
+            z-index: 9999;
             position: fixed;
             left: -15px;
             width: 30px;
             height: 30px;
             background: black;
-            opacity: 0.75;
+            opacity: 0.1;
             color: white;
             cursor: pointer;
             border-radius: 50%;
             text-align: right;
             line-height: 30px;
-            transition: all .3s;
+            transition: opacity .3s 1s, background .3s, color .3s;
             top: 120px;
             top: 30vh;
         }
         #ckrotate-hidden-btn:hover{
+            transition: opacity .3s 0s, background .3s, color .3s;
             background: white;
             color: black;
+            opacity: 0.75;
         }
         #ckrotate-hidden-btn.hide{
             left: -40px;
         }
         #ckrotate-btn-base{
+            z-index: 9999;
             position: fixed;
             top: 55px;
             left: 20px;
@@ -860,8 +864,9 @@
             clearStyles();
         };
         btnRoot.appendChild(RSBtn);
-        document.body.appendChild(toggle);
-        document.body.appendChild(btnRoot);
+        const injectBase = document.querySelector("#bilibiliPlayer") || document.body;
+        injectBase.appendChild(toggle);
+        injectBase.appendChild(btnRoot);
     }
 
     function enableAnim() {
