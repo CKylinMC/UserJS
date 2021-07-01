@@ -5,10 +5,10 @@
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
-// @include      http*://www.bilibili.com/medialist/play/*
-// @include      http*://www.bilibili.com/bangumi/play/*
-// @include      http*://bangumi.bilibili.com/anime/*/play*
-// @include      http*://bangumi.bilibili.com/movie/*
+// @include      https://www.bilibili.com/medialist/play/*
+// @include      https://www.bilibili.com/bangumi/play/*
+// @include      https://bangumi.bilibili.com/anime/*/play*
+// @include      https://bangumi.bilibili.com/movie/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
@@ -138,7 +138,7 @@
             if (this.mouseDown) {
                 this.mouseDown = false;
                 this.downTime = 0;
-                this.emitter.emit("click", e);
+                this.emitter.emit("hold", e);
             }
         }
 
@@ -715,7 +715,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => leftR(lastdelta.y))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,false,{x:e.clientX,y:e.clientY},{down:"rotate-right",up:"rotate-left"});
+                await (await dragger.regHandler((delta, lastdelta) => leftR(lastdelta.y))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // LRBtn.onclick = function () {
         //     leftR();
@@ -736,7 +737,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => rightR(lastdelta.y))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,false,{x:e.clientX,y:e.clientY},{up:"rotate-right",down:"rotate-left"});
+                await (await dragger.regHandler((delta, lastdelta) => rightR(lastdelta.y))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // RRBtn.onclick = function () {
         //     rightR();
@@ -772,7 +774,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => zoomIn(lastdelta.y * 0.01))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,false,{x:e.clientX,y:e.clientY},{up:"arrow-expand-all",down:"arrow-collapse-all"});
+                await (await dragger.regHandler((delta, lastdelta) => zoomIn(lastdelta.y * 0.01))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // ZOBtn.onclick = function () {
         //     zoomIn();
@@ -785,7 +788,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => zoomOut(lastdelta.y * 0.01))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,false,{x:e.clientX,y:e.clientY},{down:"arrow-expand-all",up:"arrow-collapse-all"});
+                await (await dragger.regHandler((delta, lastdelta) => zoomOut(lastdelta.y * 0.01))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // ZIBtn.onclick = function () {
         //     zoomOut();
@@ -798,7 +802,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,true,{x:e.clientX,y:e.clientY});
+                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // MUBtn.onclick = function () {
         //     moveUp();
@@ -811,7 +816,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,true,{x:e.clientX,y:e.clientY});
+                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // MDBtn.onclick = function () {
         //     moveDown();
@@ -824,7 +830,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,true,{x:e.clientX,y:e.clientY});
+                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // MLBtn.onclick = function () {
         //     moveLeft();
@@ -837,7 +844,8 @@
             })
             .onhold(async (e) => {
                 disableAnim();
-                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => enableAnim());
+                showArrows(btnRoot,true,{x:e.clientX,y:e.clientY});
+                await (await dragger.regHandler((delta, lastdelta) => movePos(lastdelta.x*-1, lastdelta.y*-1))).startDrag(e).waitForDragger(false).then(() => {enableAnim();hideArrows()});
             })
         // MRBtn.onclick = function () {
         //     moveRight();
@@ -867,6 +875,83 @@
         const injectBase = document.querySelector("#bilibiliPlayer") || document.body;
         injectBase.appendChild(toggle);
         injectBase.appendChild(btnRoot);
+    }
+
+    function showArrows(domRoot = document.body, horizontal=false, pos = {x:0,y:0},
+                        iconlist = {}){
+        let icons = {
+            icon:iconlist.icon||"hand-right",
+            up:iconlist.up||"arrow-up",
+            down:iconlist.down||"arrow-down",
+            left:iconlist.left||"arrow-left",
+            right:iconlist.right||"arrow-right"
+        }
+        addStyle(`
+        #CKROTATE-arrows-base{
+            position:fixed;
+            pointer-events: none;
+            width: 60px;
+            height: 60px;
+            background: #00a1d6;
+            box-shadow: 0px 0px 8px #00a1d6;
+            transform: translate(-50%,-50%);
+            text-align: center;
+            border-radius: 50%;
+            border: solid 3px #00a1d6;
+        }
+        .CKROTATE-arrow-item{
+            padding:0;
+            margin: 0 auto;
+            line-height: 20px;
+            /*height: 20px;*/
+            color: white;
+        }
+        `,"CKROTATE-UI-ARROWS");
+        hideArrows();
+        const baseDom = document.createElement("div");
+        baseDom.id="CKROTATE-arrows-base";
+        baseDom.style.top = pos.y+"px";
+        baseDom.style.left = pos.x+"px";
+
+        const UpArrow = document.createElement("div");
+        UpArrow.classList.add("CKROTATE-arrow-item");
+        UpArrow.innerHTML = `<i class="mdi mdi-18px mdi-${icons.up}"></i>`;
+        baseDom.appendChild(UpArrow);
+
+        const LRArrow = document.createElement("div");
+        LRArrow.classList.add("CKROTATE-arrow-item");
+        if(horizontal){
+            const LeftArrow = document.createElement("div");
+            LeftArrow.classList.add("CKROTATE-arrow-item");
+            LeftArrow.innerHTML = `<i class="mdi mdi-18px mdi-${icons.left}"></i>`;
+            LeftArrow.style.float="left";
+            LRArrow.appendChild(LeftArrow);
+            const RightArrow = document.createElement("div");
+            RightArrow.classList.add("CKROTATE-arrow-item");
+            RightArrow.innerHTML = `<i class="mdi mdi-18px mdi-${icons.right}"></i>`;
+            RightArrow.style.float="right";
+            LRArrow.appendChild(RightArrow);
+        }else{
+            LRArrow.innerHTML = `<i class="mdi mdi-18px"></i>`;
+        }
+        baseDom.appendChild(LRArrow);
+
+        const CenterPoint = document.createElement("div");
+        CenterPoint.classList.add("CKROTATE-arrow-item");
+        CenterPoint.innerHTML = `<i class="mdi mdi-18px mdi-${icons.icon}"></i>`;
+        baseDom.appendChild(CenterPoint);
+
+        const DownArrow = document.createElement("div");
+        DownArrow.classList.add("CKROTATE-arrow-item");
+        DownArrow.innerHTML = `<i class="mdi mdi-18px mdi-${icons.down}"></i>`;
+        baseDom.appendChild(DownArrow);
+
+        domRoot.appendChild(baseDom);
+    }
+
+    function hideArrows(){
+        let olddom = document.querySelector("#CKROTATE-arrows-base");
+        if(olddom) olddom.remove();
     }
 
     function enableAnim() {
