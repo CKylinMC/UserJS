@@ -409,6 +409,9 @@
         }
         return datas.checked;
     }
+    const toggleSwitch = (mid,status = false)=>{
+        unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
+    }
     const upinfoline = async data => {
         let invalid = isInvalid(data);
         return await makeDom("li", async item => {
@@ -433,7 +436,7 @@
                 toggle.checked = datas.checked.includes(data.mid + "") || datas.checked.includes(parseInt(data.mid));
                 toggle.setAttribute("data-targetmid", data.mid);
                 toggle.onchange = e => {
-                    unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${data.mid}|${toggle.checked ? 1 : 0}`)
+                    toggleSwitch(data.mid,toggle.checked);
                 }
                 // toggle.onchange = e =>{
                 //     if(toggle.checked){
@@ -653,6 +656,7 @@
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '筛选';
+                            //TODO
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
@@ -765,7 +769,163 @@
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = '工具';
+                            btn.innerHTML = '快速工具';
+                            btn.onclick = async e => {
+                                openModal("选择排序方式", await makeDom("div", async select => {
+                                    select.style.alignContent = "stretch";
+                                    [
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "加选: 所有已注销用户";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理加选");
+                                                for(let d of datas.followings){
+                                                    if(isInvalid(d)){
+                                                        toggleSwitch(d.mid,true);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "加选: 所有两年前的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理加选");
+                                                const isLongAgo = (d)=>{
+                                                    const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
+                                                    return (d.mtime + "000") < loneAgo;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(isLongAgo(d)){
+                                                        toggleSwitch(d.mid,true);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "加选: 所有两个月内的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理加选");
+                                                const isNearly = d=>{
+                                                    const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
+                                                    return (data.mtime + "000") > nearly;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(isNearly(d)){
+                                                        toggleSwitch(d.mid,true);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有有大会员的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const hasVIP = d=>{
+                                                    return d.vip.vipType!==0;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(hasVIP(d)){
+                                                        toggleSwitch(d.mid,false);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有认证账号的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const isVerified = d=>{
+                                                    return d.official_verify.type>0;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(isVerified(d)){
+                                                        toggleSwitch(d.mid,false);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有特别关注的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const isSpecial = d=>{
+                                                    return d.special===1;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(isSpecial(d)){
+                                                        toggleSwitch(d.mid,false);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有互相关注的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const isFans = d=>{
+                                                    return d.attribute===6;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(isFans(d)){
+                                                        toggleSwitch(d.mid,false);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有有分组的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const hasGroup = d=>{
+                                                    return d.tag===null;
+                                                }
+                                                for(let d of datas.followings){
+                                                    if(hasGroup(d)){
+                                                        toggleSwitch(d.mid,false);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "不修改|取消";
+                                            btn.onclick = e => hideModal();
+                                        })
+                                    ].forEach(el => select.appendChild(el));
+                                }));
+                            }
                         }))
                     });
                     const list = await makeDom("div", async list => {
