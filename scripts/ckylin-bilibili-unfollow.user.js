@@ -39,6 +39,13 @@
         await _(func, d, ...args);
         return d;
     };
+    /* StackOverflow 10730362 */
+    const getCookie = (name)=>{
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const getCSRFToken = ()=>getCookie("bili_jct");
     const getBgColor = () => {/*兼容blbl进化的夜间模式*/
         try {
             let color = getComputedStyle(document.body).backgroundColor;
@@ -89,11 +96,45 @@
         }
     };
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
+    const getUnfolURL = (uid, csrf) => `https://api.bilibili.com/x/relation/modify?fid=${uid}&act=2&re_src=11&jsonp=jsonp&csrf=${csrf}`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
         credentials: "include"
     });
+    const getPostRequest = path => new Request(path, {
+        method: 'POST',
+        headers: getHeaders(),
+        credentials: "include"
+    });
+    const unfollowUser = async uid=>{
+        try{
+            const jsonData = await (await fetch(getPostRequest(getUnfolURL(uid, getCSRFToken())))).json()
+            if(jsonData&&jsonData.code===0) return {ok:true,res:""};
+            return {ok:false,uid,res:jsonData.message};
+        }catch (e) {
+            return {ok:false,uid,res:e.message};
+        }
+    }
+    const unfollowUsers = async uids=>{
+        let okgroup = [];
+        let errgroup = [];
+        for(let uid of uids){
+            setInfoBar(`正在取关 ${uid} ...`)
+            let result = await unfollowUser(uid);
+            log(result);
+            if(result.ok){
+                okgroup.push(uid);
+            }else{
+                errgroup.push(uid);
+            }
+        }
+        setInfoBar(`取关完成`)
+        return {
+            ok: errgroup.length === 0,
+            okgroup,errgroup
+        }
+    }
     const fetchFollowings = async (uid, page = 1) => {
         let retry = cfg.retrial;
         while (retry-- > 0) {
@@ -549,7 +590,21 @@
             item.setAttribute("title", title);
         });
     }
-
+    const doUnfollowChecked = async ()=>{
+        const checked = datas.checked;
+        if(!checked || checked.length===0) return alertModal("无法操作","实际选中数量为0，没有任何人被选中取关。","");
+        //alertModal("调试|模拟取关",`取关的列表：<br>`+checked.join(","));
+        await alertModal("正在取消关注...",`正在取关${checked.length}个用户，请耐心等候~`);
+        const result = await unfollowUsers(checked);
+        if(result.ok){
+            await alertModal("操作结束",`已取关 ${result.okgroup.length} 个用户。`,"继续");
+        }else{
+            await alertModal("操作结束",`已取关 ${result.okgroup.length} 个用户，但有另外 ${result.errgroup.length} 个用户取关失败。`,"继续");
+        }
+        datas.checked = [];
+        log("取关结果",result);
+        createMainWindow();
+    }
     const isInvalid = data => {
         return (data.face === "http://i0.hdslb.com/bfs/face/member/noface.jpg"
             || data.face === "https://i0.hdslb.com/bfs/face/member/noface.jpg")
@@ -606,7 +661,7 @@
                             btn.style.background = "red";
                             btn.innerHTML = "确认";
                             btn.onclick = e => {
-                                alertModal("施工中", "此功能尚未实现！", "返回");
+                                doUnfollowChecked()
                             }
                         }),
                         await makeDom("button", btn => {
