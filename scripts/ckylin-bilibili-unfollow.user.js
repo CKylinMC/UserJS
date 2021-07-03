@@ -4,8 +4,8 @@
 // @version      0.01
 // @description  快速查找和清理已关注但是不活跃的用户
 // @author       CKylinMC
-// @include      https://space.bilibili.com/*/fans/follow
-// @include      https://space.bilibili.com/*/fans/follow?tagid=-1
+// @include      http://space.bilibili.com/*
+// @include      https://space.bilibili.com/*
 // @connect      api.bilibili.com
 // @grant        GM_registerMenuCommand
 // @grant        GM_getResourceText
@@ -39,6 +39,15 @@
         await _(func, d, ...args);
         return d;
     };
+    const getBgColor = () => {/*兼容blbl进化的夜间模式*/
+        try {
+            let color = getComputedStyle(document.body).backgroundColor;
+            if (color === "rgba(0, 0, 0, 0)") return "white";
+            else return color;
+        } catch (e) {
+            return "white"
+        }
+    }
 
     async function waitForAttribute(q, attr) {
         let i = 50;
@@ -63,11 +72,11 @@
         //     if (res && res.userInfo && res.userInfo.mid) return res.userInfo.mid;
         //     else {
         //         setInfoBar("正在查询当前用户UID - 方案3");
-                setInfoBar("正在查询当前用户UID");
-                let paths = location.pathname.split('/');
-                if (paths.length > 1) {
-                    return paths[1];
-                } else throw "Failed to get current ID";
+        setInfoBar("正在查询当前用户UID");
+        let paths = location.pathname.split('/');
+        if (paths.length > 1) {
+            return paths[1];
+        } else throw "Failed to get current ID";
         //     }
         // } else return res;
     };
@@ -157,10 +166,6 @@
     const getFloatWindow = () => {
         addMdiBtnStyle();
         addStyle(`
-        #CKUNFOLLOW.hide{
-            opacity: 0;
-            pointer-events: none;
-        }
         #CKUNFOLLOW{
             position: fixed;
             z-index: 99000;
@@ -176,6 +181,14 @@
             transform: translate(-50%,-50%);
             transition: all .3s;
             box-shadow: 0 2px 8px grey;
+        }
+        #CKUNFOLLOW.hide{
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%,-50%) scale(0.6);
+        }
+        #CKUNFOLLOW.show{
+            transform: translate(-50%,-50%) scale(1);
         }
         #CKUNFOLLOW-container{
             width: 100%;
@@ -204,6 +217,7 @@
             width: 100%;
             display: flex;
             padding: 6px;
+            color: #aaa;
         }
         .CKUNFOLLOW-data-inforow:hover{
             background: #2196f361;
@@ -266,8 +280,21 @@
         if (bar) bar.innerHTML = content;
         return bar;
     }
+    const divider = () => {
+        const div = document.createElement("div");
+        div.style.width = "30%";
+        div.style.borderBottom = "solid grey 2px";
+        div.style.lineHeight = "3px";
+        div.style.margin = "0 auto";
+        div.style.marginBottom = "3px";
+        div.style.height = "6px";
+        div.style.overflow = "hidden";
+        div.style.padding = "0";
+        return div;
+    }
     const showPanel = () => {
         const panel = getFloatWindow();
+        panel.style.backgroundColor = getBgColor();
         panel.className = "show";
     }
     const hidePanel = () => {
@@ -280,6 +307,11 @@
         modal.setTitle(title);
         modal.setContent(content);
         modal.show();
+    }
+    const isModalShowing = () => {
+        let modal = get("#CKUNFOLLOW-modal");
+        if (modal) return modal.classList.contains("show");
+        else return false;
     }
     const hideModal = () => {
         let modal = get("#CKUNFOLLOW-modal");
@@ -373,6 +405,8 @@
         modal.close = closeModal;
         modal.open = openModal;
         modal.show = () => {
+            modal.style.backgroundColor = getBgColor();
+
             modal.className = "show";
         }
         modal.hide = () => {
@@ -409,7 +443,7 @@
         }
         return datas.checked;
     }
-    const toggleSwitch = (mid,status = false)=>{
+    const toggleSwitch = (mid, status = false) => {
         unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
     }
     const upinfoline = async data => {
@@ -436,7 +470,7 @@
                 toggle.checked = datas.checked.includes(data.mid + "") || datas.checked.includes(parseInt(data.mid));
                 toggle.setAttribute("data-targetmid", data.mid);
                 toggle.onchange = e => {
-                    toggleSwitch(data.mid,toggle.checked);
+                    toggleSwitch(data.mid, toggle.checked);
                 }
                 // toggle.onchange = e =>{
                 //     if(toggle.checked){
@@ -521,56 +555,68 @@
             || data.face === "https://i0.hdslb.com/bfs/face/member/noface.jpg")
             && data.uname === "账号已注销";
     }
-    const createUnfollowModal = async () => {
-        refreshChecked();
-        if(datas.checked.length===0){
-            openModal("取消关注", await makeDom("div", async container=>{
-                container.appendChild(await makeDom("div",tip=>{
-                    tip.innerHTML = `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`;
-                }))
+    const alertModal = async (title = "", content = "", okbtn = "hidden") => {
+        if (isModalShowing()) {
+            hideModal();
+            await wait(200);
+        }
+        openModal(title, await makeDom("div", async container => {
+            container.appendChild(await makeDom("div", tip => {
+                tip.innerHTML = content;
+            }))
+            if (okbtn !== "hidden")
                 container.appendChild(await makeDom("div", async btns => {
                     btns.style.display = "flex";
                     btns.appendChild(await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
-                        btn.innerHTML = "知道了";
+                        btn.innerHTML = okbtn;
                         btn.onclick = e => hideModal();
                     }))
                 }))
-            }))
-        }else
-        openModal("取关这些Up？", await makeDom("div", async container => {
-            container.appendChild(await makeDom("div", tip => {
-                tip.style.color = "red";
-                tip.style.fontWeight = "bold";
-                tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
-            }))
-            container.appendChild(await makeDom("div", async btns => {
-                btns.style.display = "flex";
-                [
-                    await makeDom("button", btn => {
-                        btn.className = "CKUNFOLLOW-toolbar-btns";
-                        btn.style.background = "red";
-                        btn.innerHTML = "确认";
-                    }),
-                    await makeDom("button", btn => {
-                        btn.className = "CKUNFOLLOW-toolbar-btns";
-                        btn.innerHTML = "取消";
-                        btn.onclick = e => hideModal();
-                    }),
-                ].forEach(el => btns.appendChild(el));
-            }))
-            container.appendChild(await makeDom("div", async unfolistdom => {
-                unfolistdom.className = "CKUNFOLLOW-scroll-list";
-                unfolistdom.style.width = "100%";
-                unfolistdom.style.maxHeight = "calc(50vh - 100px)";
-                const unfolist = [];
-                for (let unfoid of datas.checked) {
-                    if (unfoid in datas.mappings)
-                        unfolist.push(datas.mappings[unfoid])
-                }
-                await renderListTo(unfolistdom, unfolist);
-            }))
         }))
+    }
+    const createUnfollowModal = async () => {
+        refreshChecked();
+        if (datas.checked.length === 0) {
+            alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
+        } else
+            openModal("取关这些Up？", await makeDom("div", async container => {
+                container.appendChild(await makeDom("div", tip => {
+                    tip.style.color = "red";
+                    tip.style.fontWeight = "bold";
+                    tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
+                }))
+                container.appendChild(divider());
+                container.appendChild(await makeDom("div", async unfolistdom => {
+                    unfolistdom.className = "CKUNFOLLOW-scroll-list";
+                    unfolistdom.style.width = "100%";
+                    unfolistdom.style.maxHeight = "calc(50vh - 100px)";
+                    const unfolist = [];
+                    for (let unfoid of datas.checked) {
+                        if (unfoid in datas.mappings)
+                            unfolist.push(datas.mappings[unfoid])
+                    }
+                    await renderListTo(unfolistdom, unfolist);
+                }))
+                container.appendChild(await makeDom("div", async btns => {
+                    btns.style.display = "flex";
+                    [
+                        await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                            btn.style.background = "red";
+                            btn.innerHTML = "确认";
+                            btn.onclick = e => {
+                                alertModal("施工中", "此功能尚未实现！", "返回");
+                            }
+                        }),
+                        await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                            btn.innerHTML = "取消";
+                            btn.onclick = e => hideModal();
+                        }),
+                    ].forEach(el => btns.appendChild(el));
+                }))
+            }))
     }
     const createMainWindow = async () => {
         showPanel();
@@ -646,8 +692,7 @@
                                         if (el.checked === true) {
                                             shouldCheck = !shouldCheck;
                                         } else {
-                                            el.checked = shouldCheck;
-                                            el.onchange();
+                                            if (shouldCheck) setToggleStatus(el.getAttribute("data-targetmid"), true);
                                         }
                                     }
                                 }
@@ -656,7 +701,9 @@
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '筛选';
-                            //TODO
+                            btn.onclick = async e => {
+                                alertModal("施工中", "此功能尚未实现！", "返回");
+                            }
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
@@ -760,6 +807,18 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
+                                            btn.innerHTML = "互相关注优先";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在按互相关注优先排序...");
+                                                datas.followings.sort((x, y) => parseInt(y.attribute) - parseInt(x.attribute))
+                                                renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                                            }
+                                        }),
+                                        divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
                                             btn.innerHTML = "不修改|取消";
                                             btn.onclick = e => hideModal();
                                         })
@@ -781,9 +840,9 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理加选");
-                                                for(let d of datas.followings){
-                                                    if(isInvalid(d)){
-                                                        toggleSwitch(d.mid,true);
+                                                for (let d of datas.followings) {
+                                                    if (isInvalid(d)) {
+                                                        toggleSwitch(d.mid, true);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -796,13 +855,13 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理加选");
-                                                const isLongAgo = (d)=>{
+                                                const isLongAgo = (d) => {
                                                     const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
                                                     return (d.mtime + "000") < loneAgo;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(isLongAgo(d)){
-                                                        toggleSwitch(d.mid,true);
+                                                for (let d of datas.followings) {
+                                                    if (isLongAgo(d)) {
+                                                        toggleSwitch(d.mid, true);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -815,13 +874,52 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理加选");
-                                                const isNearly = d=>{
+                                                const isNearly = d => {
                                                     const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
                                                     return (data.mtime + "000") > nearly;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(isNearly(d)){
-                                                        toggleSwitch(d.mid,true);
+                                                for (let d of datas.followings) {
+                                                    if (isNearly(d)) {
+                                                        toggleSwitch(d.mid, true);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有两年前的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const isLongAgo = (d) => {
+                                                    const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
+                                                    return (d.mtime + "000") < loneAgo;
+                                                }
+                                                for (let d of datas.followings) {
+                                                    if (!isLongAgo(d)) {
+                                                        toggleSwitch(d.mid, true);
+                                                    }
+                                                }
+                                                setInfoBar("完成");
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "减选: 所有两个月内的关注";
+                                            btn.onclick = e => {
+                                                hideModal();
+                                                setInfoBar("正在处理减选");
+                                                const isNearly = d => {
+                                                    const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
+                                                    return (data.mtime + "000") > nearly;
+                                                }
+                                                for (let d of datas.followings) {
+                                                    if (!isNearly(d)) {
+                                                        toggleSwitch(d.mid, true);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -834,12 +932,12 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理减选");
-                                                const hasVIP = d=>{
-                                                    return d.vip.vipType!==0;
+                                                const hasVIP = d => {
+                                                    return d.vip.vipType !== 0;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(hasVIP(d)){
-                                                        toggleSwitch(d.mid,false);
+                                                for (let d of datas.followings) {
+                                                    if (hasVIP(d)) {
+                                                        toggleSwitch(d.mid, false);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -852,12 +950,12 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理减选");
-                                                const isVerified = d=>{
-                                                    return d.official_verify.type>0;
+                                                const isVerified = d => {
+                                                    return d.official_verify.type > 0;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(isVerified(d)){
-                                                        toggleSwitch(d.mid,false);
+                                                for (let d of datas.followings) {
+                                                    if (isVerified(d)) {
+                                                        toggleSwitch(d.mid, false);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -870,12 +968,12 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理减选");
-                                                const isSpecial = d=>{
-                                                    return d.special===1;
+                                                const isSpecial = d => {
+                                                    return d.special === 1;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(isSpecial(d)){
-                                                        toggleSwitch(d.mid,false);
+                                                for (let d of datas.followings) {
+                                                    if (isSpecial(d)) {
+                                                        toggleSwitch(d.mid, false);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -888,12 +986,12 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理减选");
-                                                const isFans = d=>{
-                                                    return d.attribute===6;
+                                                const isFans = d => {
+                                                    return d.attribute === 6;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(isFans(d)){
-                                                        toggleSwitch(d.mid,false);
+                                                for (let d of datas.followings) {
+                                                    if (isFans(d)) {
+                                                        toggleSwitch(d.mid, false);
                                                     }
                                                 }
                                                 setInfoBar("完成");
@@ -906,17 +1004,18 @@
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在处理减选");
-                                                const hasGroup = d=>{
-                                                    return d.tag===null;
+                                                const hasGroup = d => {
+                                                    return d.tag !== null;
                                                 }
-                                                for(let d of datas.followings){
-                                                    if(hasGroup(d)){
-                                                        toggleSwitch(d.mid,false);
+                                                for (let d of datas.followings) {
+                                                    if (hasGroup(d)) {
+                                                        toggleSwitch(d.mid, false);
                                                     }
                                                 }
                                                 setInfoBar("完成");
                                             }
                                         }),
+                                        divider(),
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
@@ -944,7 +1043,7 @@
                     dom.style.top = "50%";
                     dom.style.transform = "translate(-50%,-50%)";
                     dom.style.textAlign = "center";
-                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered"></i><br>获取数据出错</h2>请注意，当前仅支持查询自己的关注<br>如果打开的时自己的关注页面，请重新打开窗口重试`;
+                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered"></i><br>获取数据出错</h2>请注意，当前仅支持查询自己的关注<br>如果打开的时自己的关注页面，请重新打开窗口重试<br><button onclick="location.href='https://space.bilibili.com/'">前往你的个人空间</button>`;
                 }));
             })
     }
