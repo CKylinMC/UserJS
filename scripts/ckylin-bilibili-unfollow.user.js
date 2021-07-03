@@ -40,16 +40,6 @@
         return d;
     };
 
-    async function waitForDom(q) {
-        let i = 50;
-        let dom;
-        while (--i >= 0) {
-            if (dom = get(q)) break;
-            await wait(100);
-        }
-        return dom;
-    }
-
     async function waitForAttribute(q, attr) {
         let i = 50;
         let value;
@@ -65,17 +55,21 @@
     }
 
     const getCurrentUid = async () => {
-        let res = await waitForAttribute(unsafeWindow, "DedeUserID");
-        if (!res) {
-            res = await waitForAttribute(unsafeWindow, "UserStatus");
-            if (res && res.userInfo && res.userInfo.mid) return res.userInfo.mid;
-            else {
+        // setInfoBar("正在查询当前用户UID - 方案1");
+        // let res = await waitForAttribute(unsafeWindow, "DedeUserID");
+        // if (!res) {
+        //     setInfoBar("正在查询当前用户UID - 方案2");
+        //     res = await waitForAttribute(unsafeWindow, "UserStatus");
+        //     if (res && res.userInfo && res.userInfo.mid) return res.userInfo.mid;
+        //     else {
+        //         setInfoBar("正在查询当前用户UID - 方案3");
+                setInfoBar("正在查询当前用户UID");
                 let paths = location.pathname.split('/');
                 if (paths.length > 1) {
                     return paths[1];
                 } else throw "Failed to get current ID";
-            }
-        } else return res;
+        //     }
+        // } else return res;
     };
     const getHeaders = () => {
         return {
@@ -123,15 +117,16 @@
         datas.pages = Math.floor(datas.total / 50) + (datas.total % 50 ? 1 : 0);
         datas.followings = datas.followings.concat(firstPageData.data.list);
         datas.fetched += firstPageData.data.list.length;
-        firstPageData.data.list.forEach(it=>{
+        firstPageData.data.list.forEach(it => {
             datas.mappings[it.mid] = it;
         })
+        currentPageNum += 1;
         for (; currentPageNum <= datas.pages; currentPageNum++) {
             const currentData = await fetchFollowings(uid, currentPageNum);
             if (!currentData) break;
             datas.followings = datas.followings.concat(currentData.data.list);
             datas.fetched += currentData.data.list.length;
-            currentData.data.list.forEach(it=>{
+            currentData.data.list.forEach(it => {
                 datas.mappings[it.mid] = it;
             });
             setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
@@ -279,18 +274,18 @@
         const panel = getFloatWindow();
         panel.className = "hide";
     }
-    const openModal = (title = '',content)=>{
+    const openModal = (title = '', content) => {
         let modal = get("#CKUNFOLLOW-modal");
-        if(!modal) modal = initModal();
+        if (!modal) modal = initModal();
         modal.setTitle(title);
         modal.setContent(content);
         modal.show();
     }
-    const hideModal = ()=>{
+    const hideModal = () => {
         let modal = get("#CKUNFOLLOW-modal");
-        if(modal) modal.hide();
+        if (modal) modal.hide();
     }
-    const initModal = ()=>{
+    const initModal = () => {
         addStyle(`
         #CKUNFOLLOW-modal{
             position: fixed;
@@ -299,8 +294,8 @@
             left: 50%;
             width: 300px;
             width: 30vw;
-            height: 300px;
-            height: 50vh;
+            /*height: 300px;
+            height: 50vh;*/
             background: white;
             border-radius: 8px;
             padding: 12px;
@@ -326,7 +321,7 @@
             justify-content: space-between;
             align-items: stretch;
         }
-        `,"CKUNFOLLOW-modal-css","unique");
+        `, "CKUNFOLLOW-modal-css", "unique");
         const modal = document.createElement("div");
         modal.id = "CKUNFOLLOW-modal";
         modal.className = "hide";
@@ -335,7 +330,7 @@
         header.className = "CKUNFOLLOW-modal-title"
         modal.appendChild(header);
 
-        modal.setTitle = (t='')=>{
+        modal.setTitle = (t = '') => {
             header.innerHTML = t;
         }
 
@@ -343,92 +338,114 @@
         contents.className = "CKUNFOLLOW-modal-content";
         modal.appendChild(contents);
 
-        modal.setContent = async (c)=>{
+        modal.setContent = async (c) => {
             let ct = c;
-            if(ct instanceof Function){
+            if (ct instanceof Function) {
                 ct = await ct();
             }
-            if(ct instanceof HTMLElement){
+            if (ct instanceof HTMLElement) {
                 contents.innerHTML = '';
                 contents.appendChild(ct);
                 return;
             }
-            if(ct instanceof String){
+            if (ct instanceof String) {
                 contents.innerHTML = ct;
                 return;
             }
-            console.log("unknown: ",ct);
+            console.log("unknown: ", ct);
         }
-        modal.addContent = async (c)=>{
+        modal.addContent = async (c) => {
             let ct = c;
-            if(ct instanceof Function){
+            if (ct instanceof Function) {
                 ct = await ct();
             }
-            if(ct instanceof HTMLElement){
+            if (ct instanceof HTMLElement) {
                 contents.appendChild(ct);
                 return;
             }
-            if(ct instanceof String){
-                contents.innerHTML+= ct;
+            if (ct instanceof String) {
+                contents.innerHTML += ct;
                 return;
             }
-            console.log("unknown: ",ct);
+            console.log("unknown: ", ct);
         }
 
         modal.close = closeModal;
         modal.open = openModal;
-        modal.show = ()=>{
+        modal.show = () => {
             modal.className = "show";
         }
-        modal.hide = ()=>{
+        modal.hide = () => {
             modal.className = "hide";
         }
 
         document.body.appendChild(modal);
         return modal;
     }
-    const closeModal = ()=>{
+    const closeModal = () => {
         let modal = get("#CKUNFOLLOW-modal");
-        if(modal)modal.remove();
+        if (modal) modal.remove();
     }
     const addMdiBtnStyle = () => {
         if (document.querySelector("#CKUNFOLLOW-MDICSS")) return;
         document.head.innerHTML += `<link id="CKUNFOLLOW-MDICSS" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`;
     }
+    const refreshChecked = () => {
+        const all = getAll("#CKUNFOLLOW .CKUNFOLLOW-data-inforow-toggle");
+        if (!all) return;
+        for (let it of all) {
+            const mid = it.getAttribute("data-targetmid");
+            if (it.checked) {
+                if (!datas.checked.includes(mid) && !datas.checked.includes(parseInt(mid))) {
+                    datas.checked.push(mid);
+                }
+            } else {
+                if (datas.checked.includes(mid)) {
+                    datas.checked.splice(datas.checked.indexOf(mid), 1);
+                } else if (datas.checked.includes(parseInt(mid))) {
+                    datas.checked.splice(datas.checked.indexOf(parseInt(mid)), 1);
+                }
+            }
+        }
+        return datas.checked;
+    }
     const upinfoline = async data => {
         let invalid = isInvalid(data);
         return await makeDom("li", async item => {
             item.className = "CKUNFOLLOW-data-inforow";
-            item.onclick = e=>{
-                if(e.target.classList.contains("CKUNFOLLOW-data-inforow-name")){
-                    open("https://space.bilibili.com/"+data.mid);
-                }else if(e.target.tagName!=="INPUT"){
+            item.onclick = e => {
+                if (e.target.classList.contains("CKUNFOLLOW-data-inforow-name")) {
+                    open("https://space.bilibili.com/" + data.mid);
+                } else if (e.target.tagName !== "INPUT") {
                     const toggle = item.querySelector("input");
                     toggle.checked = !toggle.checked;
                 }
             }
-            item.setAttribute("data-special",data.special);
-            item.setAttribute("data-invalid",data.invalid?"1":"0");
-            item.setAttribute("data-fans",data.attribute===6?"1":"0");
-            item.setAttribute("data-vip",data.vip.vipType!==0?"1":"0");
-            item.setAttribute("data-official",data.official_verify.type===1?"1":"0");
-            let title = data.mid+"";
+            item.setAttribute("data-special", data.special);
+            item.setAttribute("data-invalid", data.invalid ? "1" : "0");
+            item.setAttribute("data-fans", data.attribute === 6 ? "1" : "0");
+            item.setAttribute("data-vip", data.vip.vipType !== 0 ? "1" : "0");
+            item.setAttribute("data-official", data.official_verify.type === 1 ? "1" : "0");
+            let title = data.mid + "";
             item.appendChild(await makeDom("input", toggle => {
                 toggle.className = "CKUNFOLLOW-data-inforow-toggle";
                 toggle.type = "checkbox";
-                toggle.checked = datas.checked.includes(data.mid);
+                toggle.checked = datas.checked.includes(data.mid + "") || datas.checked.includes(parseInt(data.mid));
                 toggle.setAttribute("data-targetmid", data.mid);
-                toggle.onchange = e =>{
-                    if(toggle.checked){
-                        if(!datas.checked.includes(data.mid)){
-                            datas.checked.push(data.mid);
-                        }
-                    }else{
-                        if(datas.checked.includes(data.mid)){
-                            datas.checked.splice(datas.checked.indexOf(data.mid),1);
-                        }
-                    }
+                toggle.onchange = e => {
+                    unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${data.mid}|${toggle.checked ? 1 : 0}`)
                 }
+                // toggle.onchange = e =>{
+                //     if(toggle.checked){
+                //         if(!datas.checked.includes(data.mid)){
+                //             datas.checked.push(data.mid);
+                //         }
+                //     }else{
+                //         if(datas.checked.includes(data.mid)){
+                //             datas.checked.splice(datas.checked.indexOf(data.mid),1);
+                //         }
+                //     }
+                // }
             }));
             item.appendChild(await makeDom("img", avatar => {
                 avatar.src = data.face;
@@ -449,11 +466,11 @@
                     name.style.fontWeight = "bold";
                     if (data.special === 1) {
                         name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="color:orangered!important" title="特别关注"></i>` + name.innerHTML;
-                        title+=" | 特别关注";
+                        title += " | 特别关注";
                     }
                     if (data.attribute === 6) {
                         name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="color:orangered!important" title="互相关注"></i>` + name.innerHTML;
-                        title+=" | 互相关注";
+                        title += " | 互相关注";
                     }
                     if (data.vip.vipType !== 0) {
                         name.style.color = "#e91e63";
@@ -461,39 +478,38 @@
                     if (data.official_verify.type === 1) {
                         name.style.textDecoration = "underline";
                         name.style.color = "#c67927";
-                        title+=" | 认证账号";
+                        title += " | 认证账号";
                     }
                 }
             }));
             item.appendChild(await makeDom("span", subtime => {
                 subtime.style.flex = "1";
-                subtime.innerHTML = "关注于" + (new Intl.DateTimeFormat('zh-CN').format(data.mtime+"000"));
-                const nearly = (new Date).getTime()-(60*60*24*7*4*3*1000);
-                const loneAgo = (new Date).getTime()-(60*60*24*7*4*12*2*1000);
-                if((data.mtime+"000")>nearly){
-                    title+=" | 两个月内关注";
-                }else if((data.mtime+"000")<loneAgo){
-                    title+=" | 至少两年前关注";
+                subtime.innerHTML = "关注于" + (new Intl.DateTimeFormat('zh-CN').format(data.mtime + "000"));
+                const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
+                const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
+                if ((data.mtime + "000") > nearly) {
+                    title += " | 两个月内关注";
+                } else if ((data.mtime + "000") < loneAgo) {
+                    title += " | 至少两年前关注";
                 }
             }));
             item.appendChild(await makeDom("span", mark => {
                 mark.style.flex = "1";
-                if(invalid) {
-                    title+=" | 账号已注销";
-                }
-                else{
+                if (invalid) {
+                    title += " | 账号已注销";
+                } else {
                     if (data.special === 1) {
                         mark.innerHTML = "特别关注&nbsp;&nbsp;";
                     }
                     if (data.official_verify.type === 1) {
-                        mark.innerText = data.official_verify.desc.substring(0,15);
-                    }else if (data.vip.vipType !== 0) {
-                        mark.innerText = data.vip.vipType===1?"大会员":"年费大会员"
-                        title+=" | "+mark.innerText;
+                        mark.innerText = data.official_verify.desc.substring(0, 15);
+                    } else if (data.vip.vipType !== 0) {
+                        mark.innerText = data.vip.vipType === 1 ? "大会员" : "年费大会员"
+                        title += " | " + mark.innerText;
                     }
                 }
             }));
-            item.setAttribute("title",title);
+            item.setAttribute("title", title);
         });
     }
 
@@ -502,7 +518,57 @@
             || data.face === "https://i0.hdslb.com/bfs/face/member/noface.jpg")
             && data.uname === "账号已注销";
     }
-
+    const createUnfollowModal = async () => {
+        refreshChecked();
+        if(datas.checked.length===0){
+            openModal("取消关注", await makeDom("div", async container=>{
+                container.appendChild(await makeDom("div",tip=>{
+                    tip.innerHTML = `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`;
+                }))
+                container.appendChild(await makeDom("div", async btns => {
+                    btns.style.display = "flex";
+                    btns.appendChild(await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "知道了";
+                        btn.onclick = e => hideModal();
+                    }))
+                }))
+            }))
+        }else
+        openModal("取关这些Up？", await makeDom("div", async container => {
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.color = "red";
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
+            }))
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.style.background = "red";
+                        btn.innerHTML = "确认";
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "取消";
+                        btn.onclick = e => hideModal();
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+            container.appendChild(await makeDom("div", async unfolistdom => {
+                unfolistdom.className = "CKUNFOLLOW-scroll-list";
+                unfolistdom.style.width = "100%";
+                unfolistdom.style.maxHeight = "calc(50vh - 100px)";
+                const unfolist = [];
+                for (let unfoid of datas.checked) {
+                    if (unfoid in datas.mappings)
+                        unfolist.push(datas.mappings[unfoid])
+                }
+                await renderListTo(unfolistdom, unfolist);
+            }))
+        }))
+    }
     const createMainWindow = async () => {
         showPanel();
         setInfoBar("正在准备获取关注数据...");
@@ -519,94 +585,64 @@
                 createScreen(await makeDom("div", async screen => {
                     const toolbar = await makeDom("div", async toolbar => {
                         toolbar.style.display = "flex";
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '取关选中';
                             btn.style.background = "#e91e63";
-                            btn.onclick = async e => {
-                                openModal("取关这些Up？",await makeDom("div",async container=>{
-                                    container.appendChild(await makeDom("div",tip=>{
-                                        tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`.fontcolor("red").bold();
-                                    }))
-                                    container.appendChild(await makeDom("div",async btns=>{
-                                        btns.style.display = "flex";
-                                        [
-                                            await makeDom("button",btn=>{
-                                                btn.className = "CKUNFOLLOW-toolbar-btns";
-                                                btn.style.background = "red";
-                                                btn.innerHTML = "确认";
-                                            }),
-                                            await makeDom("button",btn=>{
-                                                btn.className = "CKUNFOLLOW-toolbar-btns";
-                                                btn.innerHTML = "取消";
-                                                btn.onclick = e => hideModal();
-                                            }),
-                                        ].forEach(el=>btns.appendChild(el));
-                                    }))
-                                    container.appendChild(await makeDom("div",async unfolistdom=>{
-                                        unfolistdom.className = "CKUNFOLLOW-scroll-list";
-                                        unfolistdom.style.width = "100%";
-                                        unfolistdom.style.maxHeight = "calc(50vh - 100px)";
-                                        const unfolist = [];
-                                        for(let unfoid of datas.checked){
-                                            if(unfoid in datas.mappings)
-                                                unfolist.push(datas.mappings[unfoid])
-                                        }
-                                        await renderListTo(unfolistdom,unfolist);
-                                    }))
-                                }))
+                            btn.onclick = e => {
+                                createUnfollowModal();
                             };
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '全选';
-                            btn.onclick = e=>{
+                            btn.onclick = e => {
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
-                                if(all){
-                                    [...all].forEach(it=>{
-                                        it.checked=true;
+                                if (all) {
+                                    [...all].forEach(it => {
+                                        it.checked = true;
                                         it.onchange();
                                     });
                                 }
                             }
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '反选';
-                            btn.onclick = e=>{
+                            btn.onclick = e => {
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
-                                if(all){
-                                    [...all].forEach(it=>{
-                                        it.checked=!it.checked;
+                                if (all) {
+                                    [...all].forEach(it => {
+                                        it.checked = !it.checked;
                                         it.onchange();
                                     });
                                 }
                             }
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '全不选';
-                            btn.onclick = e=>{
+                            btn.onclick = e => {
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
-                                if(all){
-                                    [...all].forEach(it=> {
+                                if (all) {
+                                    [...all].forEach(it => {
                                         it.checked = false;
                                         it.onchange();
                                     });
                                 }
                             }
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '间选';
-                            btn.onclick = e=>{
+                            btn.onclick = e => {
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
-                                if(all){
+                                if (all) {
                                     let shouldCheck = false;
-                                    for(let el of [...all]){
-                                        if(el.checked===true){
+                                    for (let el of [...all]) {
+                                        if (el.checked === true) {
                                             shouldCheck = !shouldCheck;
-                                        }else{
+                                        } else {
                                             el.checked = shouldCheck;
                                             el.onchange();
                                         }
@@ -614,120 +650,120 @@
                                 }
                             }
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '筛选';
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '排序';
                             btn.onclick = async e => {
-                                openModal("选择排序方式",await makeDom("div",async select=>{
+                                openModal("选择排序方式", await makeDom("div", async select => {
                                     select.style.alignContent = "stretch";
                                     [
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "按最新关注";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按最新关注排序...");
-                                                datas.followings.sort((x,y)=>parseInt(y.mtime)-parseInt(x.mtime))
+                                                datas.followings.sort((x, y) => parseInt(y.mtime) - parseInt(x.mtime))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "按最早关注";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按最早关注排序...");
-                                                datas.followings.sort((x,y)=>parseInt(x.mtime)-parseInt(y.mtime))
+                                                datas.followings.sort((x, y) => parseInt(x.mtime) - parseInt(y.mtime))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "大会员优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按大会员优先排序...");
-                                                datas.followings.sort((x,y)=>parseInt(y.vip.vipType)-parseInt(x.vip.vipType))
+                                                datas.followings.sort((x, y) => parseInt(y.vip.vipType) - parseInt(x.vip.vipType))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "无会员优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按无会员优先排序...");
-                                                datas.followings.sort((x,y)=>parseInt(x.vip.vipType)-parseInt(y.vip.vipType))
+                                                datas.followings.sort((x, y) => parseInt(x.vip.vipType) - parseInt(y.vip.vipType))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "认证优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按认证优先排序...");
-                                                datas.followings.sort((x,y)=>parseInt(y.official_verify.type)-parseInt(x.official_verify.type))
+                                                datas.followings.sort((x, y) => parseInt(y.official_verify.type) - parseInt(x.official_verify.type))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "无认证优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按无认证优先排序...");
-                                                datas.followings.sort((x,y)=>parseInt(x.official_verify.type)-parseInt(y.official_verify.type))
+                                                datas.followings.sort((x, y) => parseInt(x.official_verify.type) - parseInt(y.official_verify.type))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "已注销优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按已注销优先排序...");
-                                                datas.followings.sort((x,y)=>{
-                                                    const xint = isInvalid(x)?1:0;
-                                                    const yint = isInvalid(y)?1:0;
-                                                    return yint-xint;
+                                                datas.followings.sort((x, y) => {
+                                                    const xint = isInvalid(x) ? 1 : 0;
+                                                    const yint = isInvalid(y) ? 1 : 0;
+                                                    return yint - xint;
                                                 })
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "特别关注优先";
                                             btn.onclick = e => {
                                                 hideModal();
                                                 setInfoBar("正在按特别关注优先排序...");
-                                                datas.followings.sort((x,y)=>parseInt(y.special)-parseInt(x.special))
+                                                datas.followings.sort((x, y) => parseInt(y.special) - parseInt(x.special))
                                                 renderListTo(get(".CKUNFOLLOW-scroll-list"));
                                             }
                                         }),
-                                        await makeDom("button",btn=>{
+                                        await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "不修改|取消";
                                             btn.onclick = e => hideModal();
                                         })
-                                    ].forEach(el=>select.appendChild(el));
+                                    ].forEach(el => select.appendChild(el));
                                 }));
                             }
                         }))
-                        toolbar.appendChild(await makeDom("button",btn=>{
+                        toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '工具';
                         }))
@@ -743,16 +779,26 @@
             .catch(async () => {
                 setInfoBar();
                 createScreen(await makeDom("div", dom => {
-                    dom.style.position = "absolute";
+                    dom.style.position = "fixed";
                     dom.style.left = "50%";
                     dom.style.top = "50%";
                     dom.style.transform = "translate(-50%,-50%)";
                     dom.style.textAlign = "center";
-                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered"></i><br>获取数据出错</h2>重新打开窗口重试`;
+                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered"></i><br>获取数据出错</h2>请注意，当前仅支持查询自己的关注<br>如果打开的时自己的关注页面，请重新打开窗口重试`;
                 }));
             })
     }
-    const renderListTo = async (dom,datalist = datas.followings)=>{
+    const setToggleStatus = (mid, status = false) => {
+        const selection = getAll(`input.CKUNFOLLOW-data-inforow-toggle[data-targetmid="${mid}"]`);
+        if (selection) {
+            for (let el of selection) {
+                el.checked = status;
+            }
+        }
+        if (datas.checked.includes(mid + "")) datas.checked.splice(datas.checked.indexOf(mid + ""), 1);
+        else if (datas.checked.includes(parseInt(mid))) datas.checked.splice(datas.checked.indexOf(parseInt(mid)), 1);
+    }
+    const renderListTo = async (dom, datalist = datas.followings) => {
         setInfoBar("正在生成列表...");
         dom.innerHTML = '';
         for (let it of datalist) {
@@ -765,9 +811,53 @@
         getContainer().appendChild(content);
     }
 
+    const injectSideBtn = () => {
+        addStyle(`
+        #CKUNFOLLOW-floatbtn{
+            z-index: 9999;
+            position: fixed;
+            left: -15px;
+            width: 30px;
+            height: 30px;
+            background: black;
+            opacity: 0.4;
+            color: white;
+            cursor: pointer;
+            border-radius: 50%;
+            text-align: right;
+            line-height: 30px;
+            transition: opacity .3s 1s, background .3s, color .3s;
+            top: 120px;
+            top: 30vh;
+        }
+        #CKUNFOLLOW-floatbtn:hover{
+            transition: opacity .3s 0s, background .3s, color .3s;
+            background: white;
+            color: black;
+            opacity: 0.75;
+        }
+        #CKUNFOLLOW-floatbtn.hide{
+            left: -40px;
+        }
+        `, "CKUNFOLLOW-floatbtn-css", "unique");
+
+        const toggle = document.createElement("div");
+        toggle.id = "CKUNFOLLOW-floatbtn";
+        toggle.innerHTML = `<i class="mdi mdi-18px mdi-wrench" style="display: inline-block;transform: rotateY(180deg) translateX(3px);"></i>`;
+        toggle.onclick = () => createMainWindow();
+        document.body.appendChild(toggle);
+    }
+
     const startInject = () => {
         initModal();
-        createMainWindow();
+        unsafeWindow.addEventListener("message", event => {
+            if (!event.data) return;
+            if (event.data.startsWith("CKUNFOLLOWSTATUSCHANGES|")) {
+                const parts = event.data.split("|");
+                setToggleStatus(parts[1], parts[2] === "1");
+            }
+        })
+        injectSideBtn();
     };
 
     startInject();
