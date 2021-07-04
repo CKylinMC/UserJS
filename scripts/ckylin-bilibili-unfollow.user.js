@@ -57,19 +57,19 @@
         }
     }
 
-    async function waitForAttribute(q, attr) {
-        let i = 50;
-        let value;
-        while (--i >= 0) {
-            if ((attr in q) &&
-                q[attr] != null) {
-                value = q[attr];
-                break;
-            }
-            await wait(100);
-        }
-        return value;
-    }
+    // async function waitForAttribute(q, attr) {
+    //     let i = 50;
+    //     let value;
+    //     while (--i >= 0) {
+    //         if ((attr in q) &&
+    //             q[attr] != null) {
+    //             value = q[attr];
+    //             break;
+    //         }
+    //         await wait(100);
+    //     }
+    //     return value;
+    // }
 
     const getCurrentUid = async () => {
         // setInfoBar("正在查询当前用户UID - 方案1");
