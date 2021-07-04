@@ -50,6 +50,25 @@
 
 [ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-display-video-id.user.js)
 
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注清理器
+**简单介绍**:
+快速整理你的关注列表，一键取关。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/428895)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/428895-bilibili-%E5%85%B3%E6%B3%A8%E6%B8%85%E7%90%86%E5%99%A8/code/%5BBilibili%5D%20%E5%85%B3%E6%B3%A8%E6%B8%85%E7%90%86%E5%99%A8.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-bilibili-unfollow.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js)
+
+**仓库文件:**
+
+[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-unfollow.user.js)
+
+------
 
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频旋转和缩放
 **简单介绍**:
