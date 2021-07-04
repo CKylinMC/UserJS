@@ -33,7 +33,7 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const log = (...m) => cfg.debug||console.log('[Unfollow]', ...m);
+    const log = (...m) => cfg.debug || console.log('[Unfollow]', ...m);
     const _ = async (func = () => {
     }, ...args) => await func(...args);
     const makeDom = async (domname, func = () => {
@@ -326,10 +326,10 @@
         if (bar) bar.innerHTML = content;
         return bar;
     }
-    const resetInfoBar = ()=>{
+    const resetInfoBar = () => {
         let str = `共读取 ${datas.fetched} 条关注`;
-        if(datas.checked.length>0){
-            str+=`，已选中 ${datas.checked.length} 条`;
+        if (datas.checked.length > 0) {
+            str += `，已选中 ${datas.checked.length} 条`;
         }
         setInfoBar(str);
     }
@@ -721,7 +721,10 @@
             && cfg.special === "-2"
             && cfg.beforetime.enabled === false
             && cfg.aftertime.enabled === false
-        ) return;
+        ) {
+            resetInfoBar();
+            return;
+        }
         if (cfg.clear === "0") {
             datas.checked = [];
         }
@@ -751,7 +754,7 @@
             filters.aftertime = parseInt(cfg.aftertime.after);
         }
         let checked = [];
-        let counter = 0;
+        //let counter = 0;
         try {
             userloop: for (let mid in datas.mappings) {
                 //setInfoBar(`正在处理 [ ${++counter} / ${datas.fetched} ] ...`);
