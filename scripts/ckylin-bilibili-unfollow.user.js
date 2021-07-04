@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         [Bilibili] 关注清理器
 // @namespace    ckylin-bilibili-unfollow
-// @version      0.01
+// @version      0.1
 // @description  快速查找和清理已关注但是不活跃的用户
 // @author       CKylinMC
+// @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
+// @supportURL   https://github.com/CKylinMC/UserJS
 // @include      http://space.bilibili.com/*
 // @include      https://space.bilibili.com/*
 // @connect      api.bilibili.com
