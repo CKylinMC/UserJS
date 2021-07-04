@@ -11,6 +11,7 @@
 - [内容列表](#%E5%86%85%E5%AE%B9%E5%88%97%E8%A1%A8)
   - [用户脚本](#%E7%94%A8%E6%88%B7%E8%84%9A%E6%9C%AC)
     - [* 视频页面常驻显示AV/BV号](#-%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAavbv%E5%8F%B7)
+    - [* 关注清理器](#-%E5%85%B3%E6%B3%A8%E6%B8%85%E7%90%86%E5%99%A8)
     - [* 视频旋转和缩放](#-%E8%A7%86%E9%A2%91%E6%97%8B%E8%BD%AC%E5%92%8C%E7%BC%A9%E6%94%BE)
     - [* 站内链接信息显示 BilibiliLinksInfos](#-%E7%AB%99%E5%86%85%E9%93%BE%E6%8E%A5%E4%BF%A1%E6%81%AF%E6%98%BE%E7%A4%BA-bilibililinksinfos)
     - [* 修改迷你播放器大小位置](#-%E4%BF%AE%E6%94%B9%E8%BF%B7%E4%BD%A0%E6%92%AD%E6%94%BE%E5%99%A8%E5%A4%A7%E5%B0%8F%E4%BD%8D%E7%BD%AE)
