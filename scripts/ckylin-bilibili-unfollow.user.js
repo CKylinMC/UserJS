@@ -232,7 +232,7 @@
         #CKUNFOLLOW.hide{
             opacity: 0;
             pointer-events: none;
-            transform: translate(-50%,-50%) scale(0.6);
+            transform: translate(-50%,-50%) scale(0.95);
         }
         #CKUNFOLLOW.show{
             transform: translate(-50%,-50%) scale(1);
@@ -400,7 +400,7 @@
         #CKUNFOLLOW-modal.hide{
             opacity: 0;
             pointer-events: none;
-            transform: translate(-50%,-50%) scale(0.6);
+            transform: translate(-50%,-50%) scale(0.9);
         }
         .CKUNFOLLOW-modal-content>div{
             display: flex;
@@ -1675,6 +1675,7 @@
     const injectSideBtn = () => {
         addStyle(`
         #CKUNFOLLOW-floatbtn{
+            box-sizing: border-box;
             z-index: 9999;
             position: fixed;
             left: -15px;
@@ -1686,13 +1687,14 @@
             cursor: pointer;
             border-radius: 50%;
             text-align: right;
-            line-height: 30px;
-            transition: opacity .3s 1s, background .3s, color .3s;
+            line-height: 24px;
+            border: solid 3px #00000000;
+            transition: opacity .3s 1s, background .3s, color .3s, left .3s, border .3s;
             top: 120px;
             top: 30vh;
         }
         #CKUNFOLLOW-floatbtn::after,#CKUNFOLLOW-floatbtn::before{
-            z-index: 9995;
+            z-index: 9990;
             content: "关注清理器";
             pointer-events: none;
             position: fixed;
@@ -1707,23 +1709,24 @@
             text-align: right;
             line-height: 30px;
             transition: all .3s;
-            top: 120px;
+            top: 123px;
             top: 30vh;
         }
         #CKUNFOLLOW-floatbtn::after{
-            z-index: 9990;
             content: "← 关注清理器";
             animation:CKUNFOLLOW-tipsOut forwards 5s 3.5s;
         }
         #CKUNFOLLOW-floatbtn:hover::before{
-            left: 20px;
+            left: 30px;
             opacity: 1;
         }
         #CKUNFOLLOW-floatbtn:hover{
-            transition: opacity .3s 0s, background .3s, color .3s;
+            border: solid 3px black;
+            transition: opacity .3s 0s, background .3s, color .3s, left .3s, border .3s;
             background: white;
             color: black;
             opacity: 1;
+            left: -5px;
         }
         #CKUNFOLLOW-floatbtn.hide{
             left: -40px;
