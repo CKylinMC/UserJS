@@ -327,11 +327,13 @@
         return bar;
     }
     const resetInfoBar = () => {
-        let str = `共读取 ${datas.fetched} 条关注`;
-        if (datas.checked.length > 0) {
-            str += `，已选中 ${datas.checked.length} 条`;
-        }
-        setInfoBar(str);
+        wait('50').then(()=>{
+            let str = `共读取 ${datas.fetched} 条关注`;
+            if (datas.checked.length > 0) {
+                str += `，已选中 ${datas.checked.length} 条`;
+            }
+            setInfoBar(str);
+        });
     }
     const divider = () => {
         const div = document.createElement("div");
@@ -511,7 +513,8 @@
                     open("https://space.bilibili.com/" + data.mid);
                 } else if (e.target.tagName !== "INPUT") {
                     const toggle = item.querySelector("input");
-                    toggle.checked = !toggle.checked;
+                    toggleSwitch(data.mid, !toggle.checked);
+                    //toggle.checked = !toggle.checked;
                 }
                 resetInfoBar();
             }
@@ -528,7 +531,6 @@
                 toggle.setAttribute("data-targetmid", data.mid);
                 toggle.onchange = e => {
                     toggleSwitch(data.mid, toggle.checked);
-                    resetInfoBar();
                 }
                 // toggle.onchange = e =>{
                 //     if(toggle.checked){
@@ -844,6 +846,7 @@
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '全选';
                             btn.onclick = e => {
+                                setInfoBar("正在处理全选...");
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
                                 if (all) {
                                     [...all].forEach(it => {
@@ -851,6 +854,7 @@
                                         it.onchange();
                                     });
                                 }
+                                refreshChecked();
                                 resetInfoBar();
                             }
                         }))
@@ -858,6 +862,7 @@
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '反选';
                             btn.onclick = e => {
+                                setInfoBar("正在处理反选...");
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
                                 if (all) {
                                     [...all].forEach(it => {
@@ -865,6 +870,7 @@
                                         it.onchange();
                                     });
                                 }
+                                refreshChecked();
                                 resetInfoBar();
                             }
                         }))
@@ -872,6 +878,7 @@
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '全不选';
                             btn.onclick = e => {
+                                setInfoBar("正在处理取选...");
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
                                 if (all) {
                                     [...all].forEach(it => {
@@ -879,6 +886,7 @@
                                         it.onchange();
                                     });
                                 }
+                                refreshChecked();
                                 resetInfoBar();
                             }
                         }))
@@ -886,6 +894,7 @@
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '间选';
                             btn.onclick = e => {
+                                setInfoBar("正在处理间选...");
                                 const all = getAll(".CKUNFOLLOW-data-inforow-toggle");
                                 if (all) {
                                     let shouldCheck = false;
@@ -1282,7 +1291,7 @@
                             btn.className = "CKUNFOLLOW-toolbar-btns";
                             btn.innerHTML = '快速工具';
                             btn.onclick = async e => {
-                                openModal("选择排序方式", await makeDom("div", async select => {
+                                openModal("快速工具", await makeDom("div", async select => {
                                     select.style.alignContent = "stretch";
                                     [
                                         await makeDom("button", btn => {
@@ -1475,6 +1484,37 @@
                                                 }
                                                 resetInfoBar();
                                                 hideModal();
+                                            }
+                                        }),
+                                        divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            if(datas.checked.length>0)
+                                                btn.innerHTML = "导出所有选中的UID列表..."
+                                            else
+                                                btn.innerHTML = "导出所有关注的UID列表...";
+                                            btn.onclick = async e => {
+                                                let list;
+                                                if(datas.checked.length>0)
+                                                    list = datas.checked.join(',');
+                                                else
+                                                    list = Object.keys(datas.mappings).join(',');
+                                                await alertModal("导出UID", `
+                                                UID列表(请手动复制)
+                                                <br>
+                                                <input readonly type="textarea" style="width: 400px;" value="${list}" onclick="this.select()" />
+                                                `,"确定");
+                                                resetInfoBar();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "从UID列表导入关注...";
+                                            btn.onclick = async e => {
+                                                await alertModal("施工中","此功能尚未完成。","确定");
+                                                resetInfoBar();
                                             }
                                         }),
                                         divider(),
