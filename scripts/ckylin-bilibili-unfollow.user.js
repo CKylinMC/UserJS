@@ -896,12 +896,16 @@
                                         await makeDom("button", async btn=>{
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
+                                            btn.style.background = "#949494";
+                                            btn.style.color = "grey";
                                             btn.innerHTML = '设置分组';
                                             btn.onclick = ()=>alertModal("施工中","功能尚未完成","确定");
                                         }),
                                         await makeDom("button", async btn=>{
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
+                                            btn.style.background = "#949494";
+                                            btn.style.color = "grey";
                                             btn.innerHTML = '批量拉黑';
                                             btn.onclick = ()=>alertModal("施工中","功能尚未完成","确定");
                                         }),
