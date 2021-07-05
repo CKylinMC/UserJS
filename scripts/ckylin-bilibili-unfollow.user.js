@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注清理器
 // @namespace    ckylin-bilibili-unfollow
-// @version      0.1
+// @version      0.1.1
 // @description  快速查找和清理已关注的用户
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -1619,7 +1619,7 @@
             width: 30px;
             height: 30px;
             background: black;
-            opacity: 0.4;
+            opacity: 0.8;
             color: white;
             cursor: pointer;
             border-radius: 50%;
@@ -1633,7 +1633,7 @@
             transition: opacity .3s 0s, background .3s, color .3s;
             background: white;
             color: black;
-            opacity: 0.75;
+            opacity: 1;
         }
         #CKUNFOLLOW-floatbtn.hide{
             left: -40px;
