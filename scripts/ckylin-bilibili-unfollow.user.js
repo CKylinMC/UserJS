@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注清理器
 // @namespace    ckylin-bilibili-unfollow
-// @version      0.1.2
+// @version      0.1.4
 // @description  快速查找和清理已关注的用户
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -25,11 +25,12 @@
         followings: [],
         mappings: {},
         checked: [],
+        tags: {}
     };
     const cfg = {
         debug: true,
         retrial: 3,
-        VERSION: "0.1.2"
+        VERSION: "0.1.4 Preview"
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -99,6 +100,7 @@
             "referer": "https://www.bilibili.com/"
         }
     };
+    const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
     const getUnfolURL = (uid, csrf) => `https://api.bilibili.com/x/relation/modify?fid=${uid}&act=2&re_src=11&jsonp=jsonp&csrf=${csrf}`;
     const getRequest = path => new Request(path, {
@@ -111,6 +113,24 @@
         headers: getHeaders(),
         credentials: "include"
     });
+    const cacheGroupList = async () => {
+        setInfoBar("正在获取分组信息...");
+        try{
+            const jsonData = await (await fetch(getRequest(getGroupURL()))).json();
+            if(jsonData&&jsonData.code===0){
+                for(let tag of jsonData.data){
+                    datas.tags[tag.tagid] = tag;
+                }
+                return true;
+            }else{
+                log(jsonData);
+                return false;
+            }
+        }catch(err){
+            log(err);
+            return false;
+        }
+    };
     const unfollowUser = async uid => {
         try {
             const jsonData = await (await fetch(getPostRequest(getUnfolURL(uid, getCSRFToken())))).json()
@@ -300,7 +320,7 @@
         win.appendChild(closebtn);
 
         const titleText = document.createElement("div");
-        titleText.innerHTML = `<h1>关注清理器</h1>`;
+        titleText.innerHTML = `<h1>关注清理器 <small>v${cfg.VERSION}</small></h1>`;
         win.appendChild(titleText);
 
         const infoBar = document.createElement("div");
@@ -591,6 +611,28 @@
                     title += " | 至少两年前关注";
                 }
             }));
+            item.appendChild(await makeDom("span", tagsdom => {
+                tagsdom.style.flex = "1";
+                if(data.tag===null||data.tag.length===0||["[0]","[-10]"].includes(JSON.stringify(data.tag)))
+                    tagsdom.innerHTML = "";
+                else{
+                    let name = "";
+                    //let spec = "";
+                    for(let gid of data.tag){
+                        console.log(gid,data,datas);
+                        if(gid===0||gid===-10) continue;
+                        //if(data.tag.length>1) spec = `&nbsp;...(${data.tag.length})`;
+                        if(name!=="")name+=",";
+                        if(gid in datas.tags){
+                            name+= datas.tags[gid].name;
+                        }else{
+                            name+= "?";
+                        }
+                        //break;
+                    }
+                    tagsdom.innerHTML = name;
+                }
+            }));
             item.appendChild(await makeDom("span", mark => {
                 mark.style.flex = "1";
                 if (invalid) {
@@ -830,6 +872,7 @@
             dom.style.textAlign = "center";
             dom.innerHTML = `<h2><i class="mdi mdi-account-search-outline" style="color:cornflowerblue"></i><br>正在获取数据</h2>请稍等片刻，不要关闭窗口。`;
         }));
+        if(!(await cacheGroupList())) alertModal("警告","分组数据获取失败。","确定");
         getFollowings()
             .then(async () => {
                 createScreen(await makeDom("div", async screen => {
@@ -837,10 +880,39 @@
                         toolbar.style.display = "flex";
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = '取关选中';
-                            btn.style.background = "#e91e63";
-                            btn.onclick = e => {
-                                createUnfollowModal();
+                            btn.innerHTML = '批量操作 <i class="mdi mdi-18px mdi-chevron-down"></i>';
+                            //btn.style.background = "#e91e63";
+                            btn.onclick = async e => {
+                                await openModal("批量操作",await makeDom("div", async container=>{
+                                    container.style.alignContent = "stretch";
+                                    [
+                                        await makeDom("button", async btn=>{
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '取关选中';
+                                            btn.style.background = "#e91e63";
+                                            btn.onclick = ()=>createUnfollowModal();
+                                        }),
+                                        await makeDom("button", async btn=>{
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '设置分组';
+                                            btn.onclick = ()=>alertModal("施工中","功能尚未完成","确定");
+                                        }),
+                                        await makeDom("button", async btn=>{
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '批量拉黑';
+                                            btn.onclick = ()=>alertModal("施工中","功能尚未完成","确定");
+                                        }),
+                                        divider(),
+                                        await makeDom("button", async btn=>{
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.innerHTML = '返回';
+                                            btn.onclick = ()=>hideModal();
+                                        }),
+                                    ].forEach(el=>container.appendChild(el));
+                                }));
                             };
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
@@ -912,7 +984,7 @@
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = '筛选';
+                            btn.innerHTML = '筛选 <i class="mdi mdi-18px mdi-chevron-down"></i>';
                             btn.onclick = async e => {
                                 //alertModal("施工中", "此功能尚未实现！", "返回");
                                 openModal("筛选", await makeDom("div", async container => {
@@ -1134,7 +1206,7 @@
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = '排序';
+                            btn.innerHTML = '排序 <i class="mdi mdi-18px mdi-chevron-down"></i>';
                             btn.onclick = async e => {
                                 openModal("选择排序方式", await makeDom("div", async select => {
                                     select.style.alignContent = "stretch";
@@ -1290,7 +1362,7 @@
                         }))
                         toolbar.appendChild(await makeDom("button", btn => {
                             btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = '更多';
+                            btn.innerHTML = '更多 <i class="mdi mdi-18px mdi-chevron-down"></i>';
                             btn.onclick = async e => {
                                 openModal("更多...", await makeDom("div", async select => {
                                     select.style.alignContent = "stretch";
@@ -1298,7 +1370,7 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
-                                            btn.innerHTML = "快速选中";
+                                            btn.innerHTML = "快速选中...";
                                             btn.onclick = async e => {
                                                 hideModal();
                                                 await wait(300);
