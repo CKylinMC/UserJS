@@ -1706,7 +1706,7 @@
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "关于和反馈";
                                             btn.onclick = async e => {
-                                                await alertModal("关于 “关注清理器”", (await makeDom("div", async div => {
+                                                await alertModal("关于 “关注管理器”", (await makeDom("div", async div => {
                                                     div.style.textAlign = "left";
                                                     div.style.width = "400px";
                                                     [
@@ -1854,7 +1854,7 @@
         }
         #CKUNFOLLOW-floatbtn::after,#CKUNFOLLOW-floatbtn::before{
             z-index: 9990;
-            content: "关注清理器";
+            content: "关注管理器";
             pointer-events: none;
             position: fixed;
             left: -20px;
@@ -1872,7 +1872,7 @@
             top: 30vh;
         }
         #CKUNFOLLOW-floatbtn::after{
-            content: "← 关注清理器";
+            content: "← 关注管理器";
             animation:CKUNFOLLOW-tipsOut forwards 5s 3.5s;
         }
         #CKUNFOLLOW-floatbtn:hover::before{
