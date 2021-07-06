@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         [Bilibili] 关注清理器
-// @namespace    ckylin-bilibili-unfollow
+// @name         [Bilibili] 关注管理器
+// @namespace    ckylin-bilibili-manager
 // @version      0.1.5
 // @description  快速查找和清理已关注的用户
 // @author       CKylinMC
@@ -332,7 +332,7 @@
         win.appendChild(closebtn);
 
         const titleText = document.createElement("div");
-        titleText.innerHTML = `<h1>关注清理器 <small>v${cfg.VERSION}</small></h1>`;
+        titleText.innerHTML = `<h1>关注管理器 <small>v${cfg.VERSION}</small></h1>`;
         win.appendChild(titleText);
 
         const infoBar = document.createElement("div");
