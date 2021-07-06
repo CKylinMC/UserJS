@@ -297,9 +297,11 @@
             display: flex;
             padding: 6px;
             color: #aaa;
+            transition: background .3s;
         }
         .CKUNFOLLOW-data-inforow:hover{
             background: #2196f361;
+            transition: background .1s;
         }
         .CKUNFOLLOW-data-inforow-toggle{
             margin: 3px 8px;
@@ -313,9 +315,41 @@
             padding: 3px;
             color: white;
             box-shadow: 0 2px 3px grey;
+            /*box-sizing: border-box;*/
+            /*border: 2px solid #00000000;*/
+            transition: all .5s;
         }
         .CKUNFOLLOW-toolbar-btns:hover{
-            filter: brightness(0.85);
+            /*filter: brightness(0.85);*/
+            background: #00467e!important;
+            transition: all .15s;
+            /*border-bottom: solid 2px white;*/
+        }
+        .CKUNFOLLOW-toolbar-btns.red{
+            background: #e91e63!important;
+        }
+        .CKUNFOLLOW-toolbar-btns:hover.red{
+            background: #8c002f!important;
+        }
+        .CKUNFOLLOW-toolbar-btns.green{
+            background: #4caf50!important;
+        }
+        .CKUNFOLLOW-toolbar-btns:hover.green{
+            background: #1b5e20!important;
+        }
+        .CKUNFOLLOW-toolbar-btns.orange{
+            background: #e64a19!important;
+        }
+        .CKUNFOLLOW-toolbar-btns:hover.orange{
+            background: #bf360c!important;
+        }
+        .CKUNFOLLOW-toolbar-btns.grey{
+            background: #949494!important;
+            color: grey!important;
+        }
+        .CKUNFOLLOW-toolbar-btns:hover.grey{
+            background: #878787!important;
+            color: grey!important;
         }
         `, "CKUNFOLLOW-mainWindowcss", "unique");
         const id = "CKUNFOLLOW";
@@ -585,6 +619,7 @@
                 avatar.style.borderRadius = "50%";
                 avatar.style.verticalAlign = "middle";
                 avatar.style.marginRight = "18px";
+                avatar.loading = "lazy";
             }));
             item.appendChild(await makeDom("span", name => {
                 name.className = "CKUNFOLLOW-data-inforow-name";
@@ -731,8 +766,7 @@
                     btns.style.display = "flex";
                     [
                         await makeDom("button", btn => {
-                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.style.background = "red";
+                            btn.className = "CKUNFOLLOW-toolbar-btns red";
                             btn.innerHTML = "确认";
                             btn.onclick = e => {
                                 doUnfollowChecked()
@@ -898,25 +932,20 @@
                                     container.style.alignContent = "stretch";
                                     [
                                         await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns red";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '取关选中';
-                                            btn.style.background = "#e91e63";
                                             btn.onclick = () => createUnfollowModal();
                                         }),
                                         await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns grey";
                                             btn.style.margin = "4px 0";
-                                            btn.style.background = "#949494";
-                                            btn.style.color = "grey";
                                             btn.innerHTML = '设置分组';
                                             btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
                                         }),
                                         await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns grey";
                                             btn.style.margin = "4px 0";
-                                            btn.style.background = "#949494";
-                                            btn.style.color = "grey";
                                             btn.innerHTML = '批量拉黑';
                                             btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
                                         }),
@@ -1621,8 +1650,6 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
-                                            // btn.style.background = "#949494";
-                                            // btn.style.color = "grey";
                                             btn.innerHTML = "从UID列表导入关注...";
                                             btn.onclick = async e => {
                                                 hideModal();
@@ -1639,7 +1666,7 @@
                                                             btns.style.display = "flex";
                                                             [
                                                                 await makeDom("button", btn => {
-                                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                                    btn.className = "CKUNFOLLOW-toolbar-btns orange";
                                                                     btn.innerHTML = "批量关注";
                                                                     btn.onclick = async e => {
                                                                         const value = get("#CKUNFOLLOW-import-textarea").value;
