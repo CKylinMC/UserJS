@@ -1625,6 +1625,8 @@
                                             // btn.style.color = "grey";
                                             btn.innerHTML = "从UID列表导入关注...";
                                             btn.onclick = async e => {
+                                                hideModal();
+                                                await wait(300);
                                                 openModal("导入UID", await makeDom("div", async modaldiv => {
                                                     [
                                                         await makeDom("tip", tip => tip.innerHTML = "请输入导入的UID列表，用英文半角逗号','分割"),
