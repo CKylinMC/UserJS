@@ -838,9 +838,9 @@
                             break;
                         case "groups":
                             if (value == "1") {//null
-                                if (user.tag === null) continue userloop;
-                            } else if (value == "2") {
                                 if (user.tag !== null) continue userloop;
+                            } else if (value == "2") {
+                                if (user.tag === null) continue userloop;
                             }
                             break;
                         case "beforetime":
