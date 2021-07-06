@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.5
+// @version      0.1.6
 // @description  快速查找和清理已关注的用户
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -30,7 +30,7 @@
     const cfg = {
         debug: true,
         retrial: 3,
-        VERSION: "0.1.5 Preview"
+        VERSION: "0.1.6 Preview"
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
