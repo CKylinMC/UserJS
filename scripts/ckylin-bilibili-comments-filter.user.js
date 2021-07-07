@@ -14,7 +14,7 @@
 // @grant        GM_info
 // @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.4.0/dist/jquery.min.js
-// @license      GPLv3 License
+// @license      GPL-3.0-only
 // ==/UserScript==
 GM_registerMenuCommand("添加屏蔽的用户ID", () => {
     CK_askForNewBlockedUID();

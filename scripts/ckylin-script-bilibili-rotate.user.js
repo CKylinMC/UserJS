@@ -13,7 +13,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
 // @grant        unsafeWindow
-// @license      GPLv3 License
+// @license      GPL-3.0-only
 // ==/UserScript==
 
 (function () {

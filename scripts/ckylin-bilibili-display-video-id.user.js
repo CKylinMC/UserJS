@@ -11,7 +11,7 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
-// @license      GPLv3 License
+// @license      GPL-3.0-only
 // ==/UserScript==
 
 (function () {

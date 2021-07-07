@@ -6,7 +6,7 @@
 // @author       CKylinMC
 // @include      *.bilibili.com/*
 // @grant        none
-// @license      GPLv3 License
+// @license      GPL-3.0-only
 // ==/UserScript==
 
 (function () {

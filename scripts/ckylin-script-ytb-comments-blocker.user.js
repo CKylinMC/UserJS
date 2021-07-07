@@ -13,7 +13,7 @@
 // @grant        GM_info
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
-// @license      GPL-3.0
+// @license      GPL-3.0-only
 // ==/UserScript==
 
 (function() {

@@ -13,7 +13,7 @@
 // @grant        GM_setValue
 // @grant        GM_info
 // @grant        GM_registerMenuCommand
-// @license      GPL-3.0
+// @license      GPL-3.0-only
 // ==/UserScript==
 /*
  * 致用户：

@@ -6,6 +6,7 @@
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
 // @grant        none
+// @license      GPL-3.0-only
 // ==/UserScript==
 
 function CK_elementOk(){
