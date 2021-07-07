@@ -2,7 +2,7 @@
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
 // @version      0.1.6
-// @description  快速查找和清理已关注的用户
+// @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
 // @supportURL   https://github.com/CKylinMC/UserJS
@@ -12,7 +12,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_getResourceText
 // @grant        unsafeWindow
-// @license      GPLv3 License
+// @license      GPL-3.0-only
 // ==/UserScript==
 (function () {
     'use strict';
