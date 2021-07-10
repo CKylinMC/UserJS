@@ -2,7 +2,7 @@
 // @name         [Bilibili] MarkAsRead
 // @name:zh-CN   [Bilibili] 一键已读
 // @namespace    ckylin-script-bilibili-mark-as-read
-// @version      0.2
+// @version      0.3
 // @description  Mark all sessions as read with one click!
 // @description:zh-CN 一键设置所有会话已读！
 // @author       CKylinMC
@@ -31,6 +31,18 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const msgList = () => document.querySelector("div.list");
     const asRead = async () => await touchList(msgList());
     const settingList = () => document.querySelector("ul.list");
+    const hashChecker = ()=>{
+        if(location.hash==="#/whisper") injectBtn();
+        else{
+            let old;
+            if (old = document.querySelector("#CKMARKREAD-BTN")) {
+                old.style.transition = "margin .3s .2s, opacity .5s";
+                old.style.opacity = "0";
+                old.style.margin = "0px 0px";
+                setTimeout(()=>old.remove(),300);
+            }
+        }
+    };
     const waitFor = async (func, waitt = 100, retries = 100) => {
         while (--retries > 0) {
             try {
@@ -56,19 +68,43 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
                 await waitFor(() => msgList());
                 await asRead();
                 e.target.innerHTML = "✔ 已标为已读";
-                e.target.onclick = () => alert("请勿重复、频繁操作！\n反复执行可能导致B站暂停你的消息发送功能数分钟！");
+                e.target.onclick = e => e.target.innerHTML = "✔ 无需操作";
+                setTimeout(()=>{
+                    e.target.parentElement.style.transition = "margin .3s .2s, opacity .5s";
+                    e.target.parentElement.style.opacity = "0";
+                    e.target.parentElement.style.margin = "0px 0px";
+                    setTimeout(()=>e.target.parentElement.remove(),300);
+                },3000);
             };
             const item = document.createElement("li");
             item.classList.add("item");
             item.id = "CKMARKREAD-BTN";
-            item.style.margin = "15px 0";
+            item.style.opacity = "0";
+            item.style.margin = "0px 0";
+            item.style.transition = "all .3s";
             item.appendChild(a);
             settingList().appendChild(item);
+            setTimeout(()=>{
+                if(item){
+                    item.style.margin = "15px 0";
+                    item.style.opacity = "1";
+                }
+            },50)
         }
     };
+    const intervalLog = {
+        intervalId: null,
+        lastHash: location.hash
+    };
+    const intervalHashChecker = ()=>{
+        if(location.hash!==intervalLog.lastHash) {hashChecker();
+            intervalLog.lastHash = location.hash;}
+    }
     const delayedInjectTask = async () => {
         await wait(1000);
-        injectBtn()
+        hashChecker();
+        if(intervalLog.intervalId)clearInterval(intervalLog.intervalId);
+        intervalLog.intervalId = setInterval(intervalHashChecker,300);
     };
     delayedInjectTask();
 })();
