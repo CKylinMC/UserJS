@@ -27,6 +27,7 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
             if (el.classList.contains("list-item") && el.querySelector(".notify.notify-number")) await touch(el)
         }
         if (active) await touch(active)
+        else location.hash = "#/whisper";
     };
     const msgList = () => document.querySelector("div.list");
     const asRead = async () => await touchList(msgList());
