@@ -32,9 +32,26 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const msgList = () => document.querySelector("div.list");
     const asRead = async () => await touchList(msgList());
     const settingList = () => document.querySelector("ul.list");
+    const intervalLog = {
+        intervalId: null,
+        lastHash: location.hash,
+        lastState: false
+    };
+    const intervalHashChecker = ()=>{
+        if(location.hash!==intervalLog.lastHash) {
+            hashChecker();
+            intervalLog.lastHash = location.hash;
+        }
+    }
     const hashChecker = ()=>{
-        if(location.hash==="#/whisper") injectBtn();
+        if(location.hash.startsWith("#/whisper")) {
+            if(!intervalLog.lastState) {
+                injectBtn();
+                intervalLog.lastState = true;
+            }
+        }
         else{
+            if(!intervalLog.lastState) return;
             let old;
             if (old = document.querySelector("#CKMARKREAD-BTN")) {
                 old.style.transition = "margin .3s .2s, opacity .5s";
@@ -42,6 +59,7 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
                 old.style.margin = "0px 0px";
                 setTimeout(()=>old.remove(),300);
             }
+            intervalLog.lastState = false;
         }
     };
     const waitFor = async (func, waitt = 100, retries = 100) => {
@@ -93,14 +111,6 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
             },50)
         }
     };
-    const intervalLog = {
-        intervalId: null,
-        lastHash: location.hash
-    };
-    const intervalHashChecker = ()=>{
-        if(location.hash!==intervalLog.lastHash) {hashChecker();
-            intervalLog.lastHash = location.hash;}
-    }
     const delayedInjectTask = async () => {
         await wait(1000);
         hashChecker();
