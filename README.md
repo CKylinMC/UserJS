@@ -89,6 +89,24 @@
 
 ------
 
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内私信一键已读
+**简单介绍**:
+快速设置站内私信为已读状态
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/429152)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/429152-bilibili-markasread/code/%5BBilibili%5D%20MarkAsRead.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-mark-as-read.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-mark-as-read.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-mark-as-read.user.js](scripts/ckylin-script-bilibili-mark-as-read.user.js)
+
+------
+
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内链接信息显示 BilibiliLinksInfos
 **简单介绍**:
 替换bilibili页面的视频链接为视频名，专栏链接为专栏文章名,音频链接为音频名
