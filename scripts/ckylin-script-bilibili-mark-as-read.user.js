@@ -24,7 +24,7 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const touchList = async div => {
         let active = div.querySelector(".active");
         for (let el of [...div.children].splice(1)) {
-            if (el.classList.contains("list-item") && el.querySelector(".notify.notify-number")) await touch(el)
+            if (el.classList.contains("list-item") && el.querySelector(".notify")) await touch(el)
         }
         if (active) await touch(active)
         else location.hash = "#/whisper";
