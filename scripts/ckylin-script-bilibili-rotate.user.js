@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.9
+// @version      0.10
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -604,6 +604,8 @@
         return btn
     }
 
+    let lastObTimeout = null;
+
     function injectButtons() {
         document.head.innerHTML += `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
         addStyle(`
@@ -875,6 +877,14 @@
         const injectBase = document.querySelector("#bilibiliPlayer") || document.body;
         injectBase.appendChild(toggle);
         injectBase.appendChild(btnRoot);
+        const ob = new MutationObserver(()=>{
+            if(lastObTimeout) clearTimeout(lastObTimeout);
+            setTimeout(()=>{
+                injectButtons();
+                lastObTimeout = null;
+            },300);
+        });
+        ob.observe(document.querySelector("#bilibiliPlayer"),{childList:true});
     }
 
     function showArrows(domRoot = document.body, horizontal=false, pos = {x:0,y:0},
