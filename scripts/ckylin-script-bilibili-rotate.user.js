@@ -648,10 +648,12 @@
     }
 
     let lastObTimeout = null;
+    let ignoreNextObEvent = false;
     let ob = null
 
     function injectButtons() {
-        document.head.innerHTML += `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
+        if(!document.querySelector("#mdiiconcss"))
+            document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
         addStyle(`
         #ckrotate-hidden-btn{
             z-index: 9999;
@@ -919,10 +921,12 @@
         };
         btnRoot.appendChild(RSBtn);
         let injectBase;
+        ignoreNextObEvent = true;
         if(injectToVideo){
             injectBase = document.querySelector("#bilibiliPlayer") || document.body;
             if(ob===null){
                 ob = new MutationObserver(()=>{
+                    if(ignoreNextObEvent) return;
                     if(lastObTimeout) clearTimeout(lastObTimeout);
                     setTimeout(()=>{
                         injectButtons();
@@ -936,6 +940,7 @@
         }
         injectBase.appendChild(toggle);
         injectBase.appendChild(btnRoot);
+        ignoreNextObEvent = false;
     }
 
     function showArrows(domRoot = document.body, horizontal=false, pos = {x:0,y:0},
