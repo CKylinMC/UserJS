@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.10
+// @version      0.11
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -11,6 +11,8 @@
 // @include      https://bangumi.bilibili.com/movie/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @grant        GM_getResourceText
 // @grant        unsafeWindow
 // @license      GPL-3.0-only
@@ -19,6 +21,29 @@
 (function () {
     'use strict';
     let effects = [];
+    /*
+    * 实验性功能：
+    * `injectToVideo`开关决定将面板注入到页面外围还是播放器中。
+    *
+    * 如果设置为 true 脚本会注入到播放器中，那么你可以在全屏时使用面板，但是由于b站
+    * 切换视频会重置播放器，因此脚本将会持续观测播放器以响应变更
+    * 此功能可能会导致页面卡顿或其他问题。
+    *
+    * 如果设置为 false 脚本会注入到页面外围，此时脚本注入完成后不会影响页面功能，
+    * 但是如果你进入全屏模式将无法看到侧功能栏，脚本将只能通过快捷键来操作视频旋转缩放。
+    *
+    * 此选项由脚本自动维护，无需手动修改。
+    */
+    let injectToVideo = false;
+    const loadInjectOption = (val=null) =>{
+        if(val!==null){
+            GM_setValue('ckrotate_injecttovideo',val);
+        }
+        let opt = GM_getValue('ckrotate_injecttovideo',false);
+        if(opt===null||opt===undefined) opt = false;
+        injectToVideo = opt;
+    }
+    loadInjectOption();
     const wait = (t) => {
         return new Promise(r => setTimeout(r, t));
     }
@@ -591,6 +616,24 @@
         clearStyles();
     });
 
+    GM_registerMenuCommand("注入播放器", () => {
+        if(confirm(`注入播放器功能(实验性)
+    * 此开关决定将面板注入到页面外围还是播放器中。
+    *
+    * 如果设置为 开 脚本会注入到播放器中，那么你可以在全屏时使用面板，但是由于b站
+    * 切换视频会重置播放器，因此脚本将会持续观测播放器以响应变更。
+    * 此功能可能会导致页面卡顿或其他问题(欢迎反馈遇到的问题)。
+    *
+    * 如果设置为 关 脚本会注入到页面外围，此时脚本注入完成后不会影响页面功能，
+    * 但是如果你进入全屏模式将无法看到侧功能栏，脚本将只能通过快捷键来操作视频旋转缩放。
+    *
+    * 当前状态：${injectToVideo?"开":"关"}
+    * 点击"确认"修改为 ${injectToVideo?"关":"开"} ，点击取消不做修改。`)){
+            loadInjectOption(!injectToVideo);
+            alert(`已修改为 ${injectToVideo?"开":"关"} 刷新页面生效`);
+        }
+    });
+
     /* Thanks for yoringboy's contributings! */
     function makeButton(icon, contents, color) {
         let ico = document.createElement("i");
@@ -605,6 +648,7 @@
     }
 
     let lastObTimeout = null;
+    let ob = null
 
     function injectButtons() {
         document.head.innerHTML += `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`
@@ -874,17 +918,24 @@
             clearStyles();
         };
         btnRoot.appendChild(RSBtn);
-        const injectBase = document.querySelector("#bilibiliPlayer") || document.body;
+        let injectBase;
+        if(injectToVideo){
+            injectBase = document.querySelector("#bilibiliPlayer") || document.body;
+            if(ob===null){
+                ob = new MutationObserver(()=>{
+                    if(lastObTimeout) clearTimeout(lastObTimeout);
+                    setTimeout(()=>{
+                        injectButtons();
+                        lastObTimeout = null;
+                    },300);
+                });
+            }
+            ob.observe(document.querySelector("#bilibiliPlayer"),{childList:true});
+        }else{
+            injectBase = document.body;
+        }
         injectBase.appendChild(toggle);
         injectBase.appendChild(btnRoot);
-        const ob = new MutationObserver(()=>{
-            if(lastObTimeout) clearTimeout(lastObTimeout);
-            setTimeout(()=>{
-                injectButtons();
-                lastObTimeout = null;
-            },300);
-        });
-        ob.observe(document.querySelector("#bilibiliPlayer"),{childList:true});
     }
 
     function showArrows(domRoot = document.body, horizontal=false, pos = {x:0,y:0},
@@ -975,10 +1026,11 @@
     async function startInject() {
         enableAnim();
         bindKeys();
-        videoDetect();
-        while (!(await playerReady())) await wait(100);
+        await videoDetect();
         injectButtons();
     }
 
-    startInject();
+    startInject()
+        .then(()=>console.log("[CKROTATE]","Inject task completed."))
+        .catch(e=>console.error("[CKROTATE]","Inject task failed:",e));
 })();
