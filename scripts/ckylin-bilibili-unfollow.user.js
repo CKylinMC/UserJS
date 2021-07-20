@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.6
+// @version      0.1.8
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -16,7 +16,7 @@
 // ==/UserScript==
 (function () {
     'use strict';
-    if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
+    //if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const datas = {
         status: 0,
         total: 0,
@@ -25,17 +25,33 @@
         followings: [],
         mappings: {},
         checked: [],
-        tags: {}
+        tags: {},
+        isSelf: false
     };
     const cfg = {
         debug: true,
         retrial: 3,
-        VERSION: "0.1.6 Preview"
+        VERSION: "0.1.8 Preview"
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const log = (...m) => cfg.debug || console.log('[Unfollow]', ...m);
+    const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
+    const getSelfId = async () => {
+        let stat = unsafeWindow.UserStatus;
+        let retrial = 20;
+        while (stat === null || stat === undefined) {
+            if (--retrial < 0) return 0;
+            log("Waiting for userstatus...")
+            await wait(200);
+        }
+        if (!stat.userInfo.isLogin) {
+            log("NOT LOGIN");
+            return -1
+        }
+        log("User:", stat.userInfo.mid, stat.userInfo);
+        return stat.userInfo.mid;
+    };
     const _ = async (func = () => {
     }, ...args) => await func(...args);
     const makeDom = async (domname, func = () => {
@@ -44,6 +60,14 @@
         await _(func, d, ...args);
         return d;
     };
+    const isNearly = d => {
+        const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
+        return parseInt(d + "000") > nearly;
+    }
+    const isLongAgo = (d) => {
+        const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
+        return parseInt(d + "000") < loneAgo;
+    }
     /* StackOverflow 10730362 */
     const getCookie = (name) => {
         const value = `; ${document.cookie}`;
@@ -100,10 +124,12 @@
             "referer": "https://www.bilibili.com/"
         }
     };
+    const getUInfoURL = uid => `https://api.bilibili.com/x/space/acc/info?mid=${uid}`;
     const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
+    const getLatestVidURL = uid => `https://api.bilibili.com/x/space/arc/search?mid=${uid}&ps=1&pn=1`
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -133,6 +159,70 @@
             return false;
         }
     };
+    const getLatestVideoPublishDate = async uid => {
+        try {
+            const jsonData = await (await fetch(getRequest(getLatestVidURL(uid)))).json();
+            if (jsonData && jsonData.code === 0) {
+                if (
+                    jsonData.data
+                    && jsonData.data.list
+                    && jsonData.data.list.vlist
+                ) {
+                    if (jsonData.data.list.vlist.length === 0) {
+                        return {ok: false}
+                    }
+                    const vid = jsonData.data.list.vlist[0];
+                    return {ok: true, value: vid.created}
+                } else {
+                    return {ok: false}
+                }
+            } else {
+                return {ok: false}
+            }
+        } catch (e) {
+            return {ok: false}
+        }
+    };
+    const getUserStats = async uid => {
+        try {
+            const jsonData = await (await fetch(getRequest(getUInfoURL(uid)))).json();
+            if (jsonData && jsonData.code === 0) {
+                const udata = jsonData.data;
+                return {
+                    ok: true,
+                    level: udata.level,
+                    banned: udata.silence === 1,
+                    RIP: udata.sys_notice === 20,
+                    disputed: udata.sys_notice === 8,
+                    notice: udata.sys_notice,
+                    sign: udata.sign,
+                }
+            }
+        } catch (e) {
+
+        }
+        return {ok: false}
+    }
+    const fillUserStatus = async uid => {
+        setInfoBar(`正在为${uid}填充用户信息`)
+        uid = parseInt(uid);
+        const userinfo = await getUserStats(uid);
+        if (userinfo.ok) {
+            datas.mappings[uid].level = userinfo.level;
+            datas.mappings[uid].banned = userinfo.banned;
+            datas.mappings[uid].RIP = userinfo.RIP;
+            datas.mappings[uid].disputed = userinfo.disputed;
+            datas.mappings[uid].notice = userinfo.notice;
+            datas.mappings[uid].sign = userinfo.sign;
+            if (!userinfo.banned && !userinfo.RIP) {
+                const lastUpdate = await getLatestVideoPublishDate(uid);
+                if (lastUpdate.ok) datas.mappings[uid].lastUpdate = lastUpdate.value;
+            }
+            log(uid, datas.mappings[uid]);
+        } else {
+            log(uid, "fetch space info failed");
+        }
+    }
     const batchFollowUser = async (uids = []) => {
         if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
         try {
@@ -199,6 +289,16 @@
         datas.fetched = 0;
         let currentPageNum = 1;
         const uid = await getCurrentUid();
+        const self = await getSelfId();
+        if (self === -1) {
+            alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
+        } else if (self === 0) {
+            alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
+        } else if (self !== uid) {
+            alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
+        } else if (self === uid) {
+            datas.isSelf = true;
+        }
         const firstPageData = await fetchFollowings(uid, currentPageNum);
         if (!firstPageData) throw "Failed to fetch followings";
         datas.total = firstPageData.data.total;
@@ -206,7 +306,7 @@
         datas.followings = datas.followings.concat(firstPageData.data.list);
         datas.fetched += firstPageData.data.list.length;
         firstPageData.data.list.forEach(it => {
-            datas.mappings[it.mid] = it;
+            datas.mappings[parseInt(it.mid)] = it;
         })
         currentPageNum += 1;
         for (; currentPageNum <= datas.pages; currentPageNum++) {
@@ -215,7 +315,7 @@
             datas.followings = datas.followings.concat(currentData.data.list);
             datas.fetched += currentData.data.list.length;
             currentData.data.list.forEach(it => {
-                datas.mappings[it.mid] = it;
+                datas.mappings[parseInt(it.mid)] = it;
             });
             setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
         }
@@ -394,7 +494,7 @@
         return bar;
     }
     const resetInfoBar = () => {
-        wait('50').then(() => {
+        wait(50).then(() => {
             let str = `共读取 ${datas.fetched} 条关注`;
             if (datas.checked.length > 0) {
                 str += `，已选中 ${datas.checked.length} 条`;
@@ -550,6 +650,7 @@
         document.head.innerHTML += `<link id="CKUNFOLLOW-MDICSS" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`;
     }
     const refreshChecked = () => {
+        setInfoBar(`正在刷新后台数据...`);
         const all = getAll("#CKUNFOLLOW .CKUNFOLLOW-data-inforow-toggle");
         if (!all) return;
         for (let it of all) {
@@ -566,13 +667,16 @@
                 }
             }
         }
+        resetInfoBar();
         return datas.checked;
     }
-    const toggleSwitch = (mid, status = false) => {
-        unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
+    const toggleSwitch = (mid, status = false, operateDom = true) => {
+        setToggleStatus(mid,status,operateDom);
+        //unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
     }
     const upinfoline = async data => {
         let invalid = isInvalid(data);
+        let info = datas.mappings[parseInt(data.mid)] || {};
         return await makeDom("li", async item => {
             item.className = "CKUNFOLLOW-data-inforow";
             item.onclick = e => {
@@ -582,8 +686,11 @@
                     const toggle = item.querySelector("input");
                     toggleSwitch(data.mid, !toggle.checked);
                     //toggle.checked = !toggle.checked;
+                }else{
+                    const toggle = item.querySelector("input");
+                    wait(50).then(()=>toggleSwitch(data.mid,toggle.checked,false))
                 }
-                resetInfoBar();
+                //resetInfoBar();
             }
             item.setAttribute("data-special", data.special);
             item.setAttribute("data-invalid", data.invalid ? "1" : "0");
@@ -645,17 +752,32 @@
                         name.style.color = "#c67927";
                         title += " | 认证账号";
                     }
+                    if (info.banned) {
+                        name.style.color = "grey";
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-cancel" style="color:red!important" title="账号已封禁"></i>` + name.innerHTML;
+                        title += " | 账号已封禁";
+                    }
+                    if (info.RIP) {
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-candle" style="color:black!important" title="纪念账号"></i>` + name.innerHTML;
+                        title += " | 纪念账号";
+                    }
+                    if (info.disputed) {
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-frequently-asked-questions" style="color:orangered!important" title="账号有争议"></i>`;
+                        title += " | 账号有争议";
+                    }
+                    if (info.notice && info.notice.content && !info.banned && !info.RIP && !info.disputed) {
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-information" style="color:grey!important" title="${info.notice.toString()}"></i>`;
+                        title += " | " + (info.notice.content ? info.notice.content : "账号状态未知");
+                    }
                 }
             }));
             item.appendChild(await makeDom("span", subtime => {
                 subtime.style.flex = "1";
                 subtime.innerHTML = "关注于" + (new Intl.DateTimeFormat('zh-CN').format(data.mtime + "000"));
-                const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
-                const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
-                if ((data.mtime + "000") > nearly) {
-                    title += " | 两个月内关注";
-                } else if ((data.mtime + "000") < loneAgo) {
-                    title += " | 至少两年前关注";
+                if (isNearly(data.mtime)) {
+                    title += " | 最近关注";
+                } else if (isLongAgo(data.mtime)) {
+                    title += " | 很久前关注";
                 }
             }));
             item.appendChild(await makeDom("span", tagsdom => {
@@ -693,8 +815,17 @@
                         mark.innerText = data.vip.vipType === 1 ? "大会员" : "年费大会员"
                         title += " | " + mark.innerText;
                     }
+                    if (info.lastUpdate) {
+                        if (isLongAgo(info.lastUpdate)) {
+                            title += " | 很久没有发布视频";
+                        }
+                        if (isNearly(info.lastUpdate)) {
+                            title += " | 最近有发布视频";
+                        }
+                    }
                 }
             }));
+            log(info, title);
             item.setAttribute("title", title);
         });
     }
@@ -739,47 +870,118 @@
         }))
         await wait(300);
     }
+    const createExtendedInfoModal = async () => {
+        hideModal();
+        await wait(300);
+        openModal("获取更多信息: 谨慎操作!", await makeDom("div", async container => {
+            [
+                await makeDom("div", tip => {
+                    tip.innerHTML = `你正在尝试为选中的关注用户获取更多信息。<br><br><b>由于B站官方限制，不推荐一次性获取大量用户的更多信息。强行获取大量用户的更多信息，可能会导致你的IP地址被封禁，在一段时间内不能访问B站甚至更严重后果，由于具体限制和惩罚尚不明确，因此请谨慎使用此功能。</b><br><br>一般来说，扩展信息仅在不了解部分用户或想要快速获得多个关注用户的状态时使用，<b>因此请尽量减少选中数量然后再使用此功能</b>。`
+                }),
+                await makeDom("button", btn => {
+                    btn.className = "CKUNFOLLOW-toolbar-btns orange";
+                    btn.style.margin = "4px 0";
+                    btn.innerHTML = "知道了，继续"
+                    btn.onclick = async () => {
+                        hideModal();
+                        await wait(300);
+                        refreshChecked();
+                        openModal("获取更多信息", await makeDom("div", async container => {
+                            container.appendChild(await makeDom("div", tip => {
+                                tip.style.color = "red";
+                                tip.style.fontWeight = "bold";
+                                tip.innerHTML = `确认要获取信息的用户列表。<br>请尽量减少一次性选中的数量。`;
+                            }))
+                            container.appendChild(divider());
+                            container.appendChild(await makeDom("div", async checkedlistdom => {
+                                checkedlistdom.className = "CKUNFOLLOW-scroll-list";
+                                checkedlistdom.style.width = "100%";
+                                checkedlistdom.style.maxHeight = "calc(50vh - 100px)";
+                                const checkedList = [];
+                                for (let uid of datas.checked) {
+                                    if (uid in datas.mappings)
+                                        checkedList.push(datas.mappings[uid])
+                                }
+                                await renderListTo(checkedlistdom, checkedList);
+                            }))
+                            container.appendChild(await makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                [
+                                    await makeDom("button", btn => {
+                                        btn.className = "CKUNFOLLOW-toolbar-btns red";
+                                        btn.innerHTML = "确认";
+                                        btn.onclick = async e => {
+                                            await alertModal("正在获取信息...", `正在为${datas.checked.length}个用户获取信息，请耐心等候~`);
+                                            for (let uid of datas.checked) {
+                                                await fillUserStatus(uid)
+                                            }
+                                            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                                            hideModal();
+                                        }
+                                    }),
+                                    await makeDom("button", btn => {
+                                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                                        btn.innerHTML = "取消";
+                                        btn.onclick = e => hideModal();
+                                    }),
+                                ].forEach(el => btns.appendChild(el));
+                            }))
+                        }))
+                    }
+                }),
+                await makeDom("button", btn => {
+                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                    btn.style.margin = "4px 0";
+                    btn.innerHTML = "我再考虑下";
+                    btn.onclick = () => hideModal();
+                }),
+            ].forEach(el => container.appendChild(el));
+        }))
+    }
+    const createOtherSpaceAlert = () => alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
     const createUnfollowModal = async () => {
         refreshChecked();
         if (datas.checked.length === 0) {
             alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
         } else
-            openModal("取关这些Up？", await makeDom("div", async container => {
-                container.appendChild(await makeDom("div", tip => {
-                    tip.style.color = "red";
-                    tip.style.fontWeight = "bold";
-                    tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
-                }))
-                container.appendChild(divider());
-                container.appendChild(await makeDom("div", async unfolistdom => {
-                    unfolistdom.className = "CKUNFOLLOW-scroll-list";
-                    unfolistdom.style.width = "100%";
-                    unfolistdom.style.maxHeight = "calc(50vh - 100px)";
-                    const unfolist = [];
-                    for (let unfoid of datas.checked) {
-                        if (unfoid in datas.mappings)
-                            unfolist.push(datas.mappings[unfoid])
-                    }
-                    await renderListTo(unfolistdom, unfolist);
-                }))
-                container.appendChild(await makeDom("div", async btns => {
-                    btns.style.display = "flex";
-                    [
-                        await makeDom("button", btn => {
-                            btn.className = "CKUNFOLLOW-toolbar-btns red";
-                            btn.innerHTML = "确认";
-                            btn.onclick = e => {
-                                doUnfollowChecked()
-                            }
-                        }),
-                        await makeDom("button", btn => {
-                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                            btn.innerHTML = "取消";
-                            btn.onclick = e => hideModal();
-                        }),
-                    ].forEach(el => btns.appendChild(el));
-                }))
+            hideModal();
+        await wait(300);
+        openModal("取关这些Up？", await makeDom("div", async container => {
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.color = "red";
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
             }))
+            container.appendChild(divider());
+            container.appendChild(await makeDom("div", async unfolistdom => {
+                unfolistdom.className = "CKUNFOLLOW-scroll-list";
+                unfolistdom.style.width = "100%";
+                unfolistdom.style.maxHeight = "calc(50vh - 100px)";
+                const unfolist = [];
+                for (let unfoid of datas.checked) {
+                    if (unfoid in datas.mappings)
+                        unfolist.push(datas.mappings[unfoid])
+                }
+                await renderListTo(unfolistdom, unfolist);
+            }))
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns red";
+                        btn.innerHTML = "确认";
+                        btn.onclick = e => {
+                            doUnfollowChecked()
+                        }
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "取消";
+                        btn.onclick = e => hideModal();
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+        }))
     }
     const applyFilters = async config => {
         setInfoBar(`正在处理 ...`);
@@ -935,19 +1137,43 @@
                                             btn.className = "CKUNFOLLOW-toolbar-btns red";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '取关选中';
-                                            btn.onclick = () => createUnfollowModal();
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else
+                                                btn.onclick = () => createUnfollowModal();
+                                        }),
+                                        await makeDom("button", async btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns red";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '扩展信息';
+                                            btn.onclick = () => createExtendedInfoModal();
                                         }),
                                         await makeDom("button", async btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns grey";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '设置分组';
-                                            btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else
+                                                btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
                                         }),
                                         await makeDom("button", async btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns grey";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '批量拉黑';
-                                            btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else
+                                                btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
                                         }),
                                         divider(),
                                         await makeDom("button", async btn => {
@@ -1444,10 +1670,6 @@
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
-                                                                const isLongAgo = (d) => {
-                                                                    const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
-                                                                    return (d.mtime + "000") < loneAgo;
-                                                                }
                                                                 for (let d of datas.followings) {
                                                                     if (isLongAgo(d)) {
                                                                         toggleSwitch(d.mid, true);
@@ -1464,10 +1686,6 @@
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
-                                                                const isNearly = d => {
-                                                                    const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
-                                                                    return (data.mtime + "000") > nearly;
-                                                                }
                                                                 for (let d of datas.followings) {
                                                                     if (isNearly(d)) {
                                                                         toggleSwitch(d.mid, true);
@@ -1485,10 +1703,6 @@
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
-                                                                const isLongAgo = (d) => {
-                                                                    const loneAgo = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 12 * 2 * 1000);
-                                                                    return (d.mtime + "000") < loneAgo;
-                                                                }
                                                                 for (let d of datas.followings) {
                                                                     if (!isLongAgo(d)) {
                                                                         toggleSwitch(d.mid, true);
@@ -1505,10 +1719,6 @@
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
-                                                                const isNearly = d => {
-                                                                    const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
-                                                                    return (data.mtime + "000") > nearly;
-                                                                }
                                                                 for (let d of datas.followings) {
                                                                     if (!isNearly(d)) {
                                                                         toggleSwitch(d.mid, true);
@@ -1651,81 +1861,87 @@
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "从UID列表导入关注...";
-                                            btn.onclick = async e => {
-                                                hideModal();
-                                                await wait(300);
-                                                openModal("导入UID", await makeDom("div", async modaldiv => {
-                                                    [
-                                                        await makeDom("tip", tip => tip.innerHTML = "请输入导入的UID列表，用英文半角逗号','分割"),
-                                                        await makeDom("textarea", input => {
-                                                            input.id = "CKUNFOLLOW-import-textarea";
-                                                            input.placeholder = "1111111,2222222,3333333..."
-                                                        }),
-                                                        divider(),
-                                                        await makeDom("div", async btns => {
-                                                            btns.style.display = "flex";
-                                                            [
-                                                                await makeDom("button", btn => {
-                                                                    btn.className = "CKUNFOLLOW-toolbar-btns orange";
-                                                                    btn.innerHTML = "批量关注";
-                                                                    btn.onclick = async e => {
-                                                                        const value = get("#CKUNFOLLOW-import-textarea").value;
-                                                                        if (value.length === 0) {
-                                                                            await alertModal("无法导入", "空白数据", "确定");
-                                                                            return;
-                                                                        }
-                                                                        setInfoBar("正在验证导入");
-                                                                        await alertModal("正在导入", "正在处理刚刚输入的列表，请稍等...");
-                                                                        const parts = value.split(',');
-                                                                        const finalList = [];
-                                                                        const followed = Object.keys(datas.mappings);
-                                                                        for (let part of parts) {
-                                                                            if (part.trim().length === 0) {
-                                                                                log(part, "is empty, skipped");
-                                                                            } else if (part.trim().match(/[^0-9]/) === null) {
-                                                                                const int = parseInt(part.trim());
-                                                                                if (followed.includes(int) || followed.includes(int + "")) {
-                                                                                    log(part, "has already followed, skipped");
-                                                                                } else if (int <= 0) {
-                                                                                    log(part, "smaller than zero, skipped");
-                                                                                } else {
-                                                                                    finalList.push(int);
-                                                                                }
-                                                                            } else {
-                                                                                log(part, "is not a number, skipped");
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else
+                                                btn.onclick = async e => {
+                                                    hideModal();
+                                                    await wait(300);
+                                                    openModal("导入UID", await makeDom("div", async modaldiv => {
+                                                        [
+                                                            await makeDom("tip", tip => tip.innerHTML = "请输入导入的UID列表，用英文半角逗号','分割"),
+                                                            await makeDom("textarea", input => {
+                                                                input.id = "CKUNFOLLOW-import-textarea";
+                                                                input.placeholder = "1111111,2222222,3333333..."
+                                                            }),
+                                                            divider(),
+                                                            await makeDom("div", async btns => {
+                                                                btns.style.display = "flex";
+                                                                [
+                                                                    await makeDom("button", btn => {
+                                                                        btn.className = "CKUNFOLLOW-toolbar-btns orange";
+                                                                        btn.innerHTML = "批量关注";
+                                                                        btn.onclick = async e => {
+                                                                            const value = get("#CKUNFOLLOW-import-textarea").value;
+                                                                            if (value.length === 0) {
+                                                                                await alertModal("无法导入", "空白数据", "确定");
+                                                                                return;
                                                                             }
-                                                                        }
-                                                                        await alertModal("正在导入", `正在导入${finalList.length}个关注...`);
-                                                                        const result = await batchFollowUser(finalList);
-                                                                        if (result.ok) {
-                                                                            await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
-                                                                            return createMainWindow();
-                                                                        } else {
-                                                                            if ("data" in result) {
-                                                                                if (result.data!==null && "failed_fids" in result.data)
-                                                                                    await alertModal("导入完成，但部分失败", `尝试导入了${finalList.length}个关注，但是有${result.data.failed_fids.length}个导入失败：
+                                                                            setInfoBar("正在验证导入");
+                                                                            await alertModal("正在导入", "正在处理刚刚输入的列表，请稍等...");
+                                                                            const parts = value.split(',');
+                                                                            const finalList = [];
+                                                                            const followed = Object.keys(datas.mappings);
+                                                                            for (let part of parts) {
+                                                                                if (part.trim().length === 0) {
+                                                                                    log(part, "is empty, skipped");
+                                                                                } else if (part.trim().match(/[^0-9]/) === null) {
+                                                                                    const int = parseInt(part.trim());
+                                                                                    if (followed.includes(int) || followed.includes(int + "")) {
+                                                                                        log(part, "has already followed, skipped");
+                                                                                    } else if (int <= 0) {
+                                                                                        log(part, "smaller than zero, skipped");
+                                                                                    } else {
+                                                                                        finalList.push(int);
+                                                                                    }
+                                                                                } else {
+                                                                                    log(part, "is not a number, skipped");
+                                                                                }
+                                                                            }
+                                                                            await alertModal("正在导入", `正在导入${finalList.length}个关注...`);
+                                                                            const result = await batchFollowUser(finalList);
+                                                                            if (result.ok) {
+                                                                                await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
+                                                                                return createMainWindow();
+                                                                            } else {
+                                                                                if ("data" in result) {
+                                                                                    if (result.data !== null && "failed_fids" in result.data)
+                                                                                        await alertModal("导入完成，但部分失败", `尝试导入了${finalList.length}个关注，但是有${result.data.failed_fids.length}个导入失败：
                                                                                 <br>
                                                                                 <textarea readonly onclick="this.select()">${result.data.failed_fids.join(',')}</textarea>`, "确定");
-                                                                                else
+                                                                                    else
+                                                                                        await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
+                                                                                    return createMainWindow();
+                                                                                } else {
                                                                                     await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                                                                return createMainWindow();
-                                                                            } else {
-                                                                                await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                                                                return createMainWindow();
+                                                                                    return createMainWindow();
+                                                                                }
                                                                             }
-                                                                        }
-                                                                    };
-                                                                }),
-                                                                await makeDom("button", btn => {
-                                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
-                                                                    btn.innerHTML = "取消操作";
-                                                                    btn.onclick = e => hideModal();
-                                                                })
-                                                            ].forEach(el => btns.appendChild(el));
-                                                        })
-                                                    ].forEach(el => modaldiv.appendChild(el));
-                                                }));
-                                            }
+                                                                        };
+                                                                    }),
+                                                                    await makeDom("button", btn => {
+                                                                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                                        btn.innerHTML = "取消操作";
+                                                                        btn.onclick = e => hideModal();
+                                                                    })
+                                                                ].forEach(el => btns.appendChild(el));
+                                                            })
+                                                        ].forEach(el => modaldiv.appendChild(el));
+                                                    }));
+                                                }
                                         }),
                                         divider(),
                                         await makeDom("button", btn => {
@@ -1785,7 +2001,8 @@
                     screen.appendChild(list);
                 }));
             })
-            .catch(async () => {
+            .catch(async (e) => {
+                log(e);
                 setInfoBar();
                 createScreen(await makeDom("div", dom => {
                     dom.style.position = "fixed";
@@ -1797,15 +2014,22 @@
                 }));
             })
     }
-    const setToggleStatus = (mid, status = false) => {
-        const selection = getAll(`input.CKUNFOLLOW-data-inforow-toggle[data-targetmid="${mid}"]`);
-        if (selection) {
-            for (let el of selection) {
-                el.checked = status;
+    const setToggleStatus = (mid, status = false,operateDom = true) => {
+        if(operateDom){
+            const selection = getAll(`input.CKUNFOLLOW-data-inforow-toggle[data-targetmid="${mid}"]`);
+            if (selection) {
+                for (let el of selection) {
+                    el.checked = status;
+                }
             }
         }
-        if (datas.checked.includes(mid + "")) datas.checked.splice(datas.checked.indexOf(mid + ""), 1);
-        else if (datas.checked.includes(parseInt(mid))) datas.checked.splice(datas.checked.indexOf(parseInt(mid)), 1);
+        if(status){
+            if (!datas.checked.includes(mid + "") && !datas.checked.includes(parseInt(mid)))
+                datas.checked.push(mid);
+        }else{
+            if (datas.checked.includes(mid + "")) datas.checked.splice(datas.checked.indexOf(mid + ""), 1);
+            else if (datas.checked.includes(parseInt(mid))) datas.checked.splice(datas.checked.indexOf(parseInt(mid)), 1);
+        }
         resetInfoBar();
     }
     const renderListTo = async (dom, datalist = datas.followings) => {
@@ -1938,13 +2162,15 @@
 
     const startInject = () => {
         initModal();
-        unsafeWindow.addEventListener("message", event => {
-            if (!event.data) return;
-            if (event.data.startsWith("CKUNFOLLOWSTATUSCHANGES|")) {
-                const parts = event.data.split("|");
-                setToggleStatus(parts[1], parts[2] === "1");
-            }
-        })
+        // unsafeWindow.addEventListener("message", event => {
+        //     if (!event.data) return;
+        //     if (!(event.data instanceof String)) return;
+        //     if (event.data.startsWith("CKUNFOLLOWSTATUSCHANGES|")) {
+        //         log(event.data)
+        //         const parts = event.data.split("|");
+        //         setToggleStatus(parts[1], parts[2] === "1");
+        //     }
+        // })
         injectSideBtn();
     };
 
