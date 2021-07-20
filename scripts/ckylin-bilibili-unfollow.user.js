@@ -29,7 +29,7 @@
         isSelf: false
     };
     const cfg = {
-        debug: true,
+        debug: false,
         retrial: 3,
         VERSION: "0.1.8 Preview"
     }
@@ -608,7 +608,7 @@
                 contents.innerHTML = ct;
                 return;
             }
-            console.log("unknown: ", ct);
+            log("unknown: ", ct);
         }
         modal.addContent = async (c) => {
             let ct = c;
@@ -623,7 +623,7 @@
                 contents.innerHTML += ct;
                 return;
             }
-            console.log("unknown: ", ct);
+            log("unknown: ", ct);
         }
 
         modal.close = closeModal;
