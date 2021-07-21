@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.8
+// @version      0.1.9
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -26,12 +26,13 @@
         mappings: {},
         checked: [],
         tags: {},
+        self: 0,
         isSelf: false
     };
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.1.8 Preview"
+        VERSION: "0.1.9 Preview"
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -290,13 +291,14 @@
         let currentPageNum = 1;
         const uid = await getCurrentUid();
         const self = await getSelfId();
+        datas.self = self;
         if (self === -1) {
             alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
         } else if (self === 0) {
             alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
-        } else if (self !== uid) {
+        } else if (self+"" !== uid) {
             alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
-        } else if (self === uid) {
+        } else if (self+"" === uid) {
             datas.isSelf = true;
         }
         const firstPageData = await fetchFollowings(uid, currentPageNum);
@@ -630,7 +632,6 @@
         modal.open = openModal;
         modal.show = () => {
             modal.style.backgroundColor = getBgColor();
-
             modal.className = "show";
         }
         modal.hide = () => {
