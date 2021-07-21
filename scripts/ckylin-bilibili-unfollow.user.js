@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.9
+// @version      0.1.10
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -32,7 +32,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.1.9 Preview"
+        VERSION: "0.1.10 Preview"
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -224,10 +224,11 @@
             log(uid, "fetch space info failed");
         }
     }
-    const batchFollowUser = async (uids = []) => {
+    const batchOperateUser = async (uids = [], isBlock = false) => {
         if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
+        const act = isBlock ? 5 : 1;
         try {
-            const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=1&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
+            const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
             if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
             return {ok: false, uids, res: jsonData.message, data: jsonData.data};
         } catch (e) {
@@ -296,9 +297,9 @@
             alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
         } else if (self === 0) {
             alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
-        } else if (self+"" !== uid) {
+        } else if (self + "" !== uid) {
             alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
-        } else if (self+"" === uid) {
+        } else if (self + "" === uid) {
             datas.isSelf = true;
         }
         const firstPageData = await fetchFollowings(uid, currentPageNum);
@@ -672,7 +673,7 @@
         return datas.checked;
     }
     const toggleSwitch = (mid, status = false, operateDom = true) => {
-        setToggleStatus(mid,status,operateDom);
+        setToggleStatus(mid, status, operateDom);
         //unsafeWindow.postMessage(`CKUNFOLLOWSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
     }
     const upinfoline = async data => {
@@ -687,9 +688,9 @@
                     const toggle = item.querySelector("input");
                     toggleSwitch(data.mid, !toggle.checked);
                     //toggle.checked = !toggle.checked;
-                }else{
+                } else {
                     const toggle = item.querySelector("input");
-                    wait(50).then(()=>toggleSwitch(data.mid,toggle.checked,false))
+                    wait(50).then(() => toggleSwitch(data.mid, toggle.checked, false))
                 }
                 //resetInfoBar();
             }
@@ -939,6 +940,76 @@
             ].forEach(el => container.appendChild(el));
         }))
     }
+    const createBlockOrFollowModal = async (isBlock = true) => {
+        hideModal();
+        await wait(300);
+        refreshChecked();
+        if (datas.checked.length === 0) {
+            alertModal("无法继续", "你没有选中任何项，请选中一些项然后再进行操作。", "确认");
+            return;
+        }
+        const ui = {
+            action: isBlock ? "拉黑" : "关注",
+            title: isBlock ? "批量拉黑" : "批量关注",
+            desc: isBlock ? "确认要拉黑的用户列表。<br>他们不会从你的关注中消失。" : "确认要关注的用户列表。<br>重复关注可能导致你变成新粉丝。",
+        }
+        openModal(ui.title, await makeDom("div", async container => {
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = ui.desc;
+            }))
+            container.appendChild(divider());
+            container.appendChild(await makeDom("div", async checkedlistdom => {
+                checkedlistdom.className = "CKUNFOLLOW-scroll-list";
+                checkedlistdom.style.width = "100%";
+                checkedlistdom.style.maxHeight = "calc(50vh - 100px)";
+                const checkedList = [];
+                for (let uid of datas.checked) {
+                    if (uid in datas.mappings)
+                        checkedList.push(datas.mappings[uid])
+                }
+                await renderListTo(checkedlistdom, checkedList);
+            }))
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns red";
+                        btn.innerHTML = "确认";
+                        btn.onclick = async e => {
+                            if (datas.checked.length === 0)
+                                return alertModal("无需继续", "你没有选中任何项。", "确定");
+                            const finalList = datas.checked;
+                            await alertModal("正在" + ui.action, `正在${ui.action}${finalList.length}个关注...`);
+                            const result = await batchOperateUser(finalList, isBlock);
+                            if (result.ok) {
+                                await alertModal(ui.action + "完成", `${finalList.length}个关注全部${ui.action}成功！`, "确定");
+                                return createMainWindow();
+                            } else {
+                                if ("data" in result) {
+                                    if (result.data !== null && "failed_fids" in result.data)
+                                        await alertModal(ui.action + "完成，但部分失败", `尝试${ui.action}了${finalList.length}个关注，但是有${result.data.failed_fids.length}个${ui.action}失败：
+                                                                                <br>
+                                                                                <textarea readonly onclick="this.select()">${result.data.failed_fids.join(',')}</textarea>`, "确定");
+                                    else
+                                        await alertModal(ui.action + "失败", `尝试${ui.action}了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
+                                    return createMainWindow();
+                                } else {
+                                    await alertModal(ui.action + "失败", `尝试${ui.action}了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
+                                    return createMainWindow();
+                                }
+                            }
+                        }
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "取消";
+                        btn.onclick = e => hideModal();
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+        }))
+    }
     const createOtherSpaceAlert = () => alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
     const createUnfollowModal = async () => {
         refreshChecked();
@@ -1134,47 +1205,61 @@
                                 await openModal("批量操作", await makeDom("div", async container => {
                                     container.style.alignContent = "stretch";
                                     [
-                                        await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns red";
-                                            btn.style.margin = "4px 0";
-                                            btn.innerHTML = '取关选中';
-                                            if (!datas.isSelf) {
-                                                btn.classList.add("grey");
-                                                btn.disabled = true;
-                                                btn.title = "非个人空间，无法操作。";
-                                                btn.onclick = () => createOtherSpaceAlert();
-                                            } else
-                                                btn.onclick = () => createUnfollowModal();
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '取关选中';
+                                                    btn.onclick = () => createUnfollowModal();
+                                                })
+                                            } else return null;
                                         }),
                                         await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns red";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '扩展信息';
                                             btn.onclick = () => createExtendedInfoModal();
                                         }),
-                                        await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns grey";
-                                            btn.style.margin = "4px 0";
-                                            btn.innerHTML = '设置分组';
-                                            if (!datas.isSelf) {
-                                                btn.classList.add("grey");
-                                                btn.disabled = true;
-                                                btn.title = "非个人空间，无法操作。";
-                                                btn.onclick = () => createOtherSpaceAlert();
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns grey";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '添加到分组';
+                                                    btn.title = "原分组信息保留，并添加到新分组。";
+                                                    btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                                })
                                             } else
-                                                btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                                return null;
+                                        }),
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns grey";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '设置分组';
+                                                    btn.title = "丢失原分组信息，并设置到新分组。";
+                                                    btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                                })
+                                            } else
+                                                return null;
                                         }),
                                         await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns grey";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
-                                            btn.innerHTML = '批量拉黑';
+                                            btn.innerHTML = '批量拉黑(测试)';
+                                            btn.onclick = () => createBlockOrFollowModal(true);
+                                        }),
+                                        await _(() => {
                                             if (!datas.isSelf) {
-                                                btn.classList.add("grey");
-                                                btn.disabled = true;
-                                                btn.title = "非个人空间，无法操作。";
-                                                btn.onclick = () => createOtherSpaceAlert();
-                                            } else
-                                                btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '批量关注(测试)';
+                                                    btn.onclick = () => createBlockOrFollowModal(false);
+                                                })
+                                            } else return null;
                                         }),
                                         divider(),
                                         await makeDom("button", async btn => {
@@ -1182,7 +1267,7 @@
                                             btn.innerHTML = '返回';
                                             btn.onclick = () => hideModal();
                                         }),
-                                    ].forEach(el => container.appendChild(el));
+                                    ].forEach(el => el && container.appendChild(el));
                                 }));
                             };
                         }))
@@ -1913,7 +1998,7 @@
                                                                                 }
                                                                             }
                                                                             await alertModal("正在导入", `正在导入${finalList.length}个关注...`);
-                                                                            const result = await batchFollowUser(finalList);
+                                                                            const result = await batchOperateUser(finalList, false);
                                                                             if (result.ok) {
                                                                                 await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
                                                                                 return createMainWindow();
@@ -2015,8 +2100,8 @@
                 }));
             })
     }
-    const setToggleStatus = (mid, status = false,operateDom = true) => {
-        if(operateDom){
+    const setToggleStatus = (mid, status = false, operateDom = true) => {
+        if (operateDom) {
             const selection = getAll(`input.CKUNFOLLOW-data-inforow-toggle[data-targetmid="${mid}"]`);
             if (selection) {
                 for (let el of selection) {
@@ -2024,10 +2109,10 @@
                 }
             }
         }
-        if(status){
+        if (status) {
             if (!datas.checked.includes(mid + "") && !datas.checked.includes(parseInt(mid)))
                 datas.checked.push(mid);
-        }else{
+        } else {
             if (datas.checked.includes(mid + "")) datas.checked.splice(datas.checked.indexOf(mid + ""), 1);
             else if (datas.checked.includes(parseInt(mid))) datas.checked.splice(datas.checked.indexOf(parseInt(mid)), 1);
         }
