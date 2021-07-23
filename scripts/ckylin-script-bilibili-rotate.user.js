@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.11
+// @version      0.12
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -17,7 +17,6 @@
 // @grant        unsafeWindow
 // @license      GPL-3.0-only
 // ==/UserScript==
-
 (function () {
     'use strict';
     let effects = [];
@@ -46,6 +45,9 @@
     loadInjectOption();
     const wait = (t) => {
         return new Promise(r => setTimeout(r, t));
+    }
+    const waitForPageVisible = async () => {
+        return document.hidden && new Promise(r=>document.addEventListener("visibilitychange",r))
     }
 
     class EventEmitter {
@@ -244,26 +246,30 @@
             if (!('player' in unsafeWindow)) continue;
             if (!('isInitialized' in unsafeWindow.player)) continue;
             if (!unsafeWindow.player.isInitialized()) continue;
-            return true;
         }
-        return false;
+        if(i<0)return false;
+        await waitForPageVisible();
+        while(1){
+            await wait(200);
+            if(document.querySelector(".bilibili-player-video-control-wrap")) return true;
+        }
     }
 
     function bindKeys() {
         unsafeWindow.addEventListener("keypress", e => {
             if (e.key == "Q") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 leftR();
                 e.preventDefault();
             } else if (e.key == "E") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 rightR();
                 e.preventDefault();
             } else if (e.key == "A") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 smartLR();
                 e.preventDefault();
             } else if (e.key == "D") {
@@ -273,18 +279,18 @@
                 e.preventDefault();
             } else if (e.key == "R") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 cleanEffects();
                 clearStyles();
                 e.preventDefault();
             } else if (e.key == "+") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 zoomIn();
                 e.preventDefault();
             } else if (e.key == "-") {
                 if (!e.shiftKey) return;
-                if (["INPUT", "TEXTARREA"].includes(e.target.tagName)) return;
+                if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
                 zoomOut();
                 e.preventDefault();
             }
