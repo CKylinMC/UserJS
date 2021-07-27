@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.6
+// @version      1.7
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -16,6 +16,9 @@
 
 (function () {
     const wait = (t) => new Promise(r => setTimeout(r, t));
+    const waitForPageVisible = async () => {
+        return document.hidden && new Promise(r=>document.addEventListener("visibilitychange",r))
+    }
     const log = (...m) => console.log('[ShowAV]', ...m);
     const getAPI = (bvid)=>fetch('https://api.bilibili.com/x/web-interface/view?bvid='+bvid).then(raw=>raw.json());
     const getAidAPI = (aid)=>fetch('https://api.bilibili.com/x/web-interface/view?aid='+aid).then(raw=>raw.json());
@@ -84,15 +87,20 @@
         tryInject(flag);
     }
     async function playerReady() {
-        let i = 90;
-        while (--i >= 0) {
+        let i = 150;
+        while (--i > 0) {
             await wait(100);
             if (!('player' in unsafeWindow)) continue;
             if (!('isInitialized' in unsafeWindow.player)) continue;
             if (!unsafeWindow.player.isInitialized()) continue;
-            return true;
+            break;
         }
-        return false;
+        if(i<0)return false;
+        await waitForPageVisible();
+        while(1){
+            await wait(200);
+            if(document.querySelector(".bilibili-player-video-control-wrap")) return true;
+        }
     }
     async function waitForDom(q) {
         let i = 50;
