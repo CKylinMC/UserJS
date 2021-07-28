@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.10
+// @version      0.1.12
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -16,7 +16,6 @@
 // ==/UserScript==
 (function () {
     'use strict';
-    //if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const datas = {
         status: 0,
         total: 0,
@@ -27,12 +26,22 @@
         checked: [],
         tags: {},
         self: 0,
-        isSelf: false
+        isSelf: false,
+        currInfo: {
+            black: -1,
+            follower: -1,
+            following: -1,
+            mid: -1,
+            whisper: -1,
+        }
     };
     const cfg = {
         debug: false,
+        test: 4,
         retrial: 3,
-        VERSION: "0.1.10 Preview"
+        VERSION: "0.1.12 Preview",
+        infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
+        titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -86,36 +95,12 @@
         }
     }
 
-    // async function waitForAttribute(q, attr) {
-    //     let i = 50;
-    //     let value;
-    //     while (--i >= 0) {
-    //         if ((attr in q) &&
-    //             q[attr] != null) {
-    //             value = q[attr];
-    //             break;
-    //         }
-    //         await wait(100);
-    //     }
-    //     return value;
-    // }
-
     const getCurrentUid = async () => {
-        // setInfoBar("正在查询当前用户UID - 方案1");
-        // let res = await waitForAttribute(unsafeWindow, "DedeUserID");
-        // if (!res) {
-        //     setInfoBar("正在查询当前用户UID - 方案2");
-        //     res = await waitForAttribute(unsafeWindow, "UserStatus");
-        //     if (res && res.userInfo && res.userInfo.mid) return res.userInfo.mid;
-        //     else {
-        //         setInfoBar("正在查询当前用户UID - 方案3");
         setInfoBar("正在查询当前用户UID");
         let paths = location.pathname.split('/');
         if (paths.length > 1) {
             return paths[1];
         } else throw "Failed to get current ID";
-        //     }
-        // } else return res;
     };
     const getHeaders = () => {
         return {
@@ -131,6 +116,7 @@
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
     const getLatestVidURL = uid => `https://api.bilibili.com/x/space/arc/search?mid=${uid}&ps=1&pn=1`
+    const getSubInfoURL = uid => `https://api.bilibili.com/x/relation/stat?vmid=${uid}`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -160,6 +146,20 @@
             return false;
         }
     };
+    const getCurrSubStat = async uid => {
+        try {
+            const jsonData = await (await fetch(getRequest(getSubInfoURL(uid)))).json();
+            if (jsonData && jsonData.code === 0) {
+                return jsonData.data;
+            } else {
+                log("Failed fetch self info: unexpected response", jsonData);
+                return null;
+            }
+        } catch (e) {
+            log("Failed fetch self info: error found", e);
+            return null;
+        }
+    }
     const getLatestVideoPublishDate = async uid => {
         try {
             const jsonData = await (await fetch(getRequest(getLatestVidURL(uid)))).json();
@@ -282,47 +282,73 @@
         }
         return null;
     }
-    const getFollowings = async () => {
-        if (datas.status === 1) return;
+    const getFollowings = async (force = false) => {
+        if (datas.status === 1) {
+            log("Task canceled due to busy");
+            return;
+        }
+        log("Fetching followings with param force =",force?"true":"false");
+        cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注`;
         datas.status = 1;
         datas.checked = [];
-        datas.followings = [];
-        datas.mappings = {};
-        datas.fetched = 0;
         let currentPageNum = 1;
         const uid = await getCurrentUid();
         const self = await getSelfId();
         datas.self = self;
         if (self === -1) {
             alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
+            log("Not login");
         } else if (self === 0) {
             alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
+            log("Failed fetch current user");
         } else if (self + "" !== uid) {
             alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
+            log("Other's space.");
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        const firstPageData = await fetchFollowings(uid, currentPageNum);
-        if (!firstPageData) throw "Failed to fetch followings";
-        datas.total = firstPageData.data.total;
-        datas.pages = Math.floor(datas.total / 50) + (datas.total % 50 ? 1 : 0);
-        datas.followings = datas.followings.concat(firstPageData.data.list);
-        datas.fetched += firstPageData.data.list.length;
-        firstPageData.data.list.forEach(it => {
-            datas.mappings[parseInt(it.mid)] = it;
-        })
-        currentPageNum += 1;
-        for (; currentPageNum <= datas.pages; currentPageNum++) {
-            const currentData = await fetchFollowings(uid, currentPageNum);
-            if (!currentData) break;
-            datas.followings = datas.followings.concat(currentData.data.list);
-            datas.fetched += currentData.data.list.length;
-            currentData.data.list.forEach(it => {
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION ${cfg.debug?"debug":""}} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_Bilibili","")})`}</span></small></h1>`
+        setTitle();
+        let needreload = true;
+        const currInfo = await getCurrSubStat(uid);
+        if (datas.currInfo.following !== -1 && currInfo !== null) {
+            if (force === false && datas.currInfo.following === currInfo.following) {
+                if (datas.fetched > 0)
+                    needreload = false;
+            }
+        }
+        datas.currInfo = currInfo;
+        if (needreload) {
+            datas.followings = [];
+            datas.mappings = {};
+            datas.fetched = 0;
+            const firstPageData = await fetchFollowings(uid, currentPageNum);
+            if (!firstPageData) throw "Failed to fetch followings";
+            datas.total = firstPageData.data.total;
+            datas.pages = Math.floor(datas.total / 50) + (datas.total % 50 ? 1 : 0);
+            datas.followings = datas.followings.concat(firstPageData.data.list);
+            datas.fetched += firstPageData.data.list.length;
+            firstPageData.data.list.forEach(it => {
                 datas.mappings[parseInt(it.mid)] = it;
-            });
-            setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
+            })
+            currentPageNum += 1;
+            for (; currentPageNum <= datas.pages; currentPageNum++) {
+                const currentData = await fetchFollowings(uid, currentPageNum);
+                if (!currentData) break;
+                datas.followings = datas.followings.concat(currentData.data.list);
+                datas.fetched += currentData.data.list.length;
+                currentData.data.list.forEach(it => {
+                    datas.mappings[parseInt(it.mid)] = it;
+                });
+                setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
+            }
+        }else{
+            log("Using last result.");
+            cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注(缓存,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`
+            setInfoBar("使用上次数据");
         }
         datas.status = 2;
+        log("fetch completed.");
     }
     const clearStyles = (className = "CKUNFOLLOW") => {
         let dom = document.querySelectorAll("style." + className);
@@ -344,6 +370,11 @@
         style.classList.add(className);
         style.innerHTML = s;
         document.body.appendChild(style);
+    }
+    const setTitle = (val = null)=>{
+        const title = get("#CKUNFOLLOW-titledom");
+        if(val!=null) title.innerHTML = val;
+        else title.innerHTML = cfg.titleTemplate();
     }
     const getFloatWindow = () => {
         addMdiBtnStyle();
@@ -454,6 +485,9 @@
             background: #878787!important;
             color: grey!important;
         }
+        #CKUNFOLLOW .mdi-close:hover{
+            color: #ff5722;
+        }
         `, "CKUNFOLLOW-mainWindowcss", "unique");
         const id = "CKUNFOLLOW";
         let win = document.querySelector("#" + id);
@@ -464,12 +498,13 @@
         const closebtn = document.createElement("div");
         closebtn.innerHTML = `<i class="mdi mdi-18px mdi-close"></i>`
         closebtn.style.float = "right";
-        closebtn.style.color = "black";
+        closebtn.style.color = (getBgColor()==="white")?"black":"white";
         closebtn.onclick = hidePanel;
         win.appendChild(closebtn);
 
         const titleText = document.createElement("div");
-        titleText.innerHTML = `<h1>关注管理器 <small>v${cfg.VERSION}</small></h1>`;
+        titleText.id="CKUNFOLLOW-titledom";
+        titleText.innerHTML = cfg.titleTemplate();
         win.appendChild(titleText);
 
         const infoBar = document.createElement("div");
@@ -498,7 +533,7 @@
     }
     const resetInfoBar = () => {
         wait(50).then(() => {
-            let str = `共读取 ${datas.fetched} 条关注`;
+            let str = cfg.infobarTemplate();
             if (datas.checked.length > 0) {
                 str += `，已选中 ${datas.checked.length} 条`;
             }
@@ -788,17 +823,14 @@
                     tagsdom.innerHTML = "";
                 else {
                     let name = "";
-                    //let spec = "";
                     for (let gid of data.tag) {
                         if (gid === 0 || gid === -10) continue;
-                        //if(data.tag.length>1) spec = `&nbsp;...(${data.tag.length})`;
                         if (name !== "") name += ",";
                         if (gid in datas.tags) {
                             name += datas.tags[gid].name;
                         } else {
                             name += "?";
                         }
-                        //break;
                     }
                     tagsdom.innerHTML = name;
                 }
@@ -834,7 +866,6 @@
     const doUnfollowChecked = async () => {
         const checked = datas.checked;
         if (!checked || checked.length === 0) return alertModal("无法操作", "实际选中数量为0，没有任何人被选中取关。", "");
-        //alertModal("调试|模拟取关",`取关的列表：<br>`+checked.join(","));
         await alertModal("正在取消关注...", `正在取关${checked.length}个用户，请耐心等候~`);
         const result = await unfollowUsers(checked);
         if (result.ok) {
@@ -984,7 +1015,7 @@
                             const result = await batchOperateUser(finalList, isBlock);
                             if (result.ok) {
                                 await alertModal(ui.action + "完成", `${finalList.length}个关注全部${ui.action}成功！`, "确定");
-                                return createMainWindow();
+                                return createMainWindow(true);
                             } else {
                                 if ("data" in result) {
                                     if (result.data !== null && "failed_fids" in result.data)
@@ -993,10 +1024,10 @@
                                                                                 <textarea readonly onclick="this.select()">${result.data.failed_fids.join(',')}</textarea>`, "确定");
                                     else
                                         await alertModal(ui.action + "失败", `尝试${ui.action}了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                    return createMainWindow();
+                                    return createMainWindow(true);
                                 } else {
                                     await alertModal(ui.action + "失败", `尝试${ui.action}了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                    return createMainWindow();
+                                    return createMainWindow(true);
                                 }
                             }
                         }
@@ -1064,7 +1095,7 @@
             vip: config.vip || "-2",
             official: config.official || "-2",
             fans: config.fans || "-2",
-            groups: config.groups || "-2",
+            groups: config.groups || "-4",
             special: config.special || "-2",
             beforetime: {
                 enabled: config.beforetime.enabled || false,
@@ -1081,7 +1112,7 @@
             && cfg.vip === "-2"
             && cfg.official === "-2"
             && cfg.fans === "-2"
-            && cfg.groups === "-2"
+            && cfg.groups === "-4"
             && cfg.special === "-2"
             && cfg.beforetime.enabled === false
             && cfg.aftertime.enabled === false
@@ -1108,7 +1139,7 @@
         if (cfg.special !== "-2") {
             filters.special = cfg.special;
         }
-        if (cfg.groups !== "-2") {
+        if (cfg.groups !== "-4") {
             filters.groups = cfg.groups;
         }
         if (cfg.beforetime.enabled) {
@@ -1118,11 +1149,8 @@
             filters.aftertime = parseInt(cfg.aftertime.after);
         }
         let checked = [];
-        //let counter = 0;
         try {
             userloop: for (let mid in datas.mappings) {
-                //setInfoBar(`正在处理 [ ${++counter} / ${datas.fetched} ] ...`);
-                //await wait(1);
                 const uid = parseInt(mid);
                 const user = datas.mappings[mid];
                 log(uid, user);
@@ -1145,10 +1173,15 @@
                             if (user.special != value) continue userloop;
                             break;
                         case "groups":
-                            if (value == "1") {//null
-                                if (user.tag !== null) continue userloop;
-                            } else if (value == "2") {
-                                if (user.tag === null) continue userloop;
+                            switch (value) {
+                                case "-3":
+                                    if (user.tag !== null) continue userloop;
+                                    break;
+                                case "-2":
+                                    if (user.tag === null) continue userloop;
+                                    break;
+                                default:
+                                    if (!((user.tag instanceof Array) && user.tag.includes(parseInt(value)))) continue userloop;
                             }
                             break;
                         case "beforetime":
@@ -1180,7 +1213,7 @@
         resetInfoBar();
         return checked;
     }
-    const createMainWindow = async () => {
+    const createMainWindow = async (forceRefetch = false) => {
         showPanel();
         setInfoBar("正在准备获取关注数据...");
         await createScreen(await makeDom("div", dom => {
@@ -1192,7 +1225,7 @@
             dom.innerHTML = `<h2><i class="mdi mdi-account-search-outline" style="color:cornflowerblue"></i><br>正在获取数据</h2>请稍等片刻，不要关闭窗口。`;
         }));
         if (!(await cacheGroupList())) alertModal("警告", "分组数据获取失败。", "确定");
-        getFollowings()
+        getFollowings(forceRefetch)
             .then(async () => {
                 createScreen(await makeDom("div", async screen => {
                     const toolbar = await makeDom("div", async toolbar => {
@@ -1405,10 +1438,12 @@
                                                         await makeDom("option", opt => {
                                                             opt.value = "0";
                                                             opt.innerHTML = "非特别关注"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
                                                             opt.value = "1";
                                                             opt.innerHTML = "特别关注"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
                                                 }),
@@ -1466,10 +1501,12 @@
                                                         await makeDom("option", opt => {
                                                             opt.value = "2";
                                                             opt.innerHTML = "单项关注的用户"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
                                                             opt.value = "6";
                                                             opt.innerHTML = "互粉用户"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
                                                 }),
@@ -1479,18 +1516,32 @@
                                                     select.name = "val-groups";
                                                     [
                                                         await makeDom("option", opt => {
-                                                            opt.value = "-2";
+                                                            opt.value = "-4";
                                                             opt.innerHTML = "不使用分组选择器"
                                                         }),
                                                         await makeDom("option", opt => {
-                                                            opt.value = "1";
+                                                            opt.value = "-3";
                                                             opt.innerHTML = "没有分组的用户"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
-                                                            opt.value = "2";
+                                                            opt.value = "-2";
                                                             opt.innerHTML = "已有分组的用户"
+                                                            if(!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
+                                                    if (datas.isSelf && Object.keys(datas.tags).length > 0) {
+                                                        select.appendChild(await makeDom("option", opt => {
+                                                            opt.innerHTML = "------------";
+                                                            opt.disabled = true;
+                                                        }));
+                                                        for (let tag of Object.values(datas.tags)) {
+                                                            select.appendChild(await makeDom("option", opt => {
+                                                                opt.innerHTML = tag.name;
+                                                                opt.value = tag.tagid;
+                                                            }))
+                                                        }
+                                                    }
                                                 }),
                                                 divider(),
                                                 await makeDom("label", async label => {
@@ -2001,7 +2052,7 @@
                                                                             const result = await batchOperateUser(finalList, false);
                                                                             if (result.ok) {
                                                                                 await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
-                                                                                return createMainWindow();
+                                                                                return createMainWindow(true);
                                                                             } else {
                                                                                 if ("data" in result) {
                                                                                     if (result.data !== null && "failed_fids" in result.data)
@@ -2010,10 +2061,10 @@
                                                                                 <textarea readonly onclick="this.select()">${result.data.failed_fids.join(',')}</textarea>`, "确定");
                                                                                     else
                                                                                         await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                                                                    return createMainWindow();
+                                                                                    return createMainWindow(true);
                                                                                 } else {
                                                                                     await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
-                                                                                    return createMainWindow();
+                                                                                    return createMainWindow(true);
                                                                                 }
                                                                             }
                                                                         };
@@ -2258,6 +2309,13 @@
         //     }
         // })
         injectSideBtn();
+        if (cfg.debug) {
+            unsafeWindow.CKUNFOLLOW_DBG = {
+                cfg, datas
+            }
+            log("TEST",cfg.test)
+        }
+        unsafeWindow.openFollowManager = forceRefetch=>createMainWindow(forceRefetch);
     };
 
     startInject();
