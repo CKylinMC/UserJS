@@ -307,7 +307,7 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION ${cfg.debug?"debug":""}} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_Bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_Bilibili","")})`}</span></small></h1>`
         setTitle();
         let needreload = true;
         const currInfo = await getCurrSubStat(uid);
