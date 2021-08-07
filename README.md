@@ -54,7 +54,7 @@
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注清理器
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注管理器
 **简单介绍**:
 快速整理你的关注列表，一键取关。
 
@@ -68,7 +68,7 @@
 
 **仓库文件:**
 
-[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-unfollow.user.js)
+[ckylin-bilibili-unfollow.user.js](scripts/ckylin-bilibili-unfollow.user.js)
 
 ------
 
