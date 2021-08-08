@@ -11,7 +11,7 @@
 - [内容列表](#%E5%86%85%E5%AE%B9%E5%88%97%E8%A1%A8)
   - [用户脚本](#%E7%94%A8%E6%88%B7%E8%84%9A%E6%9C%AC)
     - [* 视频页面常驻显示AV/BV号](#-%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAavbv%E5%8F%B7)
-    - [* 关注清理器](#-%E5%85%B3%E6%B3%A8%E6%B8%85%E7%90%86%E5%99%A8)
+    - [* 关注管理器](#-%E5%85%B3%E6%B3%A8%E7%AE%A1%E7%90%86%E5%99%A8)
     - [* 视频旋转和缩放](#-%E8%A7%86%E9%A2%91%E6%97%8B%E8%BD%AC%E5%92%8C%E7%BC%A9%E6%94%BE)
     - [* 站内私信一键已读](#-%E7%AB%99%E5%86%85%E7%A7%81%E4%BF%A1%E4%B8%80%E9%94%AE%E5%B7%B2%E8%AF%BB)
     - [* 站内链接信息显示 BilibiliLinksInfos](#-%E7%AB%99%E5%86%85%E9%93%BE%E6%8E%A5%E4%BF%A1%E6%81%AF%E6%98%BE%E7%A4%BA-bilibililinksinfos)
@@ -54,7 +54,7 @@
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注清理器
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注管理器
 **简单介绍**:
 快速整理你的关注列表，一键取关。
 
@@ -68,7 +68,7 @@
 
 **仓库文件:**
 
-[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-unfollow.user.js)
+[ckylin-bilibili-unfollow.user.js](scripts/ckylin-bilibili-unfollow.user.js)
 
 ------
 
