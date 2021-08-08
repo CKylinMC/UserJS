@@ -38,7 +38,6 @@
     };
     const cfg = {
         debug: false,
-        test: 4,
         retrial: 3,
         VERSION: "0.1.14 Preview",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
@@ -2334,7 +2333,6 @@
             unsafeWindow.CKUNFOLLOW_DBG = {
                 cfg, datas
             }
-            log("TEST",cfg.test)
         }
         unsafeWindow.openFollowManager = forceRefetch=>createMainWindow(forceRefetch);
     };
