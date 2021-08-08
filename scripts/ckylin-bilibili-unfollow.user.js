@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.12
+// @version      0.1.14
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -27,6 +27,7 @@
         tags: {},
         self: 0,
         isSelf: false,
+        fetchstat: "OK",
         currInfo: {
             black: -1,
             follower: -1,
@@ -39,7 +40,7 @@
         debug: false,
         test: 4,
         retrial: 3,
-        VERSION: "0.1.12 Preview",
+        VERSION: "0.1.14 Preview",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -272,11 +273,18 @@
                     if (jsonData.code === 0) return jsonData;
                     if (jsonData.code === 22007) {
                         retry = -1;
+                        datas.fetchstat = "GUEST-LIMIT";
                         throw "Not the owner of uid " + uid;
+                    }
+                    if(jsonData.code === 22115) {
+                        retry = -1;
+                        datas.fetchstat = "PERMS-DENIED";
+                        throw "Permission denied.";
                     }
                 }
                 log("Unexcept fetch result", "retry:", retry, "uid:", uid, "p:", page, "data", jsonData)
             } catch (e) {
+                if(datas.fetchstat==="OK")datas.fetchstat = "ERRORED";
                 log("Errored while fetching followings", "retry:", retry, "uid:", uid, "p:", page, "e:", e);
             }
         }
@@ -2141,13 +2149,26 @@
             .catch(async (e) => {
                 log(e);
                 setInfoBar();
+                let errtitle = "获取数据失败";
+                let errdesc = "请尝试刷新页面重试";
+                log(datas.fetchstat);
+                switch(datas.fetchstat){
+                    case "GUEST-LIMIT":
+                        errtitle = "访客限制";
+                        errdesc = "由于访客限制，获取数据失败。"
+                        break;
+                    case "PERMS-DENIED":
+                        errtitle = "无权查看";
+                        errdesc = "由于当前空间主人已设置访客不可见，因此无法查看到任何信息。"
+                        break;
+                }
                 createScreen(await makeDom("div", dom => {
                     dom.style.position = "fixed";
                     dom.style.left = "50%";
                     dom.style.top = "50%";
                     dom.style.transform = "translate(-50%,-50%)";
                     dom.style.textAlign = "center";
-                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered"></i><br>获取数据出错</h2>请注意，当前仅支持查询自己的关注<br>如果打开的时自己的关注页面，请重新打开窗口重试<br><button onclick="location.href='https://space.bilibili.com/'">前往你的个人空间</button>`;
+                    dom.innerHTML = `<h2><i class="mdi mdi-alert-remove" style="color:orangered;font-size: xx-large"></i><br>${errtitle}</h2>${errdesc}`;
                 }));
             })
     }
