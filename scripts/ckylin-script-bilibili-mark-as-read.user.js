@@ -2,7 +2,7 @@
 // @name         [Bilibili] MarkAsRead
 // @name:zh-CN   [Bilibili] 一键已读
 // @namespace    ckylin-script-bilibili-mark-as-read
-// @version      0.4
+// @version      0.5
 // @description  Mark all sessions as read with one click!
 // @description:zh-CN 一键设置所有会话已读！
 // @author       CKylinMC
@@ -24,7 +24,7 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
     const touchList = async div => {
         let active = div.querySelector(".active");
         for (let el of [...div.children].splice(1)) {
-            if (el.classList.contains("list-item") && el.querySelector(".notify") && !el.querySelector("[title='我的应援团']")) await touch(el)
+            if (el.classList.contains("list-item") && el.querySelector(".notify") && !el.querySelector("[title='我的应援团']") && !el.querySelector("[title='未关注人消息']")) await touch(el)
         }
         if (active) await touch(active)
         else location.hash = "#/whisper";
