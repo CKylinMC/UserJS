@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.14
+// @version      0.1.15
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -34,12 +34,14 @@
             following: -1,
             mid: -1,
             whisper: -1,
-        }
+        },
+        preventUserCard: false,
+        autoExtendInfo: true
     };
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.1.14 Preview",
+        VERSION: "0.1.15 Preview",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -167,13 +169,26 @@
                 if (
                     jsonData.data
                     && jsonData.data.list
-                    && jsonData.data.list.vlist
                 ) {
+                    let mostCates = "";
+                    if (jsonData.data.list.tlist.length !== 0) {
+                        let max = 0, name="";
+                        for(let itemname of Object.keys(jsonData.data.list.tlist)){
+                            const item = jsonData.data.list.tlist[itemname];
+                            if(item.count>max){
+                                max = item.count;
+                                name= item.name;
+                            }else if(item.count===max){
+                                name+= "、"+item.name;
+                            }
+                        }
+                        mostCates = name;
+                    }
                     if (jsonData.data.list.vlist.length === 0) {
-                        return {ok: false}
+                        return {ok: false,mostCates:mostCates}
                     }
                     const vid = jsonData.data.list.vlist[0];
-                    return {ok: true, value: vid.created}
+                    return {ok: true, value: vid.created,vinfo: {aid:vid.aid,title:vid.title,pic:vid.pic,play:vid.play},mostCates:mostCates}
                 } else {
                     return {ok: false}
                 }
@@ -181,6 +196,7 @@
                 return {ok: false}
             }
         } catch (e) {
+            log(uid,e)
             return {ok: false}
         }
     };
@@ -197,6 +213,8 @@
                     disputed: udata.sys_notice === 8,
                     notice: udata.sys_notice,
                     sign: udata.sign,
+                    cates: udata.tags,
+                    lives: udata.live_room
                 }
             }
         } catch (e) {
@@ -207,6 +225,11 @@
     const fillUserStatus = async uid => {
         setInfoBar(`正在为${uid}填充用户信息`)
         uid = parseInt(uid);
+        if(datas.mappings[uid].filled){
+            log(uid,"already filled")
+            resetInfoBar();
+            return;
+        }
         const userinfo = await getUserStats(uid);
         if (userinfo.ok) {
             datas.mappings[uid].level = userinfo.level;
@@ -215,14 +238,23 @@
             datas.mappings[uid].disputed = userinfo.disputed;
             datas.mappings[uid].notice = userinfo.notice;
             datas.mappings[uid].sign = userinfo.sign;
+            datas.mappings[uid].cates = userinfo.cates;
+            datas.mappings[uid].lives = userinfo.lives;
+            datas.mappings[uid].filled = true;
             if (!userinfo.banned && !userinfo.RIP) {
                 const lastUpdate = await getLatestVideoPublishDate(uid);
-                if (lastUpdate.ok) datas.mappings[uid].lastUpdate = lastUpdate.value;
+                log(uid,lastUpdate)
+                if (lastUpdate.ok) {
+                    datas.mappings[uid].lastUpdate = lastUpdate.value;
+                    datas.mappings[uid].lastUpdateInfo = lastUpdate.vinfo;
+                }
+                if(lastUpdate.mostCates) datas.mappings[uid].mostCates = lastUpdate.mostCates;
             }
             log(uid, datas.mappings[uid]);
         } else {
             log(uid, "fetch space info failed");
         }
+        resetInfoBar();
     }
     const batchOperateUser = async (uids = [], isBlock = false) => {
         if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
@@ -725,7 +757,8 @@
             item.className = "CKUNFOLLOW-data-inforow";
             item.onclick = e => {
                 if (e.target.classList.contains("CKUNFOLLOW-data-inforow-name")) {
-                    open("https://space.bilibili.com/" + data.mid);
+                    //open("https://space.bilibili.com/" + data.mid);
+                    createUserInfoCard(info);
                 } else if (e.target.tagName !== "INPUT") {
                     const toggle = item.querySelector("input");
                     toggleSwitch(data.mid, !toggle.checked);
@@ -909,6 +942,225 @@
                 }))
         }))
         await wait(300);
+    }
+    const createUserInfoCard = async info=>{
+        if(datas.preventUserCard) return;
+        log(info);
+        if(datas.autoExtendInfo){
+            alertModal("请稍后...");
+            await fillUserStatus(info.mid).catch(err => log(err));
+        }
+        hideModal();
+        await wait(300);
+        openModal("", await makeDom("div", async container => {
+            const infocard = await makeDom("div", async card => {
+                card.style.display = "flex";
+                card.style.flexDirection = "row";
+                card.style.minHeight = "100px";
+                card.style.minWidth = "400px";
+                [
+                    await makeDom("img", async img => {
+                        img.style.flex = "1";
+                        img.style.maxWidth = "70px";
+                        img.setAttribute("loading","lazy");
+                        img.src = info.face;
+                        img.style.width = "70px";
+                        img.style.height = "70px";
+                        img.style.borderRadius = "50%";
+                        img.style.margin = "0 30px";
+                    }),
+                    await makeDom("div", async upinfo=>{
+                        upinfo.style.flex = "1";
+                        upinfo.style.maxWidth = "300px";
+                        upinfo.innerHTML = `<b style="color:${info.vip['nickname_color']};font-size: large">${info.uname}</b> <span style="display:inline-block;transform: translateY(-5px);font-size:xx-small;line-height:1.2;padding:1px 3px;border-radius:6px;background: ${info.vip.vipType>0?(info.vip.label['bg_color']||"#f06292"):"rgba(0,0,0,0)"};color: ${info.vip.label['text_color']||"white"}">${info.vip.vipType>1?info.vip.label.text:info.vip.vipType>0?"大会员":""}</span>`;
+                        if(info.level){
+                            upinfo.innerHTML+= `<div style="display: inline-block;border-radius:3px;line-height: 1.2;padding: 1px 3px;background:#f06292;margin-left: 12px;color:white">LV${info.level}</div>`;
+                        }
+                        upinfo.innerHTML+= `<div style="color:gray">${info.sign}</div>`;
+                        if(info.official_verify.type!==-1){
+                            let color = "gray";
+                            switch(info.official_verify.type){
+                                case 0:
+                                    color="goldenrod";
+                                    break;
+                                case 1:
+                                    color="#FB7299";
+                                    break;
+                                case 2:
+                                    color="dodgerblue";
+                                    break;
+                            }
+                            upinfo.innerHTML+= `<div style="color:${color}">${info.official_verify.desc}</div>`;
+                        }
+                        if(info.tag!==null){
+                            let folders = "分类:";
+                            for(let t of info.tag){
+                                if(t in datas.tags){
+                                    folders +=" "+datas.tags[t].name;
+                                }
+                            }
+                            upinfo.innerHTML+= `<div style="color:gray;font-weight:bold">${folders}</div>`;
+                        }
+                        let subinfo = "";
+                        if(info.special===1){
+                            subinfo+= `<span style="color:deeppink;margin-right:6px;">特别关注</span>`;
+                        }
+                        if(info.attribute===6){
+                            subinfo+= `<span style="color:indianred;margin-right:6px;">互相关注</span>`;
+                        }
+                        if(subinfo.length){
+                            upinfo.innerHTML+= `<div>${subinfo}</div>`
+                        }
+                        if(info.notice && info.notice.id){
+                            upinfo.innerHTML+= `<div style="border-radius:6px;padding:3px;background:${info.notice.bg_color};color:${info.notice.text_color};"><a href="${info.notice.url}">${info.notice.content}</a></div>`;
+                        }
+                        if(info.banned){
+                            upinfo.innerHTML+= `<div style="border-radius:6px;padding:3px;background:black;color:white;">账号已封禁</div>`;
+                        }
+                        if(info.cates && info.cates.length){
+                            upinfo.innerHTML+= `<div style="color:gray">标签: ${info.cates.join(", ")}</div>`;
+                        }
+                        if(info.mostCates && info.mostCates.length){
+                            upinfo.innerHTML+= `<div style="color:gray">主要投稿分区: ${info.mostCates}</div>`;
+                        }
+                        if(info.mid){
+                            upinfo.innerHTML+= `<div style="color:gray">UID: ${info.mid}</div>`;
+                        }
+                        if(info.mtime){
+                            const regdate = new Date(info.mtime*1000);
+                            upinfo.innerHTML+= `<div style="color:gray">关注于 ${regdate.getFullYear()}年${regdate.getMonth()+1}月${regdate.getDate()}日</div>`;
+                        }
+                    })
+                ].forEach(el=>card.appendChild(el));
+            })
+            container.appendChild(infocard);
+            if(info.lastUpdate && info.lastUpdateInfo){
+                const pushdate = new Date(info.lastUpdate*1000);
+                [
+                    divider(),
+                    await makeDom("div",async post=>{
+                        post.innerHTML = "<h3 style='padding: 6px 0;'>最新投稿</h3>";
+                        post.appendChild(await makeDom("div",async vidcard=>{
+                            vidcard.style.display = "flex";
+                            vidcard.style.flexDirection = "row";
+                            vidcard.style.minHeight = "80px";
+                            vidcard.style.minWidth = "400px";
+                            [
+                                await makeDom("img", img=>{
+                                    img.style.flex = "1";
+                                    img.style.maxWidth = "80px";
+                                    img.style.height = "50px";
+                                    img.setAttribute("loading","lazy");
+                                    img.src = info.lastUpdateInfo.pic;
+                                    img.style.borderRadius = "6px";
+                                    img.style.margin = "0px 12px 0px 10px";
+                                }),
+                                await makeDom("div",async vidinfo=>{
+                                    vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${info.lastUpdateInfo.title}</div>`;
+                                    vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日</div>`;
+                                })
+                            ].forEach(el=>vidcard.appendChild(el));
+                            vidcard.onclick = ()=>open(`https://www.bilibili.com/av${info.lastUpdateInfo.aid}`)
+                        }))
+                    })
+                ].forEach(el=>container.appendChild(el));
+            }
+            if(info.lives && info.lives.liveStatus!==0){
+                [
+                    divider(),
+                    await makeDom("div",async post=>{
+                        post.innerHTML = "<h3 style='padding: 6px 0;'>直播间</h3>";
+                        post.appendChild(await makeDom("div",async vidcard=>{
+                            vidcard.style.display = "flex";
+                            vidcard.style.flexDirection = "row";
+                            vidcard.style.minHeight = "80px";
+                            vidcard.style.minWidth = "400px";
+                            [
+                                await makeDom("img", img=>{
+                                    img.style.flex = "1";
+                                    img.style.maxWidth = "80px";
+                                    img.style.height = "50px";
+                                    img.setAttribute("loading","lazy");
+                                    img.src = info.lives.cover;
+                                    img.style.borderRadius = "6px";
+                                    img.style.margin = "0px 12px 0px 10px";
+                                }),
+                                await makeDom("div",async vidinfo=>{
+                                    vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${info.lives.title}</div>`;
+                                    vidinfo.innerHTML+= `<div style="color:grey">正在直播 - 房间号: ${info.lives.roomid}</div>`;
+                                })
+                            ].forEach(el=>vidcard.appendChild(el));
+                            vidcard.onclick = ()=>open(`https://live.bilibili.com/${info.lives.roomid}`)
+                        }))
+                    })
+                ].forEach(el=>container.appendChild(el));
+            }
+            async function addBtn(info,container){
+                container.style.display="flex";
+                container.style.flexDirection="column";
+                container.innerHTML = "";
+                if(info.attribute===0){
+                    container.appendChild(await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns red";
+                        btn.style.margin = "4px 0";
+                        btn.innerHTML = "立刻关注";
+                        btn.onclick = async e => {
+                            btn.innerHTML = "正在关注...";
+                            btn.setAttribute("disabled",true)
+                            btn.classList.add("grey");
+                            const res = await batchOperateUser([info.mid],false);
+                            if(!res.ok){
+                                log(res)
+                                btn.innerHTML = "关注失败";
+                                btn.removeAttribute("disabled")
+                                btn.classList.remove("grey");
+                            }else{
+                                datas.mappings[info.mid].attribute = 1;
+                                btn.remove();
+                                addBtn(info,container);
+                            }
+                        }
+                    }))
+                }else{
+                    container.appendChild(await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns red";
+                        btn.style.margin = "4px 0";
+                        btn.innerHTML = "立刻取关(谨慎)";
+                        btn.onclick = async e => {
+                            btn.innerHTML = "正在取关...";
+                            btn.setAttribute("disabled",true)
+                            btn.classList.add("grey");
+                            const res = await unfollowUser(info.mid);
+                            if(!res.ok){
+                                log(res);
+                                btn.innerHTML = "取关失败";
+                                btn.removeAttribute("disabled")
+                                btn.classList.remove("grey");
+                            }else{
+                                datas.mappings[info.mid].attribute = 0;
+                                btn.remove();
+                                addBtn(info,container);
+                            }
+                        }
+                    }))
+                }
+                container.appendChild(await makeDom("button", btn => {
+                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                    btn.style.margin = "4px 0";
+                    btn.innerHTML = "个人主页";
+                    btn.onclick = () => open(`https://space.bilibili.com/${info.mid}`)
+                }))
+                container.appendChild(await makeDom("button", btn => {
+                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                    btn.style.margin = "4px 0";
+                    btn.innerHTML = "隐藏";
+                    btn.onclick = () => hideModal();
+                }))
+            }
+            const btns = document.createElement("div");
+            await addBtn(info,btns);
+            container.appendChild(btns);
+        }));
     }
     const createExtendedInfoModal = async () => {
         hideModal();
@@ -2232,6 +2484,7 @@
             dom.className = "hide";
             document.body.appendChild(dom);
         }
+        datas.preventUserCard = block;
         if (block) {
             dom.className = "show";
         } else {
