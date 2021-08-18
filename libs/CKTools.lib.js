@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      0.1
+// @version      0.2
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
 // ==/UserScript==
 unsafeWindow.CKTools = {
-	ver: 0.1,
+	ver: 0.2,
 	get: (q,base=document) => base.querySelector(q),
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
@@ -161,7 +161,7 @@ unsafeWindow.CKTools = {
 					contents.appendChild(ct);
 					return;
 				}
-				if (ct instanceof String) {
+				if (typeof(ct)==="string") {
 					contents.innerHTML = ct;
 					return;
 				}
