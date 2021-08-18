@@ -2,7 +2,8 @@
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
 // @version      0.2
-// @include      *
+// @match        http://*
+// @match        https://*
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
