@@ -114,6 +114,12 @@ unsafeWindow.CKTools = {
 				pointer-events: none;
 				transform: translate(-50%,-50%) scale(0.9);
 			}
+			.CKTOOLS-modal-title{
+				font-size: large;
+			}
+			.CKTOOLS-modal-content{
+				font-size: medium;
+			}
 			.CKTOOLS-modal-content>div{
 				display: flex;
 				margin: 6px 10px;
