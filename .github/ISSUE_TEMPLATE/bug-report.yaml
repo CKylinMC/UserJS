@@ -6,6 +6,7 @@ assignees:
   - CKylinMC
 body:
   - type: dropdown
+    id: target
     attributes:
       label: 目标
       description: 是哪一个脚本或样式出现了问题？
@@ -15,7 +16,7 @@ body:
         - 脚本-关注管理器
         - 脚本-视频旋转和缩放
         - 脚本-站内私信一键已读
-        - 脚本-站内链接信息显示 BilibiliLinksInfos
+        - 脚本-站内链接信息显示BilibiliLinksInfos
         - 脚本-修改迷你播放器大小位置
         - 脚本-评论过滤
         - 脚本-平滑展开视频信息
@@ -38,5 +39,6 @@ body:
     validations:
       required: true
   - type: markdown
+    id: bugdesc
     attributes:
       value: "## 描述出现的问题"
