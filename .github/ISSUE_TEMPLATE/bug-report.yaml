@@ -39,9 +39,9 @@ body:
     validations:
       required: true
   - type: textarea
-    label: 描述出现的问题
     id: bugdesc
     attributes:
+      label: 描述出现的问题
       description: 详细描述复现过程和错误，必要时带上错误日志/问题页面地址/浏览器版本等信息
       placeholder: 描述问题...
     validations:
