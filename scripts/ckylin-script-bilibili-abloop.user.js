@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.2
+// @version      0.4
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -32,7 +32,7 @@
         b: 999,
         video: null,
         isLooping: false,
-        listener: () => getCurrentTime() >= cfg.b ? setTime(cfg.a) : 0
+        listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a) : 0
     }
     const guibar = {
         toBar: null,
@@ -222,6 +222,7 @@
         addStyleOnce('markbar', `
             .abloop-custombar{
                 opacity: 0;
+                transform: scale(0);
             }
             .abloop-custombar.show{
                 opacity: 1!important;
@@ -242,18 +243,23 @@
         playbar.parentNode.insertBefore(guibar.toBar, playbar);
     }
     function hotKeyHandler(e) {
-        if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) {
+        log(1,e);
+        if (['KeyA', 'KeyB', 'KeyO'].includes(e.code)) {
+            log(2,e);
             if (e.ctrlKey || e.altKey || e.shiftKey) return;
             if ([...e.path.filter(t => t.tagName == "TEXTAREA" || t.tagName == "INPUT")].length) return;
             switch (e.key) {
-                case "1":
+                case "a":
                     triggerAPoint();
+                    e.preventDefault();
                     break;
-                case "2":
+                case "b":
                     triggerBPoint();
+                    e.preventDefault();
                     break;
-                case "3":
+                case "o":
                     triggerToggleDoAuto();
+                    e.preventDefault();
                     break;
             }
         }
