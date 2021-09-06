@@ -58,6 +58,7 @@
         firstTimeLoad: true,
         showInNewLine: false,
         showCid: false,
+        showCate: false,
         vduration: 0
     };
     const menuId = {
@@ -65,6 +66,7 @@
         defaultAv: -1,
         showInNewLine:-1,
         showPn: -1,
+        showCate:-1,
         showCid: -1,
     };
     let infos = {};
@@ -75,11 +77,14 @@
         if (menuId.showPn != -1) GM_unregisterMenuCommand(menuId.showPn);
         if (menuId.showInNewLine != -1) GM_unregisterMenuCommand(menuId.showInNewLine);
         if (menuId.showCid != -1) GM_unregisterMenuCommand(menuId.showCid);
+        if (menuId.showCate != -1) GM_unregisterMenuCommand(menuId.showCate);
         if (!(await GM_getValue("inited"))) {
             await GM_setValue("showAv", true);
             await GM_setValue("defaultAv", true);
             await GM_setValue("showPn", true);
             await GM_setValue("showInNewLine", false);
+            await GM_setValue("showCid", false);
+            await GM_setValue("showCate", false);
             await GM_setValue("inited", true);
         }
         if ((await GM_getValue("showAv"))) {
@@ -118,6 +123,19 @@
             config.showPn = false;
             menuId.showPn = GM_registerMenuCommand("显示视频分P信息[当前隐藏]", async () => {
                 await GM_setValue("showPn", true);
+                initScript(true);
+            });
+        }
+        if ((await GM_getValue("showCate"))) {
+            config.showCate = true;
+            menuId.showCate = GM_registerMenuCommand("隐藏视频分区信息[当前显示]", async () => {
+                await GM_setValue("showCate", false);
+                initScript(true);
+            });
+        } else {
+            config.showCate = false;
+            menuId.showCate = GM_registerMenuCommand("显示视频分区信息[当前隐藏]", async () => {
+                await GM_setValue("showCate", true);
                 initScript(true);
             });
         }
@@ -276,6 +294,16 @@
         }
         //const av_root = getOrNew("bilibiliShowInfos",av_infobar);
         //const av_root = av_infobar;
+
+        const cate_span = getOrNew("bilibiliShowCate", av_root);
+        if (config.showCate) {
+            cate_span.style.textOverflow = "ellipsis";
+            cate_span.style.whiteSpace = "nowarp";
+            cate_span.style.overflow = "hidden";
+            cate_span.title = "分区:"+infos.tname;
+            cate_span.innerText = "分区:"+infos.tname;
+        } else cate_span.remove();
+
         const av_span = getOrNew("bilibiliShowAV", av_root);
         if (config.showAv) {
             if (config.defaultAv)
