@@ -126,7 +126,7 @@ const CKTools = {
 				flex-direction: column;
 				align-content: space-around;
 				justify-content: space-between;
-				align-items: stretch;
+				align-items: center;
 			}
 			.CKTOOLS-toolbar-btns{
 				flex: 1;
@@ -137,6 +137,7 @@ const CKTools = {
 				padding: 3px;
 				color: white;
 				box-shadow: 0 2px 3px grey;
+				min-width: 60px;
 			}
 			.CKTOOLS-toolbar-btns:hover{
 				filter: brightness(0.85);
