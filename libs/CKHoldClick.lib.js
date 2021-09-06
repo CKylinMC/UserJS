@@ -52,6 +52,7 @@ class HoldClick {
     }
 
     handleMouseDown(e) {
+        if(e.button!==0&&e.button!==1) return;
         e.preventDefault();
         this.mouseDown = true;
         this.downTime = (new Date()).getTime();
@@ -66,6 +67,7 @@ class HoldClick {
     }
 
     handleMouseUp(e) {
+        if(e.button!==0&&e.button!==1) return;
         e.preventDefault();
         if (this.mouseDown) {
             this.mouseDown = false;
