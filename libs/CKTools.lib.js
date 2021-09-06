@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      0.3
+// @version      0.4
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
 // @license      GPLv3 License
 // ==/UserScript==
 const CKTools = {
-	ver: 0.3,
+	ver: 0.4,
 	get: (q,base=document) => base.querySelector(q),
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
@@ -270,9 +270,9 @@ const CKTools = {
 			let i = 50;
 			while (--i >= 0) {
 				await CKTools.wait(100);
-				if (!('player' in unsafeWindow)) continue;
-				if (!('isInitialized' in unsafeWindow.player)) continue;
-				if (!unsafeWindow.player.isInitialized()) continue;
+				if (!('player' in window)) continue;
+				if (!('isInitialized' in window.player)) continue;
+				if (!window.player.isInitialized()) continue;
 			}
 			if(i<0)return false;
 			await CKTools.waitForPageVisible();
@@ -283,9 +283,9 @@ const CKTools = {
 		},
 		getTotalTime: async () => await waitForAttribute(cfg.video,'duration'),
 		getCurrentTime: () => cfg.video.currentTime,
-		setTime: t => unsafeWindow.player.seek(t),
-		play: () => unsafeWindow.player.play(),
-		pause: () => unsafeWindow.player.pause(),
+		setTime: t => window.player.seek(t),
+		play: () => window.player.play(),
+		pause: () => window.player.pause(),
 		getInfoByBvid: (bvid)=>fetch('https://api.bilibili.com/x/web-interface/view?bvid='+bvid).then(raw=>raw.json()),
 		getInfoByAid: (aid)=>fetch('https://api.bilibili.com/x/web-interface/view?aid='+aid).then(raw=>raw.json()),
 	},
