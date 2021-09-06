@@ -1,14 +1,16 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.4
+// @version      0.5
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
 // @grant        unsafeWindow
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
-// @license      GPL-3.0-only
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @license      GPLv3 License
 // ==/UserScript==
 
 (function() {
@@ -105,21 +107,24 @@
         setBPointMenu();
     }
 
-    function triggerToggleDoStop() {
-        cfg.isLooping = !cfg.isLooping;
+    function triggerToggleDoStop(fast=false) {
+        if(!fast)cfg.isLooping = !cfg.isLooping;
         cfg.video.removeEventListener('timeupdate',cfg.listener);
         pause();
-        hideBars();
-        setLoopListenerMenu();
+        if(!fast)hideBars();
+        if(!fast)setLoopListenerMenu(false);
+        if(!fast)forgiveAllPoint()
     }
 
-    function triggerToggleDoStart() {
+    function triggerToggleDoStart(autostart=true) {
+        triggerToggleDoStop(true);
         cfg.isLooping = !cfg.isLooping;
         cfg.video.addEventListener('timeupdate',cfg.listener);
         setTime(cfg.a);
-        play();
+        if(autostart)play();
         showBars();
-        setLoopListenerMenu();
+        setLoopListenerMenu(false);
+        saveAllPoint()
     }
 
     function triggerToggleDoAuto() {
@@ -136,6 +141,14 @@
 
     function setBPointMenu(noapply = false) {
         setMenu("BPOINT", "设置B点 (当前B点:" + (Math.floor(cfg.b*100)/100) + ")", triggerBPoint, noapply);
+    }
+
+    function setSavePointMenu(noapply = false) {
+        setMenu("SAVEPOINT", "记住此页循环设置", saveAllPoint, noapply);
+    }
+
+    function setForgivePointMenu(noapply = false) {
+        setMenu("SAVEPOINT", "清除此页循环设置", forgiveAllPoint, noapply);
     }
 
     function setLoopListenerMenu(noapply = false) {
@@ -175,6 +188,28 @@
         style.innerHTML = css;
         document.body.appendChild(style);
         return;
+    }
+
+    async function setAPointBarPos(){
+        let point = cfg.a;
+        let duration = await getTotalTime();
+        let dt = point/duration;
+        if (!guibar.fromBar) await createMarkBar();
+        const playbar = await waitForDom(".bui-bar.bui-bar-normal");
+        if (!playbar) return;
+        guibar.fromBar.style.transform = `scaleX(${dt})`;
+        showBarA();
+    }
+
+    async function setBPointBarPos(){
+        let point = cfg.b;
+        let duration = await getTotalTime();
+        let dt = point/duration;
+        if (!guibar.toBar) await createMarkBar();
+        const playbar = await waitForDom(".bui-bar.bui-bar-normal");
+        if (!playbar) return;
+        guibar.toBar.style.transform = `scaleX(${dt})`;
+        showBarA();
     }
 
     async function setFromBarPos() {
@@ -270,6 +305,92 @@
         unsafeWindow.addEventListener('keypress', hotKeyHandler);
     }
 
+    function str2float(str,fallback=-1){
+        try{
+            let num = parseFloat(str);
+            if(isNaN(num)) return fallback;
+            if(typeof(num)==='undefined') return fallback;
+            return num;
+        }catch(e){ return fallback; }
+    }
+
+    function forgiveAllPoint(){
+        GM_setValue(`a:${location.pathname}`,-1);
+        GM_setValue(`b:${location.pathname}`,-1);
+        setSavePointMenu();
+    }
+
+    function saveAllPoint(){
+        saveAPoint();
+        saveBPoint();
+        setForgivePointMenu();
+    }
+
+    function saveAPoint(){
+        GM_setValue(`a:${location.pathname}`,cfg.a);
+    }
+
+    function saveBPoint(){
+        GM_setValue(`b:${location.pathname}`,cfg.b);
+    }
+
+    function getAPoint(){
+        return str2float(GM_getValue(`a:${location.pathname}`));
+    }
+
+    function getBPoint(){
+        return str2float(GM_getValue(`b:${location.pathname}`));
+    }
+
+    async function loadFromSavedData(){
+        let a = getAPoint();
+        let b = getBPoint();
+        let loopauto = false;
+        if(a>=0){
+            cfg.a = a;
+            setAPointBarPos();
+            setAPointMenu(false);
+            loopauto=true;
+        }
+        if(b>=0){
+            cfg.b = Math.min(b,await getTotalTime());
+            setBPointBarPos();
+            setBPointMenu(false);
+            loopauto=true;
+        }
+        if(loopauto) {
+            setForgivePointMenu();
+            triggerToggleDoStart(false);
+        }
+        return loopauto;
+    }
+
+    async function loadFromURL(){
+        let url = new URL(location.href);
+        let a = str2float(url.searchParams.get('ta'));
+        let b = str2float(url.searchParams.get('tb'));
+        let loopauto = false;
+        if(a>=0){
+            cfg.a = a;
+            saveAPoint();
+            setAPointBarPos();
+            setAPointMenu(false);
+            loopauto=true;
+        }
+        if(b>=0){
+            cfg.b = Math.min(b,await getTotalTime());
+            saveBPoint();
+            setBPointBarPos();
+            setBPointMenu(false);
+            loopauto=true;
+        }
+        if(loopauto) {
+            setForgivePointMenu();
+            triggerToggleDoStart(false);
+        }
+        return loopauto;
+    }
+
     async function init() {
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return log("No player found on this page.");
@@ -280,10 +401,12 @@
         cfg.b = (await getTotalTime())-0.1;
         setAPointMenu(true);
         setBPointMenu(true);
-        setLoopListenerMenu();
-        createMarkBar();
+        setLoopListenerMenu(true);
+        setSavePointMenu();
+        await createMarkBar();
         regHotKey();
         log("Initialization OK");
+        if((await loadFromSavedData())+(await loadFromURL())) showBars();
     }
 
     init();
