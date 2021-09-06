@@ -5,11 +5,10 @@
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
-// @grant        unsafeWindow
 // @license      GPLv3 License
 // ==/UserScript==
-unsafeWindow.CKTools = {
-	ver: 0.2,
+const CKTools = {
+	ver: 0.3,
 	get: (q,base=document) => base.querySelector(q),
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
