@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      0.2
+// @version      0.3
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
