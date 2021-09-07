@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.8
+// @version      1.9
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -19,31 +19,38 @@
 // ==/UserScript==
 
 (function () {
-
-    function applyResource(){
-        if(document.querySelector("#cktools"))return;
-        const cktools = document.createElement("script");
-        cktools.id = "cktools";
-        cktools.innerHTML = GM_getResourceText("cktools");
-        document.head.appendChild(cktools);
-        if(document.querySelector("#popjs"))return;
-        const popjs = document.createElement("script");
-        popjs.id = "popjs";
-        popjs.innerHTML = GM_getResourceText("popjs");
-        document.head.appendChild(popjs);
-        if(document.querySelector("#popcss"))return;
-        const popcss = document.createElement("style");
-        popcss.id = "cktools";
-        popcss.innerHTML = GM_getResourceText("popcss");
-        document.head.appendChild(popcss);
-        const popcsspatch = document.createElement("style");
-        popcsspatch.id = "popcsspatchforbilibilievolved";
-        popcsspatch.innerHTML=`
-        div.popNotifyUnitFrame{z-index:110000!important;}
-        `;
-        document.head.appendChild(popcsspatch);
+    //======[Apply all resources]
+    const resourceList = [
+        {name:'cktools',type:'js'},
+        {name:'popjs',type:'js'},
+        {name:'popcss',type:'css'},
+        {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;}"},
+    ]
+    function applyResource() {
+        resloop:for(let res of resourceList){
+            if(!document.querySelector("#"+res.name)){
+                let el;
+                switch (res.type) {
+                    case 'js':
+                    case 'rawjs':
+                        el = document.createElement("script");
+                        break;
+                    case 'css':
+                    case 'rawcss':
+                        el = document.createElement("style");
+                        break;
+                    default:
+                        console.log('Err:unknown type', res);
+                        continue resloop;
+                }
+                el.id = res.name;
+                el.innerHTML = res.type.startsWith('raw')?res.content:GM_getResourceText(res.name);
+                document.head.appendChild(el);
+            }
+        }
     }
     applyResource();
+    //======
     const wait = (t) => new Promise(r => setTimeout(r, t));
     const waitForPageVisible = async () => {
         return document.hidden && new Promise(r => document.addEventListener("visibilitychange", r))
@@ -52,13 +59,12 @@
     const getAPI = (bvid) => fetch('https://api.bilibili.com/x/web-interface/view?bvid=' + bvid).then(raw => raw.json());
     const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
     const config = {
-        showAv: true,
         defaultAv: true,
-        showPn: true,
         firstTimeLoad: true,
         showInNewLine: false,
-        showCid: false,
-        showCate: false,
+        pnmaxlength: 18,
+        orders: ['openGUI','showAv','showPn'],
+        all: ['showAv','showPn','showCid','showCate','openGUI'],
         vduration: 0
     };
     const menuId = {
@@ -69,36 +75,38 @@
         showCate:-1,
         showCid: -1,
     };
+    const txtCn = {
+        showAv: "视频编号和高级复制",
+        showPn: "视频分P名",
+        showCid: "视频CID编号",
+        showCate: "视频所在分区",
+        openGUI: "设置选项"
+    };
     let infos = {};
 
-    async function initScript(flag = false) {
-        if (menuId.showAv != -1) GM_unregisterMenuCommand(menuId.showAv);
-        if (menuId.defaultAv != -1) GM_unregisterMenuCommand(menuId.defaultAv);
-        if (menuId.showPn != -1) GM_unregisterMenuCommand(menuId.showPn);
-        if (menuId.showInNewLine != -1) GM_unregisterMenuCommand(menuId.showInNewLine);
-        if (menuId.showCid != -1) GM_unregisterMenuCommand(menuId.showCid);
-        if (menuId.showCate != -1) GM_unregisterMenuCommand(menuId.showCate);
-        if (!(await GM_getValue("inited"))) {
-            await GM_setValue("showAv", true);
-            await GM_setValue("defaultAv", true);
-            await GM_setValue("showPn", true);
-            await GM_setValue("showInNewLine", false);
-            await GM_setValue("showCid", false);
-            await GM_setValue("showCate", false);
-            await GM_setValue("inited", true);
+    async function saveAllConfig(){
+        for(let configKey of Object.keys(config)){
+            if([
+                "all","vduration","firstTimeLoad"
+            ].includes(configKey)) continue;
+            await GM_setValue(configKey, config[configKey]);
         }
-        if ((await GM_getValue("showAv"))) {
-            config.showAv = true;
-            menuId.showAv = GM_registerMenuCommand("隐藏视频编号[当前显示]", async () => {
-                await GM_setValue("showAv", false);
-                initScript(true);
-            });
-        } else {
-            config.showAv = false;
-            menuId.showAv = GM_registerMenuCommand("显示视频编号[当前隐藏]", async () => {
-                await GM_setValue("showAv", true);
-                initScript(true);
-            });
+        popNotify.success("配置保存成功");
+    }
+
+    async function initScript(flag = false) {
+        for(let menuitem of Object.keys(menuId)){
+            if(menuId[menuitem]!=-1) GM_unregisterMenuCommand(menuId[menuitem]);
+        }
+        for(let configKey of Object.keys(config)){
+            if([
+                "all","vduration","firstTimeLoad"
+            ].includes(configKey)) continue;
+            if(typeof(await GM_getValue(configKey))==='undefined'){
+                await GM_setValue(configKey, config[configKey]);
+            }else{
+                config[configKey] = await GM_getValue(configKey);
+            }
         }
         if ((await GM_getValue("defaultAv"))) {
             config.defaultAv = true;
@@ -110,45 +118,6 @@
             config.defaultAv = false;
             menuId.defaultAv = GM_registerMenuCommand("默认显示av号[当前显示BV号]", async () => {
                 await GM_setValue("defaultAv", true);
-                initScript(true);
-            });
-        }
-        if ((await GM_getValue("showPn"))) {
-            config.showPn = true;
-            menuId.showPn = GM_registerMenuCommand("隐藏视频分P信息[当前显示]", async () => {
-                await GM_setValue("showPn", false);
-                initScript(true);
-            });
-        } else {
-            config.showPn = false;
-            menuId.showPn = GM_registerMenuCommand("显示视频分P信息[当前隐藏]", async () => {
-                await GM_setValue("showPn", true);
-                initScript(true);
-            });
-        }
-        if ((await GM_getValue("showCate"))) {
-            config.showCate = true;
-            menuId.showCate = GM_registerMenuCommand("隐藏视频分区信息[当前显示]", async () => {
-                await GM_setValue("showCate", false);
-                initScript(true);
-            });
-        } else {
-            config.showCate = false;
-            menuId.showCate = GM_registerMenuCommand("显示视频分区信息[当前隐藏]", async () => {
-                await GM_setValue("showCate", true);
-                initScript(true);
-            });
-        }
-        if ((await GM_getValue("showCid"))) {
-            config.showCid = true;
-            menuId.showCid = GM_registerMenuCommand("隐藏视频CID信息[当前显示]", async () => {
-                await GM_setValue("showCid", false);
-                initScript(true);
-            });
-        } else {
-            config.showCid = false;
-            menuId.showCid = GM_registerMenuCommand("显示视频CID信息[当前隐藏]", async () => {
-                await GM_setValue("showCid", true);
                 initScript(true);
             });
         }
@@ -169,7 +138,21 @@
                 initScript(true);
             });
         }
+        GM_registerMenuCommand("打开设置", async () => {
+            await GUISettings();
+        });
+        CKTools.addStyle(`
+            #bilibiliShowPN{
+                max-width: ${config.pnmaxlength}em!important;
+            }
+        `,"showav_pnlen","update",document.head);
         tryInject(flag);
+    }
+
+    function atleastOne(){
+        let k = 0;
+        [...arguments].map(v=>k+=v);
+        return k>0;
     }
 
     async function playerReady() {
@@ -250,62 +233,22 @@
         return 1;
     }
 
-    async function tryInject(flag) {
-        if (flag && !config.showAv && !config.showPn) return log('Terminated because no option is enabled.');
-        if (!(await playerReady())) return log('Can not load player in time.');
-
-        if (config.firstTimeLoad) {
-            registerVideoChangeHandler();
-            config.firstTimeLoad = false;
-        }
-
-        if (location.pathname.startsWith("/medialist")) {
-            let aid = unsafeWindow.aid;
-            if (!aid) {
-                console.log("SHOWAV", "Variable 'aid' is not available from unsafeWindow.");
-                let activeVideo = await waitForDom(".player-auxiliary-playlist-item-active");
-                aid = activeVideo.getAttribute("data-aid");
-                //console.log("SHOWAV",activeVideo);
-            }
-            console.log("SHOWAV", aid);
-            let apidata = await getAidAPI(aid);
-            //console.log("SHOWAV",apidata);
-            infos = apidata.data;
-        } else {
-            if (flag)
-                infos = (await getAPI(unsafeWindow.bvid)).data;
-            else infos = unsafeWindow.vd;
-        }
-        infos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, infos);
-
-        const av_infobar = await waitForDom(".video-data");
-        if (!av_infobar) return log('Can not load info-bar in time.');
-        let av_root;
-        if(config.showInNewLine){
-            av_root = getOrNew("bilibiliShowInfos",av_infobar.parentElement);
-        }else{
-            let rootel = document.querySelector("#bilibiliShowInfos");
-            if(!rootel){
-                rootel = document.createElement("span");
-                rootel.id = "bilibiliShowInfos";
-                av_infobar.appendChild(rootel);
-            }
-            av_root = rootel;
-        }
-        //const av_root = getOrNew("bilibiliShowInfos",av_infobar);
-        //const av_root = av_infobar;
-
+    async function feat_showCate(){
+        const {av_root,infos} = this;
         const cate_span = getOrNew("bilibiliShowCate", av_root);
-        if (config.showCate) {
+        //if (config.showCate) {
             cate_span.style.textOverflow = "ellipsis";
             cate_span.style.whiteSpace = "nowarp";
             cate_span.style.overflow = "hidden";
             cate_span.title = "分区:"+infos.tname;
             cate_span.innerText = "分区:"+infos.tname;
-        } else cate_span.remove();
+        //} else cate_span.remove();
+    }
 
+    async function feat_showAv(){
+        const {av_root,infos} = this;
         const av_span = getOrNew("bilibiliShowAV", av_root);
-        if (config.showAv) {
+        //if (config.showAv) {
             if (config.defaultAv)
                 av_span.innerText = 'av' + infos.aid;
             else
@@ -358,10 +301,13 @@
                 <input readonly style="width:440px" value="${infos.cid}" onclick="showav_fastcopy(this);" /><br>
                 `,"关闭");
             });
-        } else av_span.remove();
+        //} else av_span.remove();
+    }
 
+    async function feat_showCid(){
+        const {av_root,infos} = this;
         const cid_span = getOrNew("bilibiliShowCID", av_root);
-        if (config.showCid) {
+        //if (config.showCid) {
             cid_span.style.textOverflow = "ellipsis";
             cid_span.style.whiteSpace = "nowarp";
             cid_span.style.overflow = "hidden";
@@ -377,10 +323,23 @@
                 <input readonly style="width:440px" value="${infos.cid}" />
                 `,"关闭");
             });
-        } else cid_span.remove();
+        //} else cid_span.remove();
+    }
 
+    async function feat_openGUI(){
+        const {av_root,infos} = this;
+        const gui_span = getOrNew("bilibiliShowGUISettings", av_root);
+        gui_span.innerHTML = "⚙";
+        gui_span.title = "ShowAV 设置";
+        gui_span.style.overflow = "hidden";
+        gui_span.style.cursor = "pointer";
+        gui_span.onclick = e=>GUISettings();
+    }
+
+    async function feat_showPn(){
+        const {av_root,infos} = this;
         const pn_span = getOrNew("bilibiliShowPN", av_root);
-        if (config.showPn) {
+        //if (config.showPn) {
             const videoData = infos;
             if (!videoData) return;
             let part = {
@@ -416,8 +375,248 @@
                 <input readonly style="width:440px" value="${currentPageName}" />
                 `,"关闭");
             });
-        } else pn_span.remove();
-        log('infos',infos);
+        //} else pn_span.remove();
+    }
+
+    async function tryInject(flag) {
+        if (flag && config.orders.length===0) return log('Terminated because no option is enabled.');
+        if (!(await playerReady())) return log('Can not load player in time.');
+
+        if (config.firstTimeLoad) {
+            registerVideoChangeHandler();
+            config.firstTimeLoad = false;
+        }
+
+        if (location.pathname.startsWith("/medialist")) {
+            let aid = unsafeWindow.aid;
+            if (!aid) {
+                log("Variable 'aid' is not available from unsafeWindow.");
+                let activeVideo = await waitForDom(".player-auxiliary-playlist-item-active");
+                aid = activeVideo.getAttribute("data-aid");
+                //console.log("SHOWAV",activeVideo);
+            }
+            log(aid);
+            let apidata = await getAidAPI(aid);
+            //console.log("SHOWAV",apidata);
+            infos = apidata.data;
+        } else {
+            if (flag)
+                infos = (await getAPI(unsafeWindow.bvid)).data;
+            else infos = unsafeWindow.vd;
+        }
+        infos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, infos);
+
+        const av_infobar = await waitForDom(".video-data");
+        if (!av_infobar) return log('Can not load info-bar in time.');
+        let av_root;
+        if(config.showInNewLine){
+            av_root = getOrNew("bilibiliShowInfos",av_infobar.parentElement);
+        }else{
+            let rootel = document.querySelector("#bilibiliShowInfos");
+            if(!rootel){
+                rootel = document.createElement("span");
+                rootel.id = "bilibiliShowInfos";
+                av_infobar.appendChild(rootel);
+            }
+            av_root = rootel;
+        }
+        //const av_root = getOrNew("bilibiliShowInfos",av_infobar);
+        //const av_root = av_infobar;
+        
+        av_root.style.textOverflow = "ellipsis";
+        av_root.style.whiteSpace = "nowarp";
+        av_root.style.overflow = "hidden";
+        const that = {
+            av_root,config,av_infobar,infos,CKTools
+        };
+
+        const functions = {
+            showAv: feat_showAv.bind(that),
+            showCate: feat_showCate.bind(that),
+            showCid: feat_showCid.bind(that),
+            showPn: feat_showPn.bind(that),
+            openGUI: feat_openGUI.bind(that)
+        }
+
+        config.orders.forEach(k=>functions[k]());
+    }
+
+    async function GUISettings(){
+        CKTools.addStyle(`
+        .showav_dragablediv {
+            width: 300px;
+            min-height: 60px;
+            border: dotted;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 5px;
+            position: relative;
+            margin: 3px auto;
+        }
+        .showav_dragableitem {
+            background: white;
+            margin: 3px;
+            padding: 3px;
+            border-radius: 4px;
+            border: solid #bdbdbd 2px;
+            color: black;
+        }
+        .showav_dragableitem::after {
+            content: "拖动排序";
+            float: right;
+            font-size: xx-small;
+            padding: 3px;
+            color: #bbbbbb !important;
+        }
+        .showav_dragablediv>b {
+            position: absolute;
+            left: -4rem;
+        }
+        .showav_disableddiv .showav_dragableitem {
+            color: grey;
+        }
+        .showav_enableddiv{
+            background: #dcedc8;
+        }
+        .showav_disableddiv{
+            background: #ffcdd2;
+        }   
+        `,'showav_dragablecss',"unique",document.head);
+        CKTools.modal.openModal("ShowAV / 设置",await CKTools.makeDom("div",async container=>{
+            container.style.alignItems = "stretch";
+            [
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("input",input=>{
+                            input.type="checkbox";
+                            input.id = "showav_newline";
+                            input.name = "showav_newline";
+                            input.checked = config.showInNewLine;
+                        }),
+                        await CKTools.makeDom("label",label=>{ 
+                            label.style.paddingLeft = "3px";
+                            label.setAttribute('for',"showav_newline");
+                            label.innerHTML = "在新的一行中显示信息(当显示信息过多时推荐开启)";
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.setAttribute('for',"showav_pnwid");
+                            label.innerHTML = "视频分P信息字数限制";
+                        }),
+                        await CKTools.makeDom("input",input=>{
+                            input.type="number";
+                            input.id = "showav_pnwid";
+                            input.name = "showav_pnwid";
+                            input.setAttribute('min',5);
+                            input.setAttribute('max',100);
+                            input.style.width = "3em";
+                            input.style.textAlign = "center";
+                            input.style.marginLeft = "1em";
+                            input.style.lineHeight = "1em";
+                            input.value = config.pnmaxlength;
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
+                // dragable code from ytb v=jfYWwQrtzzY
+                await CKTools.makeDom("li", async list=>{
+                    const makeDragable = async id=>{
+                        return await CKTools.makeDom("div",draggable=>{
+                            draggable.className = "showav_dragableitem";
+                            draggable.setAttribute("draggable",true);
+                            draggable.setAttribute("data-id",id);
+                            draggable.innerHTML = txtCn[id];
+                            draggable.addEventListener('dragstart',e=>{
+                                draggable.classList.add('showav_dragging');
+                            })
+                            draggable.addEventListener('dragend',e=>{
+                                draggable.classList.remove('showav_dragging');
+                            })
+                        })
+                    };
+                    function getClosestItem(container,y){
+                        const draggables = [...container.querySelectorAll(".showav_dragableitem:not(.showav_dragging)")];
+                        return draggables.reduce((closest,child)=>{
+                            const box = child.getBoundingClientRect();
+                            const offset = y - box.top - box.height / 2;
+                            if(offset < 0 && offset > closest.offset) return {offset,element:child};
+                            else return closest;
+                        },{offset:Number.NEGATIVE_INFINITY}).element;
+                    }
+                    function registerDragEvent (draggablediv){
+                        draggablediv.addEventListener('dragover',e=>{
+                            e.preventDefault();
+                            const closestElement = getClosestItem(draggablediv,e.clientY);
+                            const dragging = document.querySelector(".showav_dragging");
+                            if(closestElement===null){
+                                draggablediv.appendChild(dragging);
+                            }else{
+                                draggablediv.insertBefore(dragging,closestElement);
+                            }
+                        })
+                    }
+                    [
+                        await CKTools.makeDom("div",div=>{
+                            div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
+                        }),
+                        await CKTools.makeDom("div",async enableddiv=>{
+                            enableddiv.innerHTML = `<b>启用</b>`;
+                            enableddiv.className = "showav_dragablediv showav_enableddiv";
+                            config.orders.forEach(async k=>{
+                                enableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(enableddiv);
+                        }),
+                        await CKTools.makeDom("div",async disableddiv=>{
+                            disableddiv.innerHTML = `<b>禁用</b>`;
+                            disableddiv.className = "showav_dragablediv showav_disableddiv";
+                            config.all.forEach(async k=>{
+                                if(config.orders.includes(k)) return;
+                                disableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(disableddiv);
+                        }),
+                        await CKTools.makeDom("div",async div => {
+                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "保存并关闭";
+                                    btn.onclick = e => {
+                                        const enableddiv = document.querySelector(".showav_enableddiv");
+                                        const elements = enableddiv.querySelectorAll(".showav_dragableitem");
+                                        let enabledArray = [];
+                                        for(let element of [...elements]){
+                                            enabledArray.push(element.getAttribute('data-id'));
+                                        }
+                                        config.orders = enabledArray;
+                                        config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
+                                        config.showInNewLine = document.querySelector("#showav_newline").checked;
+                                        saveAllConfig();
+                                        CKTools.modal.hideModal();
+                                        let old = document.querySelector("#bilibiliShowInfos")
+                                        if(old)old.remove();
+                                        initScript(true);
+                                    }
+                                }))
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "关闭";
+                                    btn.onclick = e => {
+                                        CKTools.modal.hideModal();
+                                    }
+                                }))
+                            }))
+                        }),
+                    ].forEach(e=>list.appendChild(e));
+                })
+            ].forEach(e=>container.appendChild(e));
+        }));
     }
 
     const copy = function copy(text) {
@@ -437,6 +636,8 @@
         copy(el.value);
         popNotify.success("复制成功", el.value);
     }
+
+    unsafeWindow.showav_guisettings = GUISettings;
 
     initScript(false);
 })();
