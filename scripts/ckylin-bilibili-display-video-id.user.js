@@ -172,6 +172,12 @@
         tryInject(flag);
     }
 
+    function atleastOne(){
+        let k = 0;
+        [...arguments].map(v=>k+=v);
+        return k>0;
+    }
+
     async function playerReady() {
         let i = 150;
         while (--i > 0) {
@@ -251,7 +257,12 @@
     }
 
     async function tryInject(flag) {
-        if (flag && !config.showAv && !config.showPn) return log('Terminated because no option is enabled.');
+        if (flag && !atleastOne(
+            config.showAv,
+            config.showPn,
+            config.showCid,
+            config.showCate
+        )) return log('Terminated because no option is enabled.');
         if (!(await playerReady())) return log('Can not load player in time.');
 
         if (config.firstTimeLoad) {
