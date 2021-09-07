@@ -79,20 +79,13 @@
     let infos = {};
 
     async function initScript(flag = false) {
-        if (menuId.showAv != -1) GM_unregisterMenuCommand(menuId.showAv);
-        if (menuId.defaultAv != -1) GM_unregisterMenuCommand(menuId.defaultAv);
-        if (menuId.showPn != -1) GM_unregisterMenuCommand(menuId.showPn);
-        if (menuId.showInNewLine != -1) GM_unregisterMenuCommand(menuId.showInNewLine);
-        if (menuId.showCid != -1) GM_unregisterMenuCommand(menuId.showCid);
-        if (menuId.showCate != -1) GM_unregisterMenuCommand(menuId.showCate);
-        if (!(await GM_getValue("inited"))) {
-            await GM_setValue("showAv", true);
-            await GM_setValue("defaultAv", true);
-            await GM_setValue("showPn", true);
-            await GM_setValue("showInNewLine", false);
-            await GM_setValue("showCid", false);
-            await GM_setValue("showCate", false);
-            await GM_setValue("inited", true);
+        for(let menuitem of Object.keys(menuId)){
+            if(menuId[menuitem]!=-1) GM_unregisterMenuCommand(menuId[menuitem]);
+        }
+        for(let configKey of Object.keys(config)){
+            if(typeof(await GM_getValue(configKey))==='undefined'){
+                await GM_setValue(configKey, config[configKey]);
+            }
         }
         if ((await GM_getValue("showAv"))) {
             config.showAv = true;
