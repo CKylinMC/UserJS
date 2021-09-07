@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.9
+// @version      1.10
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -63,23 +63,21 @@
         firstTimeLoad: true,
         showInNewLine: false,
         pnmaxlength: 18,
-        orders: ['openGUI','showAv','showPn'],
-        all: ['showAv','showPn','showCid','showCate','openGUI'],
+        orders: ['openGUI','showPic','showAv','showPn'],
+        all: ['showAv','showPn','showCid','showCate','openGUI','showPic','showSize'],
         vduration: 0
     };
     const menuId = {
-        showAv: -1,
         defaultAv: -1,
         showInNewLine:-1,
-        showPn: -1,
-        showCate:-1,
-        showCid: -1,
     };
     const txtCn = {
         showAv: "视频编号和高级复制",
         showPn: "视频分P名",
         showCid: "视频CID编号",
         showCate: "视频所在分区",
+        showPic: "视频封面",
+        showSize: "视频分辨率",
         openGUI: "设置选项"
     };
     let infos = {};
@@ -304,6 +302,26 @@
         //} else av_span.remove();
     }
 
+    async function feat_showPic(){
+        const {av_root,infos} = this;
+        const pic_span = getOrNew("bilibiliShowPic", av_root);
+        pic_span.style.textOverflow = "ellipsis";
+        pic_span.style.whiteSpace = "nowarp";
+        pic_span.style.overflow = "hidden";
+        pic_span.title = "查看封面";
+        pic_span.innerHTML = "🖼️";
+        pic_span.style.cursor = "pointer";
+        const picHC = new CKTools.HoldClick(pic_span);
+        picHC.onclick(()=>{
+            CKTools.modal.alertModal("封面",`
+            <img src="${infos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
+            `,"关闭");
+        });
+        picHC.onhold(()=>{
+            open(infos.pic);
+        });
+    }
+
     async function feat_showCid(){
         const {av_root,infos} = this;
         const cid_span = getOrNew("bilibiliShowCID", av_root);
@@ -323,6 +341,18 @@
                 <input readonly style="width:440px" value="${infos.cid}" />
                 `,"关闭");
             });
+        //} else cid_span.remove();
+    }
+
+    async function feat_showSize(){
+        const {av_root,infos} = this;
+        const size_span = getOrNew("bilibiliShowSize", av_root);
+        //if (config.showCid) {
+            size_span.style.textOverflow = "ellipsis";
+            size_span.style.whiteSpace = "nowarp";
+            size_span.style.overflow = "hidden";
+            size_span.title = `${infos.dimension.width}x${infos.dimension.height}`;
+            size_span.innerText = `${infos.dimension.width}x${infos.dimension.height}`;
         //} else cid_span.remove();
     }
 
@@ -435,6 +465,8 @@
             showCate: feat_showCate.bind(that),
             showCid: feat_showCid.bind(that),
             showPn: feat_showPn.bind(that),
+            showPic: feat_showPic.bind(that),
+            showSize: feat_showSize.bind(that),
             openGUI: feat_openGUI.bind(that)
         }
 
@@ -460,6 +492,7 @@
             border-radius: 4px;
             border: solid #bdbdbd 2px;
             color: black;
+            transition: all .3s;
         }
         .showav_dragableitem::after {
             content: "拖动排序";
@@ -467,6 +500,20 @@
             font-size: xx-small;
             padding: 3px;
             color: #bbbbbb !important;
+        }
+        .showav_dragging {
+            background: grey;
+            color: white;
+            border: solid #515050 2px;
+            transform: scale(1.1);
+            transition: all .3s;
+        }
+        .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
+            background: grey;
+            color: white;
+            border: solid #515050 2px;
+            transform: scale(1.03);
+            transition: all .3s;
         }
         .showav_dragablediv>b {
             position: absolute;
@@ -533,9 +580,11 @@
                             draggable.innerHTML = txtCn[id];
                             draggable.addEventListener('dragstart',e=>{
                                 draggable.classList.add('showav_dragging');
+                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e=>e.classList.add('showav_child_dragging'))
                             })
                             draggable.addEventListener('dragend',e=>{
                                 draggable.classList.remove('showav_dragging');
+                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e=>e.classList.remove('showav_child_dragging'))
                             })
                         })
                     };
@@ -638,6 +687,9 @@
     }
 
     unsafeWindow.showav_guisettings = GUISettings;
+
+    CKTools.modal.initModal();
+    CKTools.modal.hideModal();
 
     initScript(false);
 })();
