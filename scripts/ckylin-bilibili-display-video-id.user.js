@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.8
+// @version      1.9
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -19,31 +19,38 @@
 // ==/UserScript==
 
 (function () {
-
-    function applyResource(){
-        if(document.querySelector("#cktools"))return;
-        const cktools = document.createElement("script");
-        cktools.id = "cktools";
-        cktools.innerHTML = GM_getResourceText("cktools");
-        document.head.appendChild(cktools);
-        if(document.querySelector("#popjs"))return;
-        const popjs = document.createElement("script");
-        popjs.id = "popjs";
-        popjs.innerHTML = GM_getResourceText("popjs");
-        document.head.appendChild(popjs);
-        if(document.querySelector("#popcss"))return;
-        const popcss = document.createElement("style");
-        popcss.id = "cktools";
-        popcss.innerHTML = GM_getResourceText("popcss");
-        document.head.appendChild(popcss);
-        const popcsspatch = document.createElement("style");
-        popcsspatch.id = "popcsspatchforbilibilievolved";
-        popcsspatch.innerHTML=`
-        div.popNotifyUnitFrame{z-index:110000!important;}
-        `;
-        document.head.appendChild(popcsspatch);
+    //======[Apply all resources]
+    const resourceList = [
+        {name:'cktools',type:'js'},
+        {name:'popjs',type:'js'},
+        {name:'popcss',type:'css'},
+        {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}"},
+    ]
+    function applyResource() {
+        resloop:for(let res of resourceList){
+            if(!document.querySelector("#"+res.name)){
+                let el;
+                switch (res.type) {
+                    case 'js':
+                    case 'rawjs':
+                        el = document.createElement("script");
+                        break;
+                    case 'css':
+                    case 'rawcss':
+                        el = document.createElement("style");
+                        break;
+                    default:
+                        console.log('Err:unknown type', res);
+                        continue resloop;
+                }
+                el.id = res.name;
+                el.innerHTML = res.type.startsWith('raw')?res.content:GM_getResourceText(res.name);
+                document.head.appendChild(el);
+            }
+        }
     }
     applyResource();
+    //======
     const wait = (t) => new Promise(r => setTimeout(r, t));
     const waitForPageVisible = async () => {
         return document.hidden && new Promise(r => document.addEventListener("visibilitychange", r))
