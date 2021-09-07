@@ -492,6 +492,7 @@
             border-radius: 4px;
             border: solid #bdbdbd 2px;
             color: black;
+            transition: all .3s;
         }
         .showav_dragableitem::after {
             content: "拖动排序";
@@ -499,6 +500,20 @@
             font-size: xx-small;
             padding: 3px;
             color: #bbbbbb !important;
+        }
+        .showav_dragging {
+            background: grey;
+            color: white;
+            border: solid #515050 2px;
+            transform: scale(1.1);
+            transition: all .3s;
+        }
+        .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
+            background: grey;
+            color: white;
+            border: solid #515050 2px;
+            transform: scale(1.03);
+            transition: all .3s;
         }
         .showav_dragablediv>b {
             position: absolute;
@@ -565,9 +580,11 @@
                             draggable.innerHTML = txtCn[id];
                             draggable.addEventListener('dragstart',e=>{
                                 draggable.classList.add('showav_dragging');
+                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e=>e.classList.add('showav_child_dragging'))
                             })
                             draggable.addEventListener('dragend',e=>{
                                 draggable.classList.remove('showav_dragging');
+                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e=>e.classList.remove('showav_child_dragging'))
                             })
                         })
                     };
