@@ -2,7 +2,7 @@
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
 // @version      1.12
-// @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
+// @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
 // @match        https://www.bilibili.com/medialist/play/*
