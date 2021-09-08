@@ -9,6 +9,7 @@
 // @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=967994
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
+// @resource     timeago https://unpkg.com/timeago.js@4.0.2/dist/timeago.min.js
 // @grant        unsafeWindow
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -22,6 +23,7 @@
     //======[Apply all resources]
     const resourceList = [
         {name:'cktools',type:'js'},
+        {name:'timeago',type:'js'},
         {name:'popjs',type:'js'},
         {name:'popcss',type:'css'},
         {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}"},
@@ -60,15 +62,18 @@
     const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
     const config = {
         defaultAv: true,
+        hideTime: false,
         firstTimeLoad: true,
+        foldedWarningTip: true,
         showInNewLine: false,
         pnmaxlength: 18,
         orders: ['openGUI','showPic','showAv','showPn'],
-        all: ['showAv','showPn','showCid','showCate','openGUI','showPic','showSize'],
+        all: ['showAv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
         vduration: 0
     };
     const menuId = {
         defaultAv: -1,
+        foldedWarningTip: -1,
         showInNewLine:-1,
     };
     const txtCn = {
@@ -78,6 +83,11 @@
         showCate: "视频所在分区",
         showPic: "视频封面",
         showSize: "视频分辨率",
+        showMore: "更多信息",
+        showCTime: "视频投稿时间",
+        showViews: "替换视频播放量",
+        showDmk: "替换视频弹幕量",
+        showTop: "替换全站排名提示",
         openGUI: "设置选项"
     };
     const descCn = {
@@ -87,6 +97,11 @@
         showCate: "展示视频所在的子分区。",
         showPic: "提供按钮一键查看封面，长按可以在新标签页打开大图。",
         showSize: "展示视频当前分辨率(宽高信息)。",
+        showMore: "查看视频更多信息。",
+        showCTime: "用文字方式描述投稿时间，如：一周前",
+        showViews: "替换展示视频播放量(由于内容相同，将自动隐藏原版播放量信息)",
+        showDmk: "替换展示视频弹幕量(由于内容相同，将自动隐藏原版弹幕量信息)",
+        showTop: "替换原版全站排名信息",
         openGUI: "提供按钮快速进入设置选项。"
     };
     const idTn = {
@@ -96,9 +111,31 @@
         showCate: 3,
         showPic: 1,
         showSize: 2,
+        showMore: 1,
+        showCTime: 2,
+        showViews: 2,
+        showDmk: 2,
+        showTop: 1,
         openGUI: 1
     };
     let infos = {};
+
+    // CSDN https://blog.csdn.net/namechenfl/article/details/91968396
+    function numberFormat(value) {
+        let param = {};
+        let k = 10000,
+            sizes = ['', '万', '亿', '万亿'],
+            i;
+        if (value < k) {
+            param.value = value
+            param.unit = ''
+        } else {
+            i = Math.floor(Math.log(value) / Math.log(k));
+            param.value = ((value / Math.pow(k, i))).toFixed(2);
+            param.unit = sizes[i];
+        }
+        return param;
+    }
 
     async function saveAllConfig(){
         for(let configKey of Object.keys(config)){
@@ -136,6 +173,33 @@
                 await GM_setValue("defaultAv", true);
                 initScript(true);
             });
+        }
+        if ((await GM_getValue("foldedWarningTip"))) {
+            config.foldedWarningTip = true;
+            menuId.defafoldedWarningTipultAv = GM_registerMenuCommand("显示原版视频警告[当前折叠]", async () => {
+                await GM_setValue("foldedWarningTip", false);
+                CKTools.addStyle('','showav_hidevidwarn','update');
+            });
+            CKTools.addStyle(`
+            .video-data>span.argue{
+                width: 0.5rem;
+                margin-left: 0!important;
+                margin-right: 16px;
+            }
+            `,'showav_hidevidwarn','update');
+        } else {
+            config.foldedWarningTip = false;
+            menuId.foldedWarningTip = GM_registerMenuCommand("折叠原版视频警告[当前显示]", async () => {
+                await GM_setValue("foldedWarningTip", true);
+                CKTools.addStyle(`
+                .video-data>span.argue{
+                    width: 0.5rem;
+                    margin-left: 0!important;
+                    margin-right: 16px;
+                }
+                `,'showav_hidevidwarn','update');
+            });
+            CKTools.addStyle('','showav_hidevidwarn','update');
         }
         if ((await GM_getValue("showInNewLine"))) {
             config.showInNewLine = true;
@@ -297,33 +361,217 @@
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 CKTools.modal.alertModal("高级复制",`
+                <style scoped>
+                input:not(.shortinput){
+                    width:100%;
+                    display:block;
+                }
+                .shoav_expandinfo>div {
+                    text-align: center;
+                    flex: 1;
+                }
+                input.shortinput {
+                    width: 7.8em;
+                    text-align: center;
+                }
+                .CKTOOLS-modal-content>div>div{
+                    width: 440px!important;
+                }
+                .shoav_expandinfo{
+                    display: flex;
+                    flex-direction: row;
+                    flex-wrap: nowrap;
+                    align-content: center;
+                    justify-content: space-around;
+                    align-items: stretch;
+                }
+                </style>
                 <b>点击输入框可以快速复制</b><br>
                 当前地址
-                <input readonly style="width:440px" value="${vidurl}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
                 含视频进度地址(仅在播放时提供)
-                <input readonly style="width:440px" value="${url}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="${url}" onclick="showav_fastcopy(this);" />
                 B23.TV格式
-                <input readonly style="width:440px" value="${shorturl}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
                 快速分享
-                <input readonly style="width:440px" value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
                 快速分享(含视频进度)
-                <input readonly style="width:440px" value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
                 MarkDown格式
-                <input readonly style="width:440px" value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
                 BBCode格式
-                <input readonly style="width:440px" value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" /><br><br>
+                <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" /><br>
                 <hr>
-                AV号
-                <input readonly style="width:440px" value="av${infos.aid}" onclick="showav_fastcopy(this);" /><br>
-                BV号
-                <input readonly style="width:440px" value="${infos.bvid}" onclick="showav_fastcopy(this);" /><br>
-                资源CID
-                <input readonly style="width:440px" value="${infos.cid}" onclick="showav_fastcopy(this);" /><br>
+                <div class="shoav_expandinfo">
+                    <div>
+                    AV号
+                    <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    BV号
+                    <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    资源CID
+                    <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                </div>
                 <br><hr>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `,"关闭");
             });
         //} else av_span.remove();
+    }
+
+    async function feat_showMore(){
+        const {av_root,infos} = this;
+        log('infos',infos);
+        const more_span = getOrNew("bilibiliShowMore", av_root);
+        more_span.innerHTML = '⋯';
+        more_span.title = "展示更多信息";
+        more_span.style.cursor = "pointer";
+        more_span.addEventListener('click',async e=>{
+            let part,videoData=infos;
+            try {
+                part = videoData.pages[infos.p - 1];
+            } catch (e) {
+                part = videoData.pages[0];
+            }
+            let currentPageName = part.part.length ? part.part : '';
+            let currentPageNum;
+            if (videoData.videos != 1) {
+                currentPageNum = `P ${infos.p}/${videoData.videos}`;
+            } else {
+                currentPageNum = "P 1/1";
+            }
+            CKTools.modal.alertModal("视频信息",`
+            <style scoped>
+                li{
+                    line-height: 2em;
+                }
+            </style>
+            <li>
+                <b>AV号: </b>av${infos.aid}
+            </li>
+            <li>
+                <b>BV号: </b>${infos.bvid}
+            </li>
+            <li>
+                <b>CID: </b>${infos.cid}
+            </li>
+            <li>
+                <b>分P: </b>${currentPageNum}
+            </li>
+            <li>
+                <b>P名: </b>${currentPageName}
+            </li>
+            <li>
+                <b>长度: </b>${infos.duration}s
+            </li>
+            <li>
+                <b>投稿: </b>${timeago.format(infos.ctime*1000,'zh_CN')}
+            </li>
+            <li>
+                <b>分区: </b>${infos.tname}
+            </li>
+            <li>
+                <b>大小: </b>${infos.dimension.width}x${infos.dimension.height}
+            </li>
+            <li>
+                <b>封面: </b><a href="${infos.pic}" target="_blank">点击查看</a>
+            </li>
+            `,"确定");
+        })
+    }
+
+    async function feat_showCTime(){
+        const {av_root,infos} = this;
+        const ct_span = getOrNew("bilibiliShowCTime", av_root);
+        ct_span.style.textOverflow = "ellipsis";
+        ct_span.style.whiteSpace = "nowarp";
+        ct_span.style.overflow = "hidden";
+        const d = new Date(infos.ctime*1000);
+        ct_span.title = `投稿时间 ${d.getFullYear()}年${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}月${d.getDate()<10?'0'+d.getDate():d.getDate()}日 ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
+        ct_span.innerHTML = timeago.format(infos.ctime*1000,'zh_CN');
+        if(config.hideTime) ct_span.innerHTML+= `
+        <style>
+        .video-data>span:nth-child(3){
+            display:none;
+        }
+        #bilibiliShowInfos>*:nth-child(1){
+            margin-left: 0!important;
+        }
+        </style>`;
+    }
+
+    async function feat_showViews(){
+        const {av_root,infos} = this;
+        const v_span = getOrNew("bilibiliShowViews", av_root);
+        v_span.style.textOverflow = "ellipsis";
+        v_span.style.whiteSpace = "nowarp";
+        v_span.style.overflow = "hidden";
+        v_span.title = `播放量 ${infos.stat.view}`;
+        v_span.innerHTML = (()=>{
+            const res = numberFormat(infos.stat.view);
+            return `${res.value}${res.unit}播放`;
+        })();
+        v_span.innerHTML+= `
+        <style>
+        .video-data>span:nth-child(1){
+            display:none;
+        }
+        #bilibiliShowInfos>*:nth-child(1){
+            margin-left: 0!important;
+        }
+        </style>`;
+    }
+
+    async function feat_showDmk(){
+        const {av_root,infos} = this;
+        const dmk_span = getOrNew("bilibiliShowDmk", av_root);
+        dmk_span.style.textOverflow = "ellipsis";
+        dmk_span.style.whiteSpace = "nowarp";
+        dmk_span.style.overflow = "hidden";
+        dmk_span.title = `${infos.stat.danmaku}条弹幕`;
+        dmk_span.innerHTML = (()=>{
+            const res = numberFormat(infos.stat.danmaku);
+            return `${res.value}${res.unit}条弹幕`;
+        })();
+        dmk_span.innerHTML+= `
+        <style>
+        .video-data>span:nth-child(2){
+            display:none;
+        }
+        #bilibiliShowInfos>*:nth-child(1){
+            margin-left: 0!important;
+        }
+        </style>`;
+    }
+
+    async function feat_showTop(){
+        const {av_root,infos} = this;
+        const top_span = getOrNew("bilibiliShowTop", av_root);
+        top_span.style.textOverflow = "ellipsis";
+        top_span.style.whiteSpace = "nowarp";
+        top_span.style.overflow = "hidden";
+        top_span.title = `全站最高排行第${infos.stat.his_rank}名`;
+        top_span.innerHTML = ''
+        top_span.innerHTML+= `
+        <style>
+        .video-data>span.rank{
+            display:none;
+        }
+        </style>`;
+        if(infos.stat.his_rank===0){
+            top_span.style.display = "none";
+            setTimeout(()=>{
+                if(top_span.nextElementSibling){
+                    top_span.nextElementSibling.style.marginLeft = 0;
+                }
+            },100);
+        }else{
+            top_span.innerHTML+= '📊 '+infos.stat.his_rank;
+        }
     }
 
     async function feat_showPic(){
@@ -476,7 +724,7 @@
         }
         //const av_root = getOrNew("bilibiliShowInfos",av_infobar);
         //const av_root = av_infobar;
-        
+
         av_root.style.textOverflow = "ellipsis";
         av_root.style.whiteSpace = "nowarp";
         av_root.style.overflow = "hidden";
@@ -491,6 +739,11 @@
             showPn: feat_showPn.bind(that),
             showPic: feat_showPic.bind(that),
             showSize: feat_showSize.bind(that),
+            showMore: feat_showMore.bind(that),
+            showCTime: feat_showCTime.bind(that),
+            showDmk: feat_showDmk.bind(that),
+            showViews: feat_showViews.bind(that),
+            showTop: feat_showTop.bind(that),
             openGUI: feat_openGUI.bind(that)
         }
 
@@ -625,7 +878,7 @@
                                 else shield.classList.remove('showav_newlinetip_ok');
                             })
                         }),
-                        await CKTools.makeDom("label",label=>{ 
+                        await CKTools.makeDom("label",label=>{
                             label.style.paddingLeft = "3px";
                             label.setAttribute('for',"showav_newline");
                             label.innerHTML = "在新的一行中显示信息 <span id='showav_newlinetip'>建议开启</span>";
@@ -679,6 +932,65 @@
                                     label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
                                 else
                                     label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+
+                            })
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.id = "showav_foldvidwarn_tip";
+                            label.setAttribute('for',"showav_foldvidwarn");
+                            if(config.foldedWarningTip)
+                                label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
+                            else
+                                label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
+                        }),
+                        await CKTools.makeDom("input",input=>{
+                            input.type="checkbox";
+                            input.id = "showav_foldvidwarn";
+                            input.name = "showav_foldvidwarn";
+                            input.style.display="none";
+                            input.checked = config.defaultAv;
+                            input.addEventListener('change',e=>{
+                                const label = document.querySelector("#showav_foldvidwarn_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
+                                else
+                                    label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
+                            })
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.id = "showav_hidetime_tip";
+                            label.setAttribute('for',"showav_hidetime");
+                            if(config.hideTime)
+                                label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                            else
+                                label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
+                        }),
+                        await CKTools.makeDom("input",input=>{
+                            input.type="checkbox";
+                            input.id = "showav_hidetime";
+                            input.name = "showav_hidetime";
+                            input.style.display="none";
+                            input.checked = config.hideTime;
+                            input.addEventListener('change',e=>{
+                                const label = document.querySelector("#showav_hidetime_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                                else
+                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
 
                             })
                         })
@@ -771,10 +1083,23 @@
                                         }
                                         config.orders = enabledArray;
                                         config.defaultAv = document.querySelector("#showav_defaultav").checked;
+                                        config.hideTime = document.querySelector("#showav_hidetime").checked;
+                                        config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
                                         config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                                         config.showInNewLine = document.querySelector("#showav_newline").checked;
                                         saveAllConfig();
                                         CKTools.modal.hideModal();
+                                        if (config.foldedWarningTip) {
+                                            CKTools.addStyle(`
+                                                .video-data>span.argue{
+                                                    width: 0.5rem;
+                                                    margin-left: 0!important;
+                                                    margin-right: 16px;
+                                                }
+                                            `, 'showav_hidevidwarn', 'update');
+                                        } else {
+                                            CKTools.addStyle('', 'showav_hidevidwarn', 'update');
+                                        }
                                         let old = document.querySelector("#bilibiliShowInfos")
                                         if(old)old.remove();
                                         initScript(true);
