@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.10
+// @version      1.11
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -79,6 +79,24 @@
         showPic: "视频封面",
         showSize: "视频分辨率",
         openGUI: "设置选项"
+    };
+    const descCn = {
+        showAv: "展示视频号(AV号/BV号)，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showPn: "展示视频分P信息以及缓存名(分P名)。可能较长，建议放在最下面，并调整最大长度。",
+        showCid: "展示视频资源CID编号，通常不需要展示。",
+        showCate: "展示视频所在的子分区。",
+        showPic: "提供按钮一键查看封面，长按可以在新标签页打开大图。",
+        showSize: "展示视频当前分辨率(宽高信息)。",
+        openGUI: "提供按钮快速进入设置选项。"
+    };
+    const idTn = {
+        showAv: 2,
+        showPn: 5,
+        showCid: 2,
+        showCate: 3,
+        showPic: 1,
+        showSize: 2,
+        openGUI: 1
     };
     let infos = {};
 
@@ -274,6 +292,8 @@
                 let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
                 infos.p == 1 || url.searchParams.append("p", infos.p);
                 let vidurl = new URL(url);
+                let shorturl = new URL(url);
+                shorturl.hostname = "b23.tv";
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 CKTools.modal.alertModal("高级复制",`
@@ -282,8 +302,10 @@
                 <input readonly style="width:440px" value="${vidurl}" onclick="showav_fastcopy(this);" /><br>
                 含视频进度地址(仅在播放时提供)
                 <input readonly style="width:440px" value="${url}" onclick="showav_fastcopy(this);" /><br>
+                B23.TV格式
+                <input readonly style="width:440px" value="${shorturl}" onclick="showav_fastcopy(this);" /><br>
                 快速分享
-                <input readonly style="width:440px" value="${infos.title}_地址:${vidurl}" onclick="showav_fastcopy(this);" /><br>
+                <input readonly style="width:440px" value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" /><br>
                 快速分享(含视频进度)
                 <input readonly style="width:440px" value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" /><br>
                 MarkDown格式
@@ -493,9 +515,28 @@
             border: solid #bdbdbd 2px;
             color: black;
             transition: all .3s;
+            max-height: 2rem;
         }
-        .showav_dragableitem::after {
-            content: "拖动排序";
+        .showav_dragableitem.showav_expand {
+            max-height: 8rem;
+        }
+        .showav_dragableitem>div {
+            color: #adadad;
+            margin: 0 6px;
+            opacity: 0;
+            transition: all .3s ease-in-out;
+            transform: translateX(-10px);
+            font-size: small;
+            overflow: hidden;
+            max-height: 0;
+        }
+        .showav_dragableitem.showav_expand>div{
+            transform: translateX(0px);
+            max-height: 8rem;
+            opacity: 1;
+        }
+        .showav_dragableitem::before {
+            content: "⋮⋮";
             float: right;
             font-size: xx-small;
             padding: 3px;
@@ -520,17 +561,52 @@
             left: -4rem;
         }
         .showav_disableddiv .showav_dragableitem {
-            color: grey;
+            color: #a9a8a8；
         }
         .showav_enableddiv{
             background: #dcedc8;
         }
         .showav_disableddiv{
             background: #ffcdd2;
-        }   
+        }
+        #showav_newlinetip{
+            font-size: small;
+            display: inline-block;
+            padding: 0 2px;
+            line-height: 1.5em;
+            border-radius: 3px;
+            background: #ff5722;
+            color: white;
+            overflow: hidden;
+            transition: all .3s;
+            opacity: 0;
+        }
+        #showav_newlinetip.showav_newlinetip_ok{
+            background: #0288d1!important;
+        }
+        #showav_newlinetip.showav_newlinetip{
+            opacity: 1;
+        }
         `,'showav_dragablecss',"unique",document.head);
         CKTools.modal.openModal("ShowAV / 设置",await CKTools.makeDom("div",async container=>{
             container.style.alignItems = "stretch";
+            const refreshRecommendShield = ()=>{
+                let shield = document.querySelector("#showav_newlinetip");
+                if(!shield) return;
+                let enabledArray = [];
+                const enableddiv = document.querySelector(".showav_enableddiv");
+                const elements = enableddiv.querySelectorAll(".showav_dragableitem");
+                for(let element of [...elements]){
+                    enabledArray.push(element.getAttribute('data-id'));
+                }
+                let sum = 0;
+                enabledArray.forEach(k=>sum+=idTn[k]);
+                if(sum>=6){
+                    shield.classList.add('showav_newlinetip');
+                }else{
+                    shield.classList.remove('showav_newlinetip');
+                }
+            }
             [
                 await CKTools.makeDom("li",async list=>{
                     list.style.lineHeight = "2em";
@@ -540,11 +616,17 @@
                             input.id = "showav_newline";
                             input.name = "showav_newline";
                             input.checked = config.showInNewLine;
+                            input.addEventListener("change", e=>{
+                                let shield = document.querySelector("#showav_newlinetip");
+                                if(!shield) return;
+                                if(input.checked) shield.classList.add('showav_newlinetip_ok');
+                                else shield.classList.remove('showav_newlinetip_ok');
+                            })
                         }),
                         await CKTools.makeDom("label",label=>{ 
                             label.style.paddingLeft = "3px";
                             label.setAttribute('for',"showav_newline");
-                            label.innerHTML = "在新的一行中显示信息(当显示信息过多时推荐开启)";
+                            label.innerHTML = "在新的一行中显示信息 <span id='showav_newlinetip'>建议开启</span>";
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
@@ -554,7 +636,7 @@
                         await CKTools.makeDom("label",label=>{
                             label.style.paddingLeft = "3px";
                             label.setAttribute('for',"showav_pnwid");
-                            label.innerHTML = "视频分P信息字数限制";
+                            label.innerHTML = "视频分P名: 字数限制";
                         }),
                         await CKTools.makeDom("input",input=>{
                             input.type="number";
@@ -570,6 +652,36 @@
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.id = "showav_defaultav_tip";
+                            label.setAttribute('for',"showav_defaultav");
+                            if(config.defaultAv)
+                                label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                            else
+                                label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+                        }),
+                        await CKTools.makeDom("input",input=>{
+                            input.type="checkbox";
+                            input.id = "showav_defaultav";
+                            input.name = "showav_defaultav";
+                            input.style.display="none";
+                            input.checked = config.defaultAv;
+                            input.addEventListener('change',e=>{
+                                const label = document.querySelector("#showav_defaultav_tip");
+                                if(!label) return;
+                                if(input.checked)
+                                    label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                                else
+                                    label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+
+                            })
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
                 // dragable code from ytb v=jfYWwQrtzzY
                 await CKTools.makeDom("li", async list=>{
                     const makeDragable = async id=>{
@@ -578,13 +690,21 @@
                             draggable.setAttribute("draggable",true);
                             draggable.setAttribute("data-id",id);
                             draggable.innerHTML = txtCn[id];
+                            draggable.innerHTML+= `<div>${descCn[id]}</div>`;
+                            let expanded = false;
                             draggable.addEventListener('dragstart',e=>{
+                                if(expanded) draggable.classList.remove('showav_expand');
                                 draggable.classList.add('showav_dragging');
                                 [...document.querySelectorAll('.showav_dragablediv')].forEach(e=>e.classList.add('showav_child_dragging'))
                             })
                             draggable.addEventListener('dragend',e=>{
+                                if(expanded) draggable.classList.add('showav_expand');
                                 draggable.classList.remove('showav_dragging');
                                 [...document.querySelectorAll('.showav_child_dragging')].forEach(e=>e.classList.remove('showav_child_dragging'))
+                                refreshRecommendShield();
+                            })
+                            draggable.addEventListener('click',e=>{
+                                expanded = draggable.classList.toggle('showav_expand');
                             })
                         })
                     };
@@ -644,6 +764,7 @@
                                             enabledArray.push(element.getAttribute('data-id'));
                                         }
                                         config.orders = enabledArray;
+                                        config.defaultAv = document.querySelector("#showav_defaultav").checked;
                                         config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                                         config.showInNewLine = document.querySelector("#showav_newline").checked;
                                         saveAllConfig();
@@ -665,6 +786,7 @@
                     ].forEach(e=>list.appendChild(e));
                 })
             ].forEach(e=>container.appendChild(e));
+            setTimeout(refreshRecommendShield,500);
         }));
     }
 
