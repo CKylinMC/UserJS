@@ -112,10 +112,10 @@
         showPic: 1,
         showSize: 2,
         showMore: 1,
-        showCTime: 2,
-        showViews: 2,
-        showDmk: 2,
-        showTop: 1,
+        showCTime: -4,
+        showViews: -2,
+        showDmk: -2,
+        showTop: 0,
         openGUI: 1
     };
     let infos = {};
