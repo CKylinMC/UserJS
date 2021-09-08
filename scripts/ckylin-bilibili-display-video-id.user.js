@@ -319,6 +319,8 @@
                 <input readonly style="width:440px" value="${infos.bvid}" onclick="showav_fastcopy(this);" /><br>
                 资源CID
                 <input readonly style="width:440px" value="${infos.cid}" onclick="showav_fastcopy(this);" /><br>
+                <br><hr>
+                <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `,"关闭");
             });
         //} else av_span.remove();
@@ -561,7 +563,7 @@
             left: -4rem;
         }
         .showav_disableddiv .showav_dragableitem {
-            color: #a9a8a8；
+            color: #a9a8a8;
         }
         .showav_enableddiv{
             background: #dcedc8;
@@ -749,6 +751,10 @@
                                 disableddiv.appendChild(await makeDragable(k));
                             });
                             registerDragEvent(disableddiv);
+                        }),
+                        await CKTools.makeDom("div",async div=>{
+                            div.style.lineHeight = "2em";
+                            div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
                         }),
                         await CKTools.makeDom("div",async div => {
                             div.appendChild(await CKTools.makeDom("div", async btns => {
