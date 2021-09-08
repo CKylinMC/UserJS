@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.11
+// @version      1.12
 // @description  始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -24,7 +24,7 @@
         {name:'cktools',type:'js'},
         {name:'popjs',type:'js'},
         {name:'popcss',type:'css'},
-        {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;}"},
+        {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}"},
     ]
     function applyResource() {
         resloop:for(let res of resourceList){
