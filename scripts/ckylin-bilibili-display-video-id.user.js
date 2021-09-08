@@ -64,6 +64,7 @@
         defaultAv: true,
         hideTime: false,
         firstTimeLoad: true,
+        defaultTextTime: true,
         foldedWarningTip: true,
         showInNewLine: false,
         pnmaxlength: 18,
@@ -491,8 +492,11 @@
         ct_span.style.whiteSpace = "nowarp";
         ct_span.style.overflow = "hidden";
         const d = new Date(infos.ctime*1000);
-        ct_span.title = `投稿时间 ${d.getFullYear()}年${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}月${d.getDate()<10?'0'+d.getDate():d.getDate()}日 ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
-        ct_span.innerHTML = timeago.format(infos.ctime*1000,'zh_CN');
+        let txttime = timeago.format(infos.ctime*1000,'zh_CN');
+        let rawtime = `${d.getFullYear()}年${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}月${d.getDate()<10?'0'+d.getDate():d.getDate()}日 ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
+
+        ct_span.title = "投稿时间 "+(config.defaultTextTime?rawtime:txttime);
+        ct_span.innerHTML = config.defaultTextTime?txttime:rawtime
         if(config.hideTime) ct_span.innerHTML+= `
         <style>
         .video-data>span:nth-child(3){
@@ -991,7 +995,35 @@
                                     label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
                                 else
                                     label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
-
+                            })
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.id = "showav_deftxttime_tip";
+                            label.setAttribute('for',"showav_deftxttime");
+                            if(config.defaultTextTime)
+                                label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                            else
+                                label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
+                        }),
+                        await CKTools.makeDom("input",input=>{
+                            input.type="checkbox";
+                            input.id = "showav_deftxttime";
+                            input.name = "showav_deftxttime";
+                            input.style.display="none";
+                            input.checked = config.hideTime;
+                            input.addEventListener('change',e=>{
+                                const label = document.querySelector("#showav_deftxttime_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                                else
+                                    label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
                             })
                         })
                     ].forEach(e=>list.appendChild(e));
@@ -1084,6 +1116,7 @@
                                         config.orders = enabledArray;
                                         config.defaultAv = document.querySelector("#showav_defaultav").checked;
                                         config.hideTime = document.querySelector("#showav_hidetime").checked;
+                                        config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
                                         config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
                                         config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                                         config.showInNewLine = document.querySelector("#showav_newline").checked;
