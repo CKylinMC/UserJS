@@ -69,7 +69,7 @@
         showInNewLine: false,
         pnmaxlength: 18,
         orders: ['openGUI','showPic','showAv','showPn'],
-        all: ['showAv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
+        all: ['showAv','showSAv','showSBv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
         vduration: 0
     };
     const menuId = {
@@ -79,6 +79,8 @@
     };
     const txtCn = {
         showAv: "视频编号和高级复制",
+        showSAv: "视频AV号和高级复制",
+        showSBv: "视频BV号和高级复制",
         showPn: "视频分P名",
         showCid: "视频CID编号",
         showCate: "视频所在分区",
@@ -92,7 +94,9 @@
         openGUI: "设置选项"
     };
     const descCn = {
-        showAv: "展示视频号(AV号/BV号)，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showAv: "展示视频号(AV号/BV号可切换)，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showSAv: "展示视频AV号，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showSBv: "展示视频BV号，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
         showPn: "展示视频分P信息以及缓存名(分P名)。可能较长，建议放在最下面，并调整最大长度。",
         showCid: "展示视频资源CID编号，通常不需要展示。",
         showCate: "展示视频所在的子分区。",
@@ -107,6 +111,8 @@
     };
     const idTn = {
         showAv: 2,
+        showSAv: 2,
+        showSBv: 2,
         showPn: 5,
         showCid: 2,
         showCate: 3,
@@ -326,20 +332,37 @@
         //} else cate_span.remove();
     }
 
-    async function feat_showAv(){
+    async function feat_showStaticAv(){
+        const func = feat_showAv.bind(this);
+        func(true);
+    }
+
+    async function feat_showStaticBv(){
+        const func = feat_showAv.bind(this);
+        func(true,'bv');
+    }
+
+    async function feat_showAv(force = false,mode = 'av'/* 'bv' */){
         const {av_root,infos} = this;
-        const av_span = getOrNew("bilibiliShowAV", av_root);
+        const av_span = getOrNew("bilibiliShowAV"+(force?mode:''), av_root);
         //if (config.showAv) {
-            if (config.defaultAv)
+            if(force){
+                if(mode == 'bv'){
+                    av_span.innerText = infos.bvid;
+                }else{
+                    av_span.innerText = 'av' + infos.aid;
+                }
+            }else if (config.defaultAv)
                 av_span.innerText = 'av' + infos.aid;
             else
                 av_span.innerText = infos.bvid;
             av_span.style.overflow = "hidden";
-            av_span.oncontextmenu = e => {
-                if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
-                else av_span.innerText = 'av' + infos.aid;
-                e.preventDefault();
-            }
+            if(!force)
+                av_span.oncontextmenu = e => {
+                    if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
+                    else av_span.innerText = 'av' + infos.aid;
+                    e.preventDefault();
+                }
             const video = await waitForDom("video");
             if (video) {
                 config.vduration = Math.floor(video.duration);
@@ -738,6 +761,8 @@
 
         const functions = {
             showAv: feat_showAv.bind(that),
+            showSAv: feat_showStaticAv.bind(that),
+            showSBv: feat_showStaticBv.bind(that),
             showCate: feat_showCate.bind(that),
             showCid: feat_showCid.bind(that),
             showPn: feat_showPn.bind(that),
