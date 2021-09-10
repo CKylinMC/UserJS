@@ -462,6 +462,7 @@
                 modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `;
+                modalcontent+= closeButton().outerHTML;
                 CKTools.modal.alertModal("高级复制", modalcontent, "关闭");
             });
             av_span.setAttribute("setup", "ok");
@@ -814,6 +815,17 @@
         config.orders.forEach(k => functions[k]());
     }
 
+    function closeButton(){
+        const closebtn = document.createElement("div");
+        closebtn.innerHTML = "✖️";
+        closebtn.style.position = "absolute";
+        closebtn.style.top = "10px";
+        closebtn.style.right = "10px";
+        closebtn.style.cursor = "pointer";
+        closebtn.setAttribute("onclick","CKTools.modal.hideModal()");
+        return closebtn;
+    }
+
     async function GUISettings() {
         CKTools.modal.openModal("ShowAV / 设置", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
@@ -835,6 +847,7 @@
                 }
             }
             [
+                closeButton(),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
@@ -1167,6 +1180,7 @@
         CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
             [
+                closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
                 await CKTools.makeDom("li", async list => {
                     const makeDragable = async id => {
@@ -1415,6 +1429,8 @@
 
     CKTools.modal.initModal();
     CKTools.modal.hideModal();
+    const blockwin = CKTools.get("#CKTOOLS-blockWindow");
+    blockwin&&(blockwin.onclick = CKTools.modal.hideModal);
     CKTools.addStyle(`
     .showav_dragablediv {
         width: 300px;
