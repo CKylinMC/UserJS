@@ -455,7 +455,7 @@
         ct_span.style.overflow = "hidden";
         const d = new Date(infos.ctime*1000);
         let txttime = timeago.format(infos.ctime*1000,'zh_CN');
-        let rawtime = `${d.getFullYear()}年${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}月${d.getDate()<10?'0'+d.getDate():d.getDate()}日 ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
+        let rawtime = `${d.getFullYear()}-${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}-${d.getDate()<10?'0'+d.getDate():d.getDate()} ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
 
         ct_span.title = "投稿时间 "+(config.defaultTextTime?rawtime:txttime);
         ct_span.innerHTML = config.defaultTextTime?txttime:rawtime
