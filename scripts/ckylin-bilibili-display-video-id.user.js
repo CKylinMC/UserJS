@@ -70,6 +70,8 @@
         pnmaxlength: 18,
         orders: ['openGUI','showPic','showAv','showPn'],
         all: ['showAv','showSAv','showSBv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
+        copyitems: ['currTime','short','shareTime','vid'],
+        copyitemsAll: ['curr','currTime','short','shortTime','share','shareTime','md','bb','html','vid'],
         vduration: 0
     };
     const menuId = {
@@ -91,6 +93,16 @@
         showViews: "替换视频播放量",
         showDmk: "替换视频弹幕量",
         showTop: "替换全站排名提示",
+        curr: "当前视频地址",
+        currTime: "当前视频地址(含视频进度)",
+        short: "短地址",
+        shortTime: "短地址(含视频进度)", 
+        share: "快速分享", 
+        shareTime: "快速分享(含视频进度)", 
+        md: "Markdown 格式", 
+        bb: "BBCode 格式", 
+        html: "HTML 格式", 
+        vid: "视频编号",
         openGUI: "设置选项"
     };
     const descCn = {
@@ -107,6 +119,16 @@
         showViews: "替换展示视频播放量(由于内容相同，将自动隐藏原版播放量信息)",
         showDmk: "替换展示视频弹幕量(由于内容相同，将自动隐藏原版弹幕量信息)",
         showTop: "替换原版全站排名信息",
+        curr: "提供当前视频纯净地址",
+        currTime: "提供当前视频地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
+        short: "提供当前视频的b23.tv短地址",
+        shortTime: "提供当前视频的b23.tv短地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。", 
+        share: "提供当前视频的标题和地址组合文本。", 
+        shareTime: "提供当前视频的标题和地址组合文本，在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。", 
+        md: "提供Markdown特殊语法的快速复制。", 
+        bb: "提供BBCode特殊语法的快速复制。", 
+        html: "提供HTML格式的快速复制。", 
+        vid: "提供当前视频av号/BV号/CID号",
         openGUI: "提供按钮快速进入设置选项。"
     };
     const idTn = {
@@ -379,6 +401,7 @@
                     </div>
                 </div>
                 <br><hr>
+                <a href="javascript:void(0)" onclick="showav_guisettings_shoy()">复制设置</a>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `,"关闭");
             });
@@ -718,98 +741,6 @@
     }
 
     async function GUISettings(){
-        CKTools.addStyle(`
-        .showav_dragablediv {
-            width: 300px;
-            min-height: 60px;
-            border: dotted;
-            border-radius: 8px;
-            padding: 12px;
-            margin: 5px;
-            position: relative;
-            margin: 3px auto;
-        }
-        .showav_dragableitem {
-            background: white;
-            margin: 3px;
-            padding: 3px;
-            border-radius: 4px;
-            border: solid #bdbdbd 2px;
-            color: black;
-            transition: all .3s;
-            max-height: 2rem;
-        }
-        .showav_dragableitem.showav_expand {
-            max-height: 8rem;
-        }
-        .showav_dragableitem>div {
-            color: #adadad;
-            margin: 0 6px;
-            opacity: 0;
-            transition: all .3s ease-in-out;
-            transform: translateX(-10px);
-            font-size: small;
-            overflow: hidden;
-            max-height: 0;
-        }
-        .showav_dragableitem.showav_expand>div{
-            transform: translateX(0px);
-            max-height: 8rem;
-            opacity: 1;
-        }
-        .showav_dragableitem::before {
-            content: "⋮⋮";
-            float: right;
-            font-size: xx-small;
-            padding: 3px;
-            color: #bbbbbb !important;
-        }
-        .showav_dragging {
-            background: grey;
-            color: white;
-            border: solid #515050 2px;
-            transform: scale(1.1);
-            transition: all .3s;
-        }
-        .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
-            background: grey;
-            color: white;
-            border: solid #515050 2px;
-            transform: scale(1.03);
-            transition: all .3s;
-        }
-        .showav_dragablediv>b {
-            position: absolute;
-            left: -4rem;
-        }
-        .showav_disableddiv .showav_dragableitem {
-            color: #a9a8a8;
-        }
-        .showav_enableddiv{
-            background: #dcedc8;
-        }
-        .showav_disableddiv{
-            background: #ffcdd2;
-        }
-        #showav_newlinetip{
-            font-size: small;
-            display: inline-block;
-            padding: 0 2px;
-            line-height: 1.5em;
-            border-radius: 3px;
-            background: #ff5722;
-            color: white;
-            overflow: hidden;
-            transition: all .3s;
-            opacity: 0;
-        }
-        #showav_newlinetip.showav_newlinetip_ok{
-            background: #0288d1!important;
-        }
-        #showav_newlinetip.showav_newlinetip{
-            opacity: 1;
-        }
-        `,'showav_dragablecss',"unique",document.head);
         CKTools.modal.openModal("ShowAV / 设置",await CKTools.makeDom("div",async container=>{
             container.style.alignItems = "stretch";
             const refreshRecommendShield = ()=>{
@@ -1137,6 +1068,115 @@
         }));
     }
 
+    async function GUISettings_advcopy(){
+        CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置",await CKTools.makeDom("div",async container=>{
+            container.style.alignItems = "stretch";
+            [
+                // dragable code from ytb v=jfYWwQrtzzY
+                await CKTools.makeDom("li", async list=>{
+                    const makeDragable = async id=>{
+                        return await CKTools.makeDom("div",draggable=>{
+                            draggable.className = "showav_dragableitem";
+                            draggable.setAttribute("draggable",true);
+                            draggable.setAttribute("data-id",id);
+                            draggable.innerHTML = txtCn[id];
+                            draggable.innerHTML+= `<div>${descCn[id]}</div>`;
+                            let expanded = false;
+                            draggable.addEventListener('dragstart',e=>{
+                                if(expanded) draggable.classList.remove('showav_expand');
+                                draggable.classList.add('showav_dragging');
+                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e=>e.classList.add('showav_child_dragging'))
+                            })
+                            draggable.addEventListener('dragend',e=>{
+                                if(expanded) draggable.classList.add('showav_expand');
+                                draggable.classList.remove('showav_dragging');
+                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e=>e.classList.remove('showav_child_dragging'))
+                            })
+                            draggable.addEventListener('click',e=>{
+                                expanded = draggable.classList.toggle('showav_expand');
+                            })
+                        })
+                    };
+                    function getClosestItem(container,y){
+                        const draggables = [...container.querySelectorAll(".showav_dragableitem:not(.showav_dragging)")];
+                        return draggables.reduce((closest,child)=>{
+                            const box = child.getBoundingClientRect();
+                            const offset = y - box.top - box.height / 2;
+                            if(offset < 0 && offset > closest.offset) return {offset,element:child};
+                            else return closest;
+                        },{offset:Number.NEGATIVE_INFINITY}).element;
+                    }
+                    function registerDragEvent (draggablediv){
+                        draggablediv.addEventListener('dragover',e=>{
+                            e.preventDefault();
+                            const closestElement = getClosestItem(draggablediv,e.clientY);
+                            const dragging = document.querySelector(".showav_dragging");
+                            if(closestElement===null){
+                                draggablediv.appendChild(dragging);
+                            }else{
+                                draggablediv.insertBefore(dragging,closestElement);
+                            }
+                        })
+                    }
+                    [
+                        await CKTools.makeDom("div",div=>{
+                            div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
+                        }),
+                        await CKTools.makeDom("div",async enableddiv=>{
+                            enableddiv.innerHTML = `<b>启用</b>`;
+                            enableddiv.className = "showav_dragablediv showav_enableddiv";
+                            config.copyitems.forEach(async k=>{
+                                enableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(enableddiv);
+                        }),
+                        await CKTools.makeDom("div",async disableddiv=>{
+                            disableddiv.innerHTML = `<b>禁用</b>`;
+                            disableddiv.className = "showav_dragablediv showav_disableddiv";
+                            config.copyitemsAll.forEach(async k=>{
+                                if(config.copyitems.includes(k)) return;
+                                disableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(disableddiv);
+                        }),
+                        await CKTools.makeDom("div",async div=>{
+                            div.style.lineHeight = "2em";
+                            div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
+                        }),
+                        await CKTools.makeDom("div",async div => {
+                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "保存并关闭";
+                                    btn.onclick = e => {
+                                        const enableddiv = document.querySelector(".showav_enableddiv");
+                                        const elements = enableddiv.querySelectorAll(".showav_dragableitem");
+                                        let enabledArray = [];
+                                        for(let element of [...elements]){
+                                            enabledArray.push(element.getAttribute('data-id'));
+                                        }
+                                        config.copyitems = enabledArray;
+                                        saveAllConfig();
+                                        CKTools.modal.hideModal();
+                                        initScript(true);
+                                    }
+                                }))
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "关闭";
+                                    btn.onclick = e => {
+                                        CKTools.modal.hideModal();
+                                    }
+                                }))
+                            }))
+                        }),
+                    ].forEach(e=>list.appendChild(e));
+                })
+            ].forEach(e=>container.appendChild(e));
+        }));
+    }
+
     const copy = function copy(text) {
         if (!navigator.clipboard) {
             prompt('请手动复制',text);
@@ -1157,8 +1197,102 @@
 
     unsafeWindow.showav_guisettings = GUISettings;
 
+    unsafeWindow.showav_guisettings_shoy = GUISettings_advcopy;
+
     CKTools.modal.initModal();
     CKTools.modal.hideModal();
+    CKTools.addStyle(`
+    .showav_dragablediv {
+        width: 300px;
+        min-height: 60px;
+        border: dotted;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 5px;
+        position: relative;
+        margin: 3px auto;
+    }
+    .showav_dragableitem {
+        background: white;
+        margin: 3px;
+        padding: 3px;
+        border-radius: 4px;
+        border: solid #bdbdbd 2px;
+        color: black;
+        transition: all .3s;
+        max-height: 2rem;
+    }
+    .showav_dragableitem.showav_expand {
+        max-height: 8rem;
+    }
+    .showav_dragableitem>div {
+        color: #adadad;
+        margin: 0 6px;
+        opacity: 0;
+        transition: all .3s ease-in-out;
+        transform: translateX(-10px);
+        font-size: small;
+        overflow: hidden;
+        max-height: 0;
+    }
+    .showav_dragableitem.showav_expand>div{
+        transform: translateX(0px);
+        max-height: 8rem;
+        opacity: 1;
+    }
+    .showav_dragableitem::before {
+        content: "⋮⋮";
+        float: right;
+        font-size: xx-small;
+        padding: 3px;
+        color: #bbbbbb !important;
+    }
+    .showav_dragging {
+        background: grey;
+        color: white;
+        border: solid #515050 2px;
+        transform: scale(1.1);
+        transition: all .3s;
+    }
+    .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
+        background: grey;
+        color: white;
+        border: solid #515050 2px;
+        transform: scale(1.03);
+        transition: all .3s;
+    }
+    .showav_dragablediv>b {
+        position: absolute;
+        left: -4rem;
+    }
+    .showav_disableddiv .showav_dragableitem {
+        color: #a9a8a8;
+    }
+    .showav_enableddiv{
+        background: #dcedc8;
+    }
+    .showav_disableddiv{
+        background: #ffcdd2;
+    }
+    #showav_newlinetip{
+        font-size: small;
+        display: inline-block;
+        padding: 0 2px;
+        line-height: 1.5em;
+        border-radius: 3px;
+        background: #ff5722;
+        color: white;
+        overflow: hidden;
+        transition: all .3s;
+        opacity: 0;
+    }
+    #showav_newlinetip.showav_newlinetip_ok{
+        background: #0288d1!important;
+    }
+    #showav_newlinetip.showav_newlinetip{
+        opacity: 1;
+    }
+    `,'showav_dragablecss',"unique",document.head);
 
     initScript(false);
 })();
