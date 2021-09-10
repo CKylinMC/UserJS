@@ -920,7 +920,7 @@
                             input.id = "showav_foldvidwarn";
                             input.name = "showav_foldvidwarn";
                             input.style.display="none";
-                            input.checked = config.defaultAv;
+                            input.checked = config.foldedWarningTip;
                             input.addEventListener('change',e=>{
                                 const label = document.querySelector("#showav_foldvidwarn_tip");
                                 if (!label) return;
@@ -978,7 +978,7 @@
                             input.id = "showav_deftxttime";
                             input.name = "showav_deftxttime";
                             input.style.display="none";
-                            input.checked = config.hideTime;
+                            input.checked = config.defaultTextTime;
                             input.addEventListener('change',e=>{
                                 const label = document.querySelector("#showav_deftxttime_tip");
                                 if (!label) return;
