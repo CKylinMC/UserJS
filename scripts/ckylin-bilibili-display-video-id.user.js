@@ -1229,8 +1229,12 @@
                                 const item = config.customcopyitems[copyitemid];
                                 const node = document.createElement("li");
                                 node.className = "copyitem";
-                                node.setAttribute("data-id",id);
+                                node.setAttribute("data-id",copyitemid);
                                 node.innerHTML = `${item.title}<br>`;
+                                node.style.borderRadius = "3px";
+                                node.style.border = "solid 2px grey";
+                                node.style.padding = "3px";
+                                node.style.margin = "1px";
                                 const smallp = document.createElement("p");
                                 smallp.style.fontSize = "small";
                                 smallp.style.color = "grey";
@@ -1274,7 +1278,7 @@
                                         await CKTools.makeDom("div",div=>{
                                             div.style.paddingLeft = "20px";
                                             div.style.color = "#919191";
-                                            div.innerHTML = `变量提示：<br><ul>
+                                            div.innerHTML = `变量提示<br><ul>
                                             <li>%timeurl% => 包含时间的完整地址</li>
                                             <li>%vidurl% => 视频纯净地址</li>
                                             <li>%shorturl% => 短地址</li>
@@ -1284,6 +1288,18 @@
                                             <li>%bv% => BV号</li>
                                             <li>%cid% => CID号</li>
                                             </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e =>{
+                                                expanded = !expanded;
+                                                if(expanded) {
+                                                    div.style.maxHeight = "20rem";
+                                                }else{
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
                                         }),
                                         await CKTools.makeDom("button", btn => {
                                             btn.className = "CKTOOLS-toolbar-btns";
@@ -1294,6 +1310,10 @@
                                                 const ccid = "custom:"+Math.random().toString(36).replace('.','');
                                                 const title = document.querySelector("#showav_customcopytitle").value;
                                                 const content = document.querySelector("#showav_customcopycontent").value;
+                                                if(title.trim().length<1||content.trim().length<1){
+                                                    popNotify.warn("无法添加自定义项目","标题或内容为空");
+                                                    return;
+                                                }
                                                 config.customcopyitems[ccid] = {title,content};
                                                 if(!config.all.includes(ccid))config.all.push(ccid);
                                                 saveAllConfig();
@@ -1301,13 +1321,15 @@
                                                 disablediv&&disablediv.appendChild(await makeDragable(ccid));
                                                 const customlist = document.querySelector("#showav_customitems");
                                                 customlist&&customlist.appendChild(makeItem(ccid));
+                                                document.querySelector("#showav_customcopytitle").value = "";
+                                                document.querySelector("#showav_customcopycontent").value = "";
                                             }
                                         })
                                     ].forEach(e=>div.appendChild(e));
                                 }),
                                 await CKTools.makeDom("label",label=>{
                                     label.style.paddingLeft = "3px";
-                                    label.innerHTML = "删除自定义复制项目";
+                                    label.innerHTML = "自定义复制项目(点击移除)";
                                 }),
                                 await CKTools.makeDom("ul",ul=>{
                                     ul.style.paddingLeft = "3px";
