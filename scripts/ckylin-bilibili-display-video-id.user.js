@@ -444,6 +444,7 @@
                                     "%timeurl%":url,
                                     "%vidurl%":vidurl,
                                     "%shorturl%":shorturl,
+                                    "%seek%":t,
                                     "%title%":infos.title,
                                     "%av%":infos.aid,
                                     "%bv%":infos.bvid,
@@ -1153,7 +1154,7 @@
                 await CKTools.makeDom("li", async list=>{
                     const makeDragable = async id=>{
                         return await CKTools.makeDom("div",draggable=>{
-                            draggable.className = "showav_dragableitem";
+                            draggable.className = "showav_dragableitem copyitem";
                             draggable.setAttribute("draggable",true);
                             draggable.setAttribute("data-id",id);
                             if(id.split(":")[0]==="custom"){
@@ -1223,9 +1224,99 @@
                             });
                             registerDragEvent(disableddiv);
                         }),
-                        await CKTools.makeDom("div",async div=>{
-                            div.style.lineHeight = "2em";
-                            div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
+                        await CKTools.makeDom("li",async list=>{
+                            const makeItem = copyitemid=>{
+                                const item = config.customcopyitems[copyitemid];
+                                const node = document.createElement("li");
+                                node.className = "copyitem";
+                                node.setAttribute("data-id",id);
+                                node.innerHTML = `${item.title}<br>`;
+                                const smallp = document.createElement("p");
+                                smallp.style.fontSize = "small";
+                                smallp.style.color = "grey";
+                                smallp.style.overflow = "hidden";
+                                smallp.style.wordWrap = "nowarp";
+                                smallp.appendChild(document.createTextNode(item.content));
+                                node.appendChild(smallp);
+                                node.onclick = async e =>{
+                                    if(config.all.includes(copyitemid)){
+                                        config.all.splice(config.all.indexOf(copyitemid), 1);
+                                    }
+                                    if(config.orders.includes(copyitemid)){
+                                        config.orders.splice(config.orders.indexOf(copyitemid), 1);
+                                    }
+                                    delete config.customcopyitems[copyitemid];
+                                    saveAllConfig();
+                                    [...document.querySelectorAll(`.copyitem[data-id="${copyitemid}"]`)].forEach(e=>e.remove());
+                                }
+                                return node;
+                            };
+                            [
+                                await CKTools.makeDom("label",label=>{
+                                    label.style.paddingLeft = "3px";
+                                    label.innerHTML = "添加自定义复制项目";
+                                }),
+                                await CKTools.makeDom("div",async div=>{
+                                    div.style.paddingLeft = "20px";
+                                    [
+                                        await CKTools.makeDom("input",async input=>{
+                                            input.id = "showav_customcopytitle";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "100%";
+                                            input.setAttribute("placeholder", "自定义标题");
+                                        }),
+                                        await CKTools.makeDom("input",async input=>{
+                                            input.id = "showav_customcopycontent";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "100%";
+                                            input.setAttribute("placeholder", "自定义内容");
+                                        }),
+                                        await CKTools.makeDom("div",div=>{
+                                            div.style.paddingLeft = "20px";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `变量提示：<br><ul>
+                                            <li>%timeurl% => 包含时间的完整地址</li>
+                                            <li>%vidurl% => 视频纯净地址</li>
+                                            <li>%shorturl% => 短地址</li>
+                                            <li>%seek% => 当前视频播放秒数</li>
+                                            <li>%title% => 视频标题</li>
+                                            <li>%av% => av号</li>
+                                            <li>%bv% => BV号</li>
+                                            <li>%cid% => CID号</li>
+                                            </ul>`;
+                                        }),
+                                        await CKTools.makeDom("button", btn => {
+                                            btn.className = "CKTOOLS-toolbar-btns";
+                                            btn.innerHTML = "添加";
+                                            btn.style.background = "#ececec";
+                                            btn.style.color = "black";
+                                            btn.onclick = async e => {
+                                                const ccid = "custom:"+Math.random().toString(36).replace('.','');
+                                                const title = document.querySelector("#showav_customcopytitle").value;
+                                                const content = document.querySelector("#showav_customcopycontent").value;
+                                                config.customcopyitems[ccid] = {title,content};
+                                                if(!config.all.includes(ccid))config.all.push(ccid);
+                                                saveAllConfig();
+                                                const disablediv = document.querySelector(".showav_disableddiv");
+                                                disablediv&&disablediv.appendChild(await makeDragable(ccid));
+                                                const customlist = document.querySelector("#showav_customitems");
+                                                customlist&&customlist.appendChild(makeItem(ccid));
+                                            }
+                                        })
+                                    ].forEach(e=>div.appendChild(e));
+                                }),
+                                await CKTools.makeDom("label",label=>{
+                                    label.style.paddingLeft = "3px";
+                                    label.innerHTML = "删除自定义复制项目";
+                                }),
+                                await CKTools.makeDom("ul",ul=>{
+                                    ul.style.paddingLeft = "3px";
+                                    ul.id = "showav_customitems";
+                                    for(let copyitemid of Object.keys(config.customcopyitems)){
+                                        ul.appendChild(makeItem(copyitemid));
+                                    }
+                                }),
+                            ].forEach(e=>list.appendChild(e));
                         }),
                         await CKTools.makeDom("div",async div => {
                             div.appendChild(await CKTools.makeDom("div", async btns => {
