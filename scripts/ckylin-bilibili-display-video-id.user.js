@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.12
+// @version      1.14
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -167,63 +167,6 @@
             }else{
                 config[configKey] = await GM_getValue(configKey);
             }
-        }
-        if ((await GM_getValue("defaultAv"))) {
-            config.defaultAv = true;
-            menuId.defaultAv = GM_registerMenuCommand("默认显示BV号[当前显示av号]", async () => {
-                await GM_setValue("defaultAv", false);
-                initScript(true);
-            });
-        } else {
-            config.defaultAv = false;
-            menuId.defaultAv = GM_registerMenuCommand("默认显示av号[当前显示BV号]", async () => {
-                await GM_setValue("defaultAv", true);
-                initScript(true);
-            });
-        }
-        if ((await GM_getValue("foldedWarningTip"))) {
-            config.foldedWarningTip = true;
-            menuId.defafoldedWarningTipultAv = GM_registerMenuCommand("显示原版视频警告[当前折叠]", async () => {
-                await GM_setValue("foldedWarningTip", false);
-                CKTools.addStyle('','showav_hidevidwarn','update');
-            });
-            CKTools.addStyle(`
-            .video-data>span.argue{
-                width: 0.5rem;
-                margin-left: 0!important;
-                margin-right: 16px;
-            }
-            `,'showav_hidevidwarn','update');
-        } else {
-            config.foldedWarningTip = false;
-            menuId.foldedWarningTip = GM_registerMenuCommand("折叠原版视频警告[当前显示]", async () => {
-                await GM_setValue("foldedWarningTip", true);
-                CKTools.addStyle(`
-                .video-data>span.argue{
-                    width: 0.5rem;
-                    margin-left: 0!important;
-                    margin-right: 16px;
-                }
-                `,'showav_hidevidwarn','update');
-            });
-            CKTools.addStyle('','showav_hidevidwarn','update');
-        }
-        if ((await GM_getValue("showInNewLine"))) {
-            config.showInNewLine = true;
-            menuId.showInNewLine = GM_registerMenuCommand("显示模式: 换行 [点击切换]", async () => {
-                await GM_setValue("showInNewLine", false);
-                let old = document.querySelector("#bilibiliShowInfos")
-                if(old)old.remove();
-                initScript(true);
-            });
-        } else {
-            config.showInNewLine = false;
-            menuId.showInNewLine = GM_registerMenuCommand("显示模式: 附加 [点击切换]", async () => {
-                await GM_setValue("showInNewLine", true);
-                let old = document.querySelector("#bilibiliShowInfos")
-                if(old)old.remove();
-                initScript(true);
-            });
         }
         GM_registerMenuCommand("打开设置", async () => {
             await GUISettings();
