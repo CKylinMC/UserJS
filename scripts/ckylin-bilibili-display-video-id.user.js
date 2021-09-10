@@ -317,8 +317,7 @@
                 let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
                 infos.p == 1 || url.searchParams.append("p", infos.p);
                 let vidurl = new URL(url);
-                let shorturl = new URL(url);
-                shorturl.hostname = "b23.tv";
+                let shorturl = new URL(location.protocol + "//b23.tv/"+e.target.innerText);
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 CKTools.modal.alertModal("高级复制",`
@@ -352,7 +351,7 @@
                 <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
                 含视频进度地址(仅在播放时提供)
                 <input readonly value="${url}" onclick="showav_fastcopy(this);" />
-                B23.TV格式
+                短地址格式
                 <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
                 快速分享
                 <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
@@ -361,7 +360,7 @@
                 MarkDown格式
                 <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
                 BBCode格式
-                <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" /><br>
+                <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" />
                 HTML格式
                 <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" /><br>
                 <hr>
