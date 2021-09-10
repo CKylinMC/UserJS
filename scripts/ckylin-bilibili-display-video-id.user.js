@@ -71,7 +71,8 @@
         orders: ['openGUI','showPic','showAv','showPn'],
         all: ['showAv','showSAv','showSBv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
         copyitems: ['currTime','short','shareTime','vid'],
-        copyitemsAll: ['curr','currTime','short','shortTime','share','shareTime','md','bb','html','vid'],
+        copyitemsAll: ['curr','currTime','short','share','shareTime','md','bb','html','vid'],
+        customcopyitems: {},
         vduration: 0
     };
     const menuId = {
@@ -96,7 +97,6 @@
         curr: "当前视频地址",
         currTime: "当前视频地址(含视频进度)",
         short: "短地址",
-        shortTime: "短地址(含视频进度)", 
         share: "快速分享", 
         shareTime: "快速分享(含视频进度)", 
         md: "Markdown 格式", 
@@ -122,7 +122,6 @@
         curr: "提供当前视频纯净地址",
         currTime: "提供当前视频地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
         short: "提供当前视频的b23.tv短地址",
-        shortTime: "提供当前视频的b23.tv短地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。", 
         share: "提供当前视频的标题和地址组合文本。", 
         shareTime: "提供当前视频的标题和地址组合文本，在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。", 
         md: "提供Markdown特殊语法的快速复制。", 
@@ -148,6 +147,15 @@
         openGUI: 1
     };
     let infos = {};
+    // https://stackoverflow.com/questions/10726638
+    String.prototype.mapReplace = function(map) {
+        var regex = [];
+        for(var key in map)
+            regex.push(key.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"));
+        return this.replace(new RegExp(regex.join('|'),"g"),function(word){
+            return map[word];
+        });
+    };
 
     // CSDN https://blog.csdn.net/namechenfl/article/details/91968396
     function numberFormat(value) {
@@ -342,7 +350,7 @@
                 let shorturl = new URL(location.protocol + "//b23.tv/"+e.target.innerText);
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
-                CKTools.modal.alertModal("高级复制",`
+                let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
                     width:100%;
@@ -368,42 +376,90 @@
                     align-items: stretch;
                 }
                 </style>
-                <b>点击输入框可以快速复制</b><br>
-                当前地址
-                <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
-                含视频进度地址(仅在播放时提供)
-                <input readonly value="${url}" onclick="showav_fastcopy(this);" />
-                短地址格式
-                <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
-                快速分享
-                <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
-                快速分享(含视频进度)
-                <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
-                MarkDown格式
-                <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
-                BBCode格式
-                <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" />
-                HTML格式
-                <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" /><br>
-                <hr>
-                <div class="shoav_expandinfo">
-                    <div>
-                    AV号
-                    <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                    <div>
-                    BV号
-                    <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                    <div>
-                    资源CID
-                    <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                </div>
-                <br><hr>
-                <a href="javascript:void(0)" onclick="showav_guisettings_shoy()">复制设置</a>
+                <b>点击输入框可以快速复制</b><br>`;
+                for(let copyitem of config.copyitems){
+                    switch(copyitem){
+                        case "curr":
+                            modalcontent += `当前地址
+                            <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "currTime":
+                            modalcontent += `含视频进度地址(仅在播放时提供)
+                            <input readonly value="${url}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "short":
+                            modalcontent += `短地址格式
+                            <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "share":
+                            modalcontent += `快速分享
+                            <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "shareTime":
+                            modalcontent += `快速分享(含视频进度)
+                            <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "md":
+                            modalcontent += `MarkDown格式
+                            <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "bb":
+                            modalcontent += `BBCode格式
+                            <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "html":
+                            modalcontent += `HTML格式
+                            <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "vid":
+                            modalcontent += `<div class="shoav_expandinfo">
+                            <div>
+                            AV号
+                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            BV号
+                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            资源CID
+                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                        </div>
+                        `;
+                            break;
+                        default:
+                            if(Object.keys(config.customcopyitems).includes(copyitem)){
+                                let ccopyitem = config.customcopyitems[copyitem];
+                                let pat = ccopyitem.content?ccopyitem.content:"无效内容";
+                                pat = pat.mapReplace({
+                                    "%timeurl%":url,
+                                    "%vidurl%":vidurl,
+                                    "%shorturl%":shorturl,
+                                    "%title%":infos.title,
+                                    "%av%":infos.aid,
+                                    "%bv%":infos.bvid,
+                                    "%cid%":infos.cid,
+                                    "'":"\'"
+                                });
+                                modalcontent += `(自定义) ${ccopyitem.title}
+                            <input readonly value='${pat}' onclick="showav_fastcopy(this);" />
+                            `;
+                            }
+                    }
+                }
+                modalcontent+=`<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
-                `,"关闭");
+                `;
+                CKTools.modal.alertModal("高级复制",modalcontent,"关闭");
             });
         //} else av_span.remove();
     }
@@ -942,6 +998,21 @@
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
+                await CKTools.makeDom("li",async list=>{
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label",label=>{
+                            label.style.paddingLeft = "3px";
+                            label.innerHTML = "高级复制: <b>自定义复制格式</b>";
+                            label.addEventListener("click", () => GUISettings_advcopy())
+                        }),
+                        await CKTools.makeDom("div",div=>{
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `进入自定义复制格式设置界面。此功能仅在<b>高级复制</b>功能启用时生效。<br><b>请注意未保存的修改将会丢失</b>。`;
+                        })
+                    ].forEach(e=>list.appendChild(e));
+                }),
                 // dragable code from ytb v=jfYWwQrtzzY
                 await CKTools.makeDom("li", async list=>{
                     const makeDragable = async id=>{
@@ -1055,6 +1126,8 @@
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "关闭";
+                                    btn.style.background = "#ececec";
+                                    btn.style.color = "black";
                                     btn.onclick = e => {
                                         CKTools.modal.hideModal();
                                     }
@@ -1069,6 +1142,10 @@
     }
 
     async function GUISettings_advcopy(){
+        if(CKTools.modal.isModalShowing()){
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
         CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置",await CKTools.makeDom("div",async container=>{
             container.style.alignItems = "stretch";
             [
@@ -1079,8 +1156,15 @@
                             draggable.className = "showav_dragableitem";
                             draggable.setAttribute("draggable",true);
                             draggable.setAttribute("data-id",id);
-                            draggable.innerHTML = txtCn[id];
-                            draggable.innerHTML+= `<div>${descCn[id]}</div>`;
+                            if(id.split(":")[0]==="custom"){
+                                draggable.innerHTML = config.customcopyitems[id].title;
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(config.customcopyitems[id].content));
+                                draggable.appendChild(node);
+                            }else{
+                                draggable.innerHTML = txtCn[id];
+                                draggable.innerHTML+= `<div>${descCn[id]}</div>`;
+                            }
                             let expanded = false;
                             draggable.addEventListener('dragstart',e=>{
                                 if(expanded) draggable.classList.remove('showav_expand');
