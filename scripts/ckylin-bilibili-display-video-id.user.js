@@ -362,6 +362,8 @@
                 <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
                 BBCode格式
                 <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" /><br>
+                HTML格式
+                <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" /><br>
                 <hr>
                 <div class="shoav_expandinfo">
                     <div>
