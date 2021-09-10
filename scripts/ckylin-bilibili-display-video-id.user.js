@@ -179,12 +179,6 @@
         tryInject(flag);
     }
 
-    function atleastOne(){
-        let k = 0;
-        [...arguments].map(v=>k+=v);
-        return k>0;
-    }
-
     async function playerReady() {
         let i = 150;
         while (--i > 0) {
