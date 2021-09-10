@@ -78,7 +78,7 @@
         showInNewLine:-1,
     };
     const txtCn = {
-        showAv: "视频编号和高级复制",
+        showAv: "可切换视频编号和高级复制",
         showSAv: "视频AV号和高级复制",
         showSBv: "视频BV号和高级复制",
         showPn: "视频分P名",
@@ -900,6 +900,11 @@
                                     label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
 
                             })
+                        }),
+                        await CKTools.makeDom("div",div=>{
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能仅对<b>可切换视频编号和高级复制</b>功能起效。`;
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
@@ -929,6 +934,11 @@
                                 else
                                     label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div",div=>{
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能可将视频警告(如 含有危险行为)折叠为图标，防止占用信息栏空间。`;
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
@@ -940,9 +950,9 @@
                             label.id = "showav_hidetime_tip";
                             label.setAttribute('for',"showav_hidetime");
                             if(config.hideTime)
-                                label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                                label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
+                                label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
                         }),
                         await CKTools.makeDom("input",input=>{
                             input.type="checkbox";
@@ -954,10 +964,15 @@
                                 const label = document.querySelector("#showav_hidetime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                                    label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
+                                    label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div",div=>{
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能仅在开启<b>视频投稿时间</b>功能时起效，视频投稿时间可以显示两种时间格式，并且可排序。`;
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
@@ -969,9 +984,9 @@
                             label.id = "showav_deftxttime_tip";
                             label.setAttribute('for',"showav_deftxttime");
                             if(config.defaultTextTime)
-                                label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                                label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
+                                label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
                         }),
                         await CKTools.makeDom("input",input=>{
                             input.type="checkbox";
@@ -983,10 +998,15 @@
                                 const label = document.querySelector("#showav_deftxttime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                                    label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
+                                    label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div",div=>{
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>此功能仅对<b>视频投稿时间</b>功能起效。`;
                         })
                     ].forEach(e=>list.appendChild(e));
                 }),
