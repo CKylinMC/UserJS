@@ -1294,6 +1294,7 @@
                             [
                                 await CKTools.makeDom("label", label => {
                                     label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
                                     label.innerHTML = "添加自定义复制项目";
                                 }),
                                 await CKTools.makeDom("div", async div => {
@@ -1302,13 +1303,21 @@
                                         await CKTools.makeDom("input", async input => {
                                             input.id = "showav_customcopytitle";
                                             input.setAttribute("type", "text");
-                                            input.style.width = "100%";
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
                                             input.setAttribute("placeholder", "自定义标题");
                                         }),
                                         await CKTools.makeDom("input", async input => {
                                             input.id = "showav_customcopycontent";
                                             input.setAttribute("type", "text");
-                                            input.style.width = "100%";
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
                                             input.setAttribute("placeholder", "自定义内容");
                                         }),
                                         await CKTools.makeDom("div", div => {
@@ -1323,6 +1332,7 @@
                                             <li>%av% => av号</li>
                                             <li>%bv% => BV号</li>
                                             <li>%cid% => CID号</li>
+                                            <li>%p% => 分P</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
@@ -1365,7 +1375,8 @@
                                 }),
                                 await CKTools.makeDom("label", label => {
                                     label.style.paddingLeft = "3px";
-                                    label.innerHTML = "自定义复制项目(点击移除)";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "已有自定义复制项目 <small>(点击移除)</small>";
                                 }),
                                 await CKTools.makeDom("ul", ul => {
                                     ul.style.paddingLeft = "3px";
@@ -1526,6 +1537,11 @@
     }
     #showav_newlinetip.showav_newlinetip{
         opacity: 1;
+    }
+    ul#showav_customitems:empty::after{
+        content:"目前没有自定义项目。当添加了自定义项目时，可以在这里删除。";
+        padding: 6px;
+        display: block;
     }
     `, 'showav_dragablecss', "unique", document.head);
 
