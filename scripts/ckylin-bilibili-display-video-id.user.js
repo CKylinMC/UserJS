@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.12
+// @version      1.14
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -22,15 +22,15 @@
 (function () {
     //======[Apply all resources]
     const resourceList = [
-        {name:'cktools',type:'js'},
-        {name:'timeago',type:'js'},
-        {name:'popjs',type:'js'},
-        {name:'popcss',type:'css'},
-        {name:'popcsspatch',type:'rawcss',content:"div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}"},
+        { name: 'cktools', type: 'js' },
+        { name: 'timeago', type: 'js' },
+        { name: 'popjs', type: 'js' },
+        { name: 'popcss', type: 'css' },
+        { name: 'popcsspatch', type: 'rawcss', content: "div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}" },
     ]
     function applyResource() {
-        resloop:for(let res of resourceList){
-            if(!document.querySelector("#"+res.name)){
+        resloop: for (let res of resourceList) {
+            if (!document.querySelector("#" + res.name)) {
                 let el;
                 switch (res.type) {
                     case 'js':
@@ -46,7 +46,7 @@
                         continue resloop;
                 }
                 el.id = res.name;
-                el.innerHTML = res.type.startsWith('raw')?res.content:GM_getResourceText(res.name);
+                el.innerHTML = res.type.startsWith('raw') ? res.content : GM_getResourceText(res.name);
                 document.head.appendChild(el);
             }
         }
@@ -68,17 +68,20 @@
         foldedWarningTip: true,
         showInNewLine: false,
         pnmaxlength: 18,
-        orders: ['openGUI','showPic','showAv','showPn'],
-        all: ['showAv','showSAv','showSBv','showPn','showCid','showCate','openGUI','showPic','showSize','showMore','showCTime','showViews','showDmk','showTop'],
+        orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
+        all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
+        copyitems: ['currTime', 'short', 'shareTime', 'vid'],
+        copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
+        customcopyitems: {},
         vduration: 0
     };
     const menuId = {
         defaultAv: -1,
         foldedWarningTip: -1,
-        showInNewLine:-1,
+        showInNewLine: -1,
     };
     const txtCn = {
-        showAv: "视频编号和高级复制",
+        showAv: "可切换视频编号和高级复制",
         showSAv: "视频AV号和高级复制",
         showSBv: "视频BV号和高级复制",
         showPn: "视频分P名",
@@ -91,6 +94,15 @@
         showViews: "替换视频播放量",
         showDmk: "替换视频弹幕量",
         showTop: "替换全站排名提示",
+        curr: "当前视频地址",
+        currTime: "当前视频地址(含视频进度)",
+        short: "短地址",
+        share: "快速分享",
+        shareTime: "快速分享(含视频进度)",
+        md: "Markdown 格式",
+        bb: "BBCode 格式",
+        html: "HTML 格式",
+        vid: "视频编号",
         openGUI: "设置选项"
     };
     const descCn = {
@@ -107,6 +119,15 @@
         showViews: "替换展示视频播放量(由于内容相同，将自动隐藏原版播放量信息)",
         showDmk: "替换展示视频弹幕量(由于内容相同，将自动隐藏原版弹幕量信息)",
         showTop: "替换原版全站排名信息",
+        curr: "提供当前视频纯净地址",
+        currTime: "提供当前视频地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
+        short: "提供当前视频的b23.tv短地址",
+        share: "提供当前视频的标题和地址组合文本。",
+        shareTime: "提供当前视频的标题和地址组合文本，在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
+        md: "提供Markdown特殊语法的快速复制。",
+        bb: "提供BBCode特殊语法的快速复制。",
+        html: "提供HTML格式的快速复制。",
+        vid: "提供当前视频av号/BV号/CID号",
         openGUI: "提供按钮快速进入设置选项。"
     };
     const idTn = {
@@ -126,6 +147,15 @@
         openGUI: 1
     };
     let infos = {};
+    // https://stackoverflow.com/questions/10726638
+    String.prototype.mapReplace = function (map) {
+        var regex = [];
+        for (var key in map)
+            regex.push(key.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"));
+        return this.replace(new RegExp(regex.join('|'), "g"), function (word) {
+            return map[word];
+        });
+    };
 
     // CSDN https://blog.csdn.net/namechenfl/article/details/91968396
     function numberFormat(value) {
@@ -144,10 +174,10 @@
         return param;
     }
 
-    async function saveAllConfig(){
-        for(let configKey of Object.keys(config)){
-            if([
-                "all","vduration","firstTimeLoad"
+    async function saveAllConfig() {
+        for (let configKey of Object.keys(config)) {
+            if ([
+                "all", "vduration", "firstTimeLoad"
             ].includes(configKey)) continue;
             await GM_setValue(configKey, config[configKey]);
         }
@@ -155,75 +185,18 @@
     }
 
     async function initScript(flag = false) {
-        for(let menuitem of Object.keys(menuId)){
-            if(menuId[menuitem]!=-1) GM_unregisterMenuCommand(menuId[menuitem]);
+        for (let menuitem of Object.keys(menuId)) {
+            if (menuId[menuitem] != -1) GM_unregisterMenuCommand(menuId[menuitem]);
         }
-        for(let configKey of Object.keys(config)){
-            if([
-                "all","vduration","firstTimeLoad"
+        for (let configKey of Object.keys(config)) {
+            if ([
+                "all", "vduration", "firstTimeLoad"
             ].includes(configKey)) continue;
-            if(typeof(await GM_getValue(configKey))==='undefined'){
+            if (typeof (await GM_getValue(configKey)) === 'undefined') {
                 await GM_setValue(configKey, config[configKey]);
-            }else{
+            } else {
                 config[configKey] = await GM_getValue(configKey);
             }
-        }
-        if ((await GM_getValue("defaultAv"))) {
-            config.defaultAv = true;
-            menuId.defaultAv = GM_registerMenuCommand("默认显示BV号[当前显示av号]", async () => {
-                await GM_setValue("defaultAv", false);
-                initScript(true);
-            });
-        } else {
-            config.defaultAv = false;
-            menuId.defaultAv = GM_registerMenuCommand("默认显示av号[当前显示BV号]", async () => {
-                await GM_setValue("defaultAv", true);
-                initScript(true);
-            });
-        }
-        if ((await GM_getValue("foldedWarningTip"))) {
-            config.foldedWarningTip = true;
-            menuId.defafoldedWarningTipultAv = GM_registerMenuCommand("显示原版视频警告[当前折叠]", async () => {
-                await GM_setValue("foldedWarningTip", false);
-                CKTools.addStyle('','showav_hidevidwarn','update');
-            });
-            CKTools.addStyle(`
-            .video-data>span.argue{
-                width: 0.5rem;
-                margin-left: 0!important;
-                margin-right: 16px;
-            }
-            `,'showav_hidevidwarn','update');
-        } else {
-            config.foldedWarningTip = false;
-            menuId.foldedWarningTip = GM_registerMenuCommand("折叠原版视频警告[当前显示]", async () => {
-                await GM_setValue("foldedWarningTip", true);
-                CKTools.addStyle(`
-                .video-data>span.argue{
-                    width: 0.5rem;
-                    margin-left: 0!important;
-                    margin-right: 16px;
-                }
-                `,'showav_hidevidwarn','update');
-            });
-            CKTools.addStyle('','showav_hidevidwarn','update');
-        }
-        if ((await GM_getValue("showInNewLine"))) {
-            config.showInNewLine = true;
-            menuId.showInNewLine = GM_registerMenuCommand("显示模式: 换行 [点击切换]", async () => {
-                await GM_setValue("showInNewLine", false);
-                let old = document.querySelector("#bilibiliShowInfos")
-                if(old)old.remove();
-                initScript(true);
-            });
-        } else {
-            config.showInNewLine = false;
-            menuId.showInNewLine = GM_registerMenuCommand("显示模式: 附加 [点击切换]", async () => {
-                await GM_setValue("showInNewLine", true);
-                let old = document.querySelector("#bilibiliShowInfos")
-                if(old)old.remove();
-                initScript(true);
-            });
         }
         GM_registerMenuCommand("打开设置", async () => {
             await GUISettings();
@@ -232,14 +205,8 @@
             #bilibiliShowPN{
                 max-width: ${config.pnmaxlength}em!important;
             }
-        `,"showav_pnlen","update",document.head);
+        `, "showav_pnlen", "update", document.head);
         tryInject(flag);
-    }
-
-    function atleastOne(){
-        let k = 0;
-        [...arguments].map(v=>k+=v);
-        return k>0;
     }
 
     async function playerReady() {
@@ -279,7 +246,7 @@
         if (!target) {
             target = document.createElement("span");
             target.id = id;
-            target.style['margin'+marginDirection] = "16px";
+            target.style['margin' + marginDirection] = "16px";
             parent.appendChild(target);
         }
         return target;
@@ -305,7 +272,7 @@
                 tryInject(true);
             }
         });
-        observer.observe(video, {attribute: true, attributes: true, childList: false});
+        observer.observe(video, { attribute: true, attributes: true, childList: false });
     }
 
     function getPageFromCid(cid, infos) {
@@ -320,71 +287,76 @@
         return 1;
     }
 
-    async function feat_showCate(){
-        const {av_root,infos} = this;
+    async function feat_showCate() {
+        const { av_root, infos } = this;
         const cate_span = getOrNew("bilibiliShowCate", av_root);
         //if (config.showCate) {
-            cate_span.style.textOverflow = "ellipsis";
-            cate_span.style.whiteSpace = "nowarp";
-            cate_span.style.overflow = "hidden";
-            cate_span.title = "分区:"+infos.tname;
-            cate_span.innerText = "分区:"+infos.tname;
+        cate_span.style.textOverflow = "ellipsis";
+        cate_span.style.whiteSpace = "nowarp";
+        cate_span.style.overflow = "hidden";
+        cate_span.title = "分区:" + infos.tname;
+        cate_span.innerText = "分区:" + infos.tname;
         //} else cate_span.remove();
     }
 
-    async function feat_showStaticAv(){
+    async function feat_showStaticAv() {
         const func = feat_showAv.bind(this);
         func(true);
     }
 
-    async function feat_showStaticBv(){
+    async function feat_showStaticBv() {
         const func = feat_showAv.bind(this);
-        func(true,'bv');
+        func(true, 'bv');
     }
 
-    async function feat_showAv(force = false,mode = 'av'/* 'bv' */){
-        const {av_root,infos} = this;
-        const av_span = getOrNew("bilibiliShowAV"+(force?mode:''), av_root);
+    async function feat_showAv(force = false, mode = 'av'/* 'bv' */) {
+        const { av_root, infos } = this;
+        const av_span = getOrNew("bilibiliShowAV" + (force ? mode : ''), av_root);
         //if (config.showAv) {
-            if(force){
-                if(mode == 'bv'){
-                    av_span.innerText = infos.bvid;
-                }else{
-                    av_span.innerText = 'av' + infos.aid;
-                }
-            }else if (config.defaultAv)
-                av_span.innerText = 'av' + infos.aid;
-            else
+        if (force) {
+            if (mode == 'bv') {
                 av_span.innerText = infos.bvid;
-            av_span.style.overflow = "hidden";
-            if(!force)
+            } else {
+                av_span.innerText = 'av' + infos.aid;
+            }
+        } else if (config.defaultAv)
+            av_span.innerText = 'av' + infos.aid;
+        else
+            av_span.innerText = infos.bvid;
+        av_span.style.overflow = "hidden";
+        const video = await waitForDom("video");
+        if (video) {
+            config.vduration = Math.floor(video.duration);
+        }
+
+        if (av_span.getAttribute("setup") != "ok") {
+            if (!force)
                 av_span.oncontextmenu = e => {
                     if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
                 }
-            const video = await waitForDom("video");
-            if (video) {
-                config.vduration = Math.floor(video.duration);
-            }
             const avspanHC = new CKTools.HoldClick(av_span);
-            avspanHC.onclick(async e=>{
+            avspanHC.onclick(async e => {
+                const currpage = new URL(location.href);
+                let part = infos.p==currpage.searchParams.get("p")
+                    ? infos.p
+                    : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
                 let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
-                infos.p == 1 || url.searchParams.append("p", infos.p);
+                part == 1 || url.searchParams.append("p", part);
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 copy(url);
                 popNotify.success("完整地址复制成功", url);
             });
-            avspanHC.onhold(async e=>{
+            avspanHC.onhold(async e => {
                 let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
                 infos.p == 1 || url.searchParams.append("p", infos.p);
                 let vidurl = new URL(url);
-                let shorturl = new URL(url);
-                shorturl.hostname = "b23.tv";
+                let shorturl = new URL(location.protocol + "//b23.tv/" + e.target.innerText);
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
-                CKTools.modal.alertModal("高级复制",`
+                let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
                     width:100%;
@@ -410,65 +382,122 @@
                     align-items: stretch;
                 }
                 </style>
-                <b>点击输入框可以快速复制</b><br>
-                当前地址
-                <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
-                含视频进度地址(仅在播放时提供)
-                <input readonly value="${url}" onclick="showav_fastcopy(this);" />
-                B23.TV格式
-                <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
-                快速分享
-                <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
-                快速分享(含视频进度)
-                <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
-                MarkDown格式
-                <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
-                BBCode格式
-                <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" /><br>
-                <hr>
-                <div class="shoav_expandinfo">
-                    <div>
-                    AV号
-                    <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                    <div>
-                    BV号
-                    <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                    <div>
-                    资源CID
-                    <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
-                    </div>
-                </div>
-                <br><hr>
+                <b>点击输入框可以快速复制</b><br>`;
+                for (let copyitem of config.copyitems) {
+                    switch (copyitem) {
+                        case "curr":
+                            modalcontent += `当前地址
+                            <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "currTime":
+                            modalcontent += `含视频进度地址(仅在播放时提供)
+                            <input readonly value="${url}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "short":
+                            modalcontent += `短地址格式
+                            <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "share":
+                            modalcontent += `快速分享
+                            <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "shareTime":
+                            modalcontent += `快速分享(含视频进度)
+                            <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "md":
+                            modalcontent += `MarkDown格式
+                            <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "bb":
+                            modalcontent += `BBCode格式
+                            <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "html":
+                            modalcontent += `HTML格式
+                            <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" />
+                            `;
+                            break;
+                        case "vid":
+                            modalcontent += `<div class="shoav_expandinfo">
+                            <div>
+                            AV号
+                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            BV号
+                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            资源CID
+                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                        </div>
+                        `;
+                            break;
+                        default:
+                            if (Object.keys(config.customcopyitems).includes(copyitem)) {
+                                let ccopyitem = config.customcopyitems[copyitem];
+                                let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
+                                pat = pat.mapReplace({
+                                    "%timeurl%": url,
+                                    "%vidurl%": vidurl,
+                                    "%shorturl%": shorturl,
+                                    "%seek%": t,
+                                    "%title%": infos.title,
+                                    "%av%": infos.aid,
+                                    "%bv%": infos.bvid,
+                                    "%cid%": infos.cid,
+                                    "%p%": part,
+                                    "'": "\'"
+                                });
+                                modalcontent += `(自定义) ${ccopyitem.title}
+                            <input readonly value='${pat}' onclick="showav_fastcopy(this);" />
+                            `;
+                            }
+                    }
+                }
+                modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
-                `,"关闭");
+                `;
+                modalcontent+= closeButton().outerHTML;
+                CKTools.modal.alertModal("高级复制", modalcontent, "关闭");
             });
+            av_span.setAttribute("setup", "ok");
+        }
         //} else av_span.remove();
     }
 
-    async function feat_showMore(){
-        const {av_root,infos} = this;
-        log('infos',infos);
+    async function feat_showMore() {
+        const { av_root, infos } = this;
+        log('infos', infos);
         const more_span = getOrNew("bilibiliShowMore", av_root);
         more_span.innerHTML = '⋯';
         more_span.title = "展示更多信息";
         more_span.style.cursor = "pointer";
-        more_span.addEventListener('click',async e=>{
-            let part,videoData=infos;
-            try {
-                part = videoData.pages[infos.p - 1];
-            } catch (e) {
-                part = videoData.pages[0];
-            }
-            let currentPageName = part.part.length ? part.part : '';
-            let currentPageNum;
-            if (videoData.videos != 1) {
-                currentPageNum = `P ${infos.p}/${videoData.videos}`;
-            } else {
-                currentPageNum = "P 1/1";
-            }
-            CKTools.modal.alertModal("视频信息",`
+        if (more_span.getAttribute("setup") != "ok") {
+            more_span.addEventListener('click', async e => {
+                let part, videoData = infos;
+                try {
+                    part = videoData.pages[infos.p - 1];
+                } catch (e) {
+                    part = videoData.pages[0];
+                }
+                let currentPageName = part.part.length ? part.part : '';
+                let currentPageNum;
+                if (videoData.videos != 1) {
+                    currentPageNum = `P ${infos.p}/${videoData.videos}`;
+                } else {
+                    currentPageNum = "P 1/1";
+                }
+                CKTools.modal.alertModal("视频信息", `
             <style scoped>
                 li{
                     line-height: 2em;
@@ -493,7 +522,7 @@
                 <b>长度: </b>${infos.duration}s
             </li>
             <li>
-                <b>投稿: </b>${timeago.format(infos.ctime*1000,'zh_CN')}
+                <b>投稿: </b>${timeago.format(infos.ctime * 1000, 'zh_CN')}
             </li>
             <li>
                 <b>分区: </b>${infos.tname}
@@ -504,23 +533,25 @@
             <li>
                 <b>封面: </b><a href="${infos.pic}" target="_blank">点击查看</a>
             </li>
-            `,"确定");
-        })
+            `, "确定");
+            })
+            more_span.setAttribute("setup", "ok");
+        }
     }
 
-    async function feat_showCTime(){
-        const {av_root,infos} = this;
+    async function feat_showCTime() {
+        const { av_root, infos } = this;
         const ct_span = getOrNew("bilibiliShowCTime", av_root);
         ct_span.style.textOverflow = "ellipsis";
         ct_span.style.whiteSpace = "nowarp";
         ct_span.style.overflow = "hidden";
-        const d = new Date(infos.ctime*1000);
-        let txttime = timeago.format(infos.ctime*1000,'zh_CN');
-        let rawtime = `${d.getFullYear()}年${(d.getMonth()+1)<10?'0'+(d.getMonth()+1):d.getMonth()+1}月${d.getDate()<10?'0'+d.getDate():d.getDate()}日 ${d.getHours()<10?'0'+d.getHours():d.getHours()}:${d.getMinutes()<10?'0'+d.getMinutes():d.getMinutes()}:${d.getSeconds()<10?'0'+d.getSeconds():d.getSeconds()}`;
+        const d = new Date(infos.ctime * 1000);
+        let txttime = timeago.format(infos.ctime * 1000, 'zh_CN');
+        let rawtime = `${d.getFullYear()}-${(d.getMonth() + 1) < 10 ? '0' + (d.getMonth() + 1) : d.getMonth() + 1}-${d.getDate() < 10 ? '0' + d.getDate() : d.getDate()} ${d.getHours() < 10 ? '0' + d.getHours() : d.getHours()}:${d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes()}:${d.getSeconds() < 10 ? '0' + d.getSeconds() : d.getSeconds()}`;
 
-        ct_span.title = "投稿时间 "+(config.defaultTextTime?rawtime:txttime);
-        ct_span.innerHTML = config.defaultTextTime?txttime:rawtime
-        if(config.hideTime) ct_span.innerHTML+= `
+        ct_span.title = "投稿时间 " + (config.defaultTextTime ? rawtime : txttime);
+        ct_span.innerHTML = config.defaultTextTime ? txttime : rawtime
+        if (config.hideTime) ct_span.innerHTML += `
         <style>
         .video-data>span:nth-child(3){
             display:none;
@@ -531,18 +562,18 @@
         </style>`;
     }
 
-    async function feat_showViews(){
-        const {av_root,infos} = this;
+    async function feat_showViews() {
+        const { av_root, infos } = this;
         const v_span = getOrNew("bilibiliShowViews", av_root);
         v_span.style.textOverflow = "ellipsis";
         v_span.style.whiteSpace = "nowarp";
         v_span.style.overflow = "hidden";
         v_span.title = `播放量 ${infos.stat.view}`;
-        v_span.innerHTML = (()=>{
+        v_span.innerHTML = (() => {
             const res = numberFormat(infos.stat.view);
             return `${res.value}${res.unit}播放`;
         })();
-        v_span.innerHTML+= `
+        v_span.innerHTML += `
         <style>
         .video-data>span:nth-child(1){
             display:none;
@@ -553,18 +584,18 @@
         </style>`;
     }
 
-    async function feat_showDmk(){
-        const {av_root,infos} = this;
+    async function feat_showDmk() {
+        const { av_root, infos } = this;
         const dmk_span = getOrNew("bilibiliShowDmk", av_root);
         dmk_span.style.textOverflow = "ellipsis";
         dmk_span.style.whiteSpace = "nowarp";
         dmk_span.style.overflow = "hidden";
         dmk_span.title = `${infos.stat.danmaku}条弹幕`;
-        dmk_span.innerHTML = (()=>{
+        dmk_span.innerHTML = (() => {
             const res = numberFormat(infos.stat.danmaku);
             return `${res.value}${res.unit}条弹幕`;
         })();
-        dmk_span.innerHTML+= `
+        dmk_span.innerHTML += `
         <style>
         .video-data>span:nth-child(2){
             display:none;
@@ -575,34 +606,34 @@
         </style>`;
     }
 
-    async function feat_showTop(){
-        const {av_root,infos} = this;
+    async function feat_showTop() {
+        const { av_root, infos } = this;
         const top_span = getOrNew("bilibiliShowTop", av_root);
         top_span.style.textOverflow = "ellipsis";
         top_span.style.whiteSpace = "nowarp";
         top_span.style.overflow = "hidden";
         top_span.title = `全站最高排行第${infos.stat.his_rank}名`;
         top_span.innerHTML = ''
-        top_span.innerHTML+= `
+        top_span.innerHTML += `
         <style>
         .video-data>span.rank{
             display:none;
         }
         </style>`;
-        if(infos.stat.his_rank===0){
+        if (infos.stat.his_rank === 0) {
             top_span.style.display = "none";
-            setTimeout(()=>{
-                if(top_span.nextElementSibling){
+            setTimeout(() => {
+                if (top_span.nextElementSibling) {
                     top_span.nextElementSibling.style.marginLeft = 0;
                 }
-            },100);
-        }else{
-            top_span.innerHTML+= '📊 '+infos.stat.his_rank;
+            }, 100);
+        } else {
+            top_span.innerHTML += '📊 ' + infos.stat.his_rank;
         }
     }
 
-    async function feat_showPic(){
-        const {av_root,infos} = this;
+    async function feat_showPic() {
+        const { av_root, infos } = this;
         const pic_span = getOrNew("bilibiliShowPic", av_root);
         pic_span.style.textOverflow = "ellipsis";
         pic_span.style.whiteSpace = "nowarp";
@@ -610,105 +641,115 @@
         pic_span.title = "查看封面";
         pic_span.innerHTML = "🖼️";
         pic_span.style.cursor = "pointer";
-        const picHC = new CKTools.HoldClick(pic_span);
-        picHC.onclick(()=>{
-            CKTools.modal.alertModal("封面",`
+        if (pic_span.getAttribute("setup") != "ok") {
+            const picHC = new CKTools.HoldClick(pic_span);
+            picHC.onclick(() => {
+                CKTools.modal.alertModal("封面", `
             <img src="${infos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
-            `,"关闭");
-        });
-        picHC.onhold(()=>{
-            open(infos.pic);
-        });
+            `, "关闭");
+            });
+            picHC.onhold(() => {
+                open(infos.pic);
+            });
+            pic_span.setAttribute("setup", "ok");
+        }
     }
 
-    async function feat_showCid(){
-        const {av_root,infos} = this;
+    async function feat_showCid() {
+        const { av_root, infos } = this;
         const cid_span = getOrNew("bilibiliShowCID", av_root);
         //if (config.showCid) {
-            cid_span.style.textOverflow = "ellipsis";
-            cid_span.style.whiteSpace = "nowarp";
-            cid_span.style.overflow = "hidden";
-            cid_span.title = "CID:"+infos.cid;
-            cid_span.innerText = "CID:"+infos.cid;
+        cid_span.style.textOverflow = "ellipsis";
+        cid_span.style.whiteSpace = "nowarp";
+        cid_span.style.overflow = "hidden";
+        cid_span.title = "CID:" + infos.cid;
+        cid_span.innerText = "CID:" + infos.cid;
+        if (cid_span.getAttribute("setup") != "ok") {
             const cidspanHC = new CKTools.HoldClick(cid_span);
-            cidspanHC.onclick(()=>{
+            cidspanHC.onclick(() => {
                 copy(currentPageName);
                 popNotify.success("CID复制成功", infos.cid);
             });
-            cidspanHC.onhold(()=>{
-                CKTools.modal.alertModal("CID信息",`
+            cidspanHC.onhold(() => {
+                CKTools.modal.alertModal("CID信息", `
                 <input readonly style="width:440px" value="${infos.cid}" />
-                `,"关闭");
+                `, "关闭");
             });
+            cid_span.setAttribute("setup", "ok");
+        }
         //} else cid_span.remove();
     }
 
-    async function feat_showSize(){
-        const {av_root,infos} = this;
+    async function feat_showSize() {
+        const { av_root, infos } = this;
         const size_span = getOrNew("bilibiliShowSize", av_root);
         //if (config.showCid) {
-            size_span.style.textOverflow = "ellipsis";
-            size_span.style.whiteSpace = "nowarp";
-            size_span.style.overflow = "hidden";
-            size_span.title = `${infos.dimension.width}x${infos.dimension.height}`;
-            size_span.innerText = `${infos.dimension.width}x${infos.dimension.height}`;
+        size_span.style.textOverflow = "ellipsis";
+        size_span.style.whiteSpace = "nowarp";
+        size_span.style.overflow = "hidden";
+        size_span.title = `${infos.dimension.width}x${infos.dimension.height}`;
+        size_span.innerText = `${infos.dimension.width}x${infos.dimension.height}`;
         //} else cid_span.remove();
     }
 
-    async function feat_openGUI(){
-        const {av_root,infos} = this;
+    async function feat_openGUI() {
+        const { av_root, infos } = this;
         const gui_span = getOrNew("bilibiliShowGUISettings", av_root);
         gui_span.innerHTML = "⚙";
         gui_span.title = "ShowAV 设置";
         gui_span.style.overflow = "hidden";
         gui_span.style.cursor = "pointer";
-        gui_span.onclick = e=>GUISettings();
+        gui_span.onclick = e => GUISettings();
     }
 
-    async function feat_showPn(){
-        const {av_root,infos} = this;
+    async function feat_showPn() {
+        const { av_root, infos } = this;
         const pn_span = getOrNew("bilibiliShowPN", av_root);
         //if (config.showPn) {
-            const videoData = infos;
-            if (!videoData) return;
-            let part = {
-                part: 'P' + infos.p
-            }
-            try {
-                part = videoData.pages[infos.p - 1];
-            } catch (e) {
-                part = videoData.pages[0];
-            }
-            let currentPageName = part.part.length ? `《${part.part}》` : '';
-            let currentPageNum;
-            let delimiters;
-            if (videoData.videos != 1) {
-                currentPageNum = `P ${infos.p}/${videoData.videos}`;
-                delimiters = ["\n", " "];
-            } else {
-                currentPageNum = "";
-                delimiters = ["", ""];
-            }
-            pn_span.style.textOverflow = "ellipsis";
-            pn_span.style.whiteSpace = "nowarp";
-            pn_span.style.overflow = "hidden";
-            pn_span.title = currentPageNum + delimiters[0] + currentPageName
-            pn_span.innerText = currentPageNum + delimiters[1] + currentPageName;
+        const videoData = infos;
+        if (!videoData) return;
+        let part = {
+            part: 'P' + infos.p
+        }
+        try {
+            part = videoData.pages[infos.p - 1];
+        } catch (e) {
+            part = videoData.pages[0];
+        }
+        let currentPageName = part.part.length ? `《${part.part}》` : '';
+        let currentPageNum;
+        let delimiters;
+        if (videoData.videos != 1) {
+            currentPageNum = `P ${infos.p}/${videoData.videos}`;
+            delimiters = ["\n", " "];
+        } else {
+            currentPageNum = "";
+            delimiters = ["", ""];
+        }
+        pn_span.style.textOverflow = "ellipsis";
+        pn_span.style.whiteSpace = "nowarp";
+        pn_span.style.overflow = "hidden";
+        pn_span.title = currentPageNum + delimiters[0] + currentPageName
+        pn_span.innerText = currentPageNum + delimiters[1] + currentPageName;
+
+        if (pn_span.getAttribute("setup") != "ok") {
             const pnspanHC = new CKTools.HoldClick(pn_span);
-            pnspanHC.onclick(()=>{
+            pnspanHC.onclick(() => {
                 copy(currentPageName);
                 popNotify.success("分P标题复制成功", currentPageName);
             });
-            pnspanHC.onhold(()=>{
-                CKTools.modal.alertModal("分P标题",`
+            pnspanHC.onhold(() => {
+                CKTools.modal.alertModal("分P标题", `
                 <input readonly style="width:440px" value="${currentPageName}" />
-                `,"关闭");
+                `, "关闭");
             });
+            pn_span.setAttribute("setup", "ok");
+        }
         //} else pn_span.remove();
     }
 
     async function tryInject(flag) {
-        if (flag && config.orders.length===0) return log('Terminated because no option is enabled.');
+        if (flag && config.orders.length === 0) return log('Terminated because no option is enabled.');
         if (!(await playerReady())) return log('Can not load player in time.');
 
         if (config.firstTimeLoad) {
@@ -738,11 +779,11 @@
         const av_infobar = await waitForDom(".video-data");
         if (!av_infobar) return log('Can not load info-bar in time.');
         let av_root;
-        if(config.showInNewLine){
-            av_root = getOrNew("bilibiliShowInfos",av_infobar.parentElement);
-        }else{
+        if (config.showInNewLine) {
+            av_root = getOrNew("bilibiliShowInfos", av_infobar.parentElement);
+        } else {
             let rootel = document.querySelector("#bilibiliShowInfos");
-            if(!rootel){
+            if (!rootel) {
                 rootel = document.createElement("span");
                 rootel.id = "bilibiliShowInfos";
                 av_infobar.appendChild(rootel);
@@ -756,7 +797,7 @@
         av_root.style.whiteSpace = "nowarp";
         av_root.style.overflow = "hidden";
         const that = {
-            av_root,config,av_infobar,infos,CKTools
+            av_root, config, av_infobar, infos, CKTools
         };
 
         const functions = {
@@ -776,215 +817,140 @@
             openGUI: feat_openGUI.bind(that)
         }
 
-        config.orders.forEach(k=>functions[k]());
+        config.orders.forEach(k => functions[k]());
     }
 
-    async function GUISettings(){
-        CKTools.addStyle(`
-        .showav_dragablediv {
-            width: 300px;
-            min-height: 60px;
-            border: dotted;
-            border-radius: 8px;
-            padding: 12px;
-            margin: 5px;
-            position: relative;
-            margin: 3px auto;
-        }
-        .showav_dragableitem {
-            background: white;
-            margin: 3px;
-            padding: 3px;
-            border-radius: 4px;
-            border: solid #bdbdbd 2px;
-            color: black;
-            transition: all .3s;
-            max-height: 2rem;
-        }
-        .showav_dragableitem.showav_expand {
-            max-height: 8rem;
-        }
-        .showav_dragableitem>div {
-            color: #adadad;
-            margin: 0 6px;
-            opacity: 0;
-            transition: all .3s ease-in-out;
-            transform: translateX(-10px);
-            font-size: small;
-            overflow: hidden;
-            max-height: 0;
-        }
-        .showav_dragableitem.showav_expand>div{
-            transform: translateX(0px);
-            max-height: 8rem;
-            opacity: 1;
-        }
-        .showav_dragableitem::before {
-            content: "⋮⋮";
-            float: right;
-            font-size: xx-small;
-            padding: 3px;
-            color: #bbbbbb !important;
-        }
-        .showav_dragging {
-            background: grey;
-            color: white;
-            border: solid #515050 2px;
-            transform: scale(1.1);
-            transition: all .3s;
-        }
-        .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
-            background: grey;
-            color: white;
-            border: solid #515050 2px;
-            transform: scale(1.03);
-            transition: all .3s;
-        }
-        .showav_dragablediv>b {
-            position: absolute;
-            left: -4rem;
-        }
-        .showav_disableddiv .showav_dragableitem {
-            color: #a9a8a8;
-        }
-        .showav_enableddiv{
-            background: #dcedc8;
-        }
-        .showav_disableddiv{
-            background: #ffcdd2;
-        }
-        #showav_newlinetip{
-            font-size: small;
-            display: inline-block;
-            padding: 0 2px;
-            line-height: 1.5em;
-            border-radius: 3px;
-            background: #ff5722;
-            color: white;
-            overflow: hidden;
-            transition: all .3s;
-            opacity: 0;
-        }
-        #showav_newlinetip.showav_newlinetip_ok{
-            background: #0288d1!important;
-        }
-        #showav_newlinetip.showav_newlinetip{
-            opacity: 1;
-        }
-        `,'showav_dragablecss',"unique",document.head);
-        CKTools.modal.openModal("ShowAV / 设置",await CKTools.makeDom("div",async container=>{
+    function closeButton(){
+        const closebtn = document.createElement("div");
+        closebtn.innerHTML = "✖️";
+        closebtn.style.position = "absolute";
+        closebtn.style.top = "10px";
+        closebtn.style.right = "10px";
+        closebtn.style.cursor = "pointer";
+        closebtn.setAttribute("onclick","CKTools.modal.hideModal()");
+        return closebtn;
+    }
+
+    async function GUISettings() {
+        CKTools.modal.openModal("ShowAV / 设置", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
-            const refreshRecommendShield = ()=>{
+            const refreshRecommendShield = () => {
                 let shield = document.querySelector("#showav_newlinetip");
-                if(!shield) return;
+                if (!shield) return;
                 let enabledArray = [];
                 const enableddiv = document.querySelector(".showav_enableddiv");
                 const elements = enableddiv.querySelectorAll(".showav_dragableitem");
-                for(let element of [...elements]){
+                for (let element of [...elements]) {
                     enabledArray.push(element.getAttribute('data-id'));
                 }
                 let sum = 0;
-                enabledArray.forEach(k=>sum+=idTn[k]);
-                if(sum>=6){
+                enabledArray.forEach(k => sum += idTn[k]);
+                if (sum >= 6) {
                     shield.classList.add('showav_newlinetip');
-                }else{
+                } else {
                     shield.classList.remove('showav_newlinetip');
                 }
             }
             [
-                await CKTools.makeDom("li",async list=>{
+                closeButton(),
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("input",input=>{
-                            input.type="checkbox";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
                             input.id = "showav_newline";
                             input.name = "showav_newline";
                             input.checked = config.showInNewLine;
-                            input.addEventListener("change", e=>{
+                            input.addEventListener("change", e => {
                                 let shield = document.querySelector("#showav_newlinetip");
-                                if(!shield) return;
-                                if(input.checked) shield.classList.add('showav_newlinetip_ok');
+                                if (!shield) return;
+                                if (input.checked) shield.classList.add('showav_newlinetip_ok');
                                 else shield.classList.remove('showav_newlinetip_ok');
                             })
                         }),
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
-                            label.setAttribute('for',"showav_newline");
+                            label.setAttribute('for', "showav_newline");
                             label.innerHTML = "在新的一行中显示信息 <span id='showav_newlinetip'>建议开启</span>";
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li",async list=>{
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
-                            label.setAttribute('for',"showav_pnwid");
+                            label.setAttribute('for', "showav_pnwid");
                             label.innerHTML = "视频分P名: 字数限制";
                         }),
-                        await CKTools.makeDom("input",input=>{
-                            input.type="number";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "number";
                             input.id = "showav_pnwid";
                             input.name = "showav_pnwid";
-                            input.setAttribute('min',5);
-                            input.setAttribute('max',100);
+                            input.setAttribute('min', 5);
+                            input.setAttribute('max', 100);
                             input.style.width = "3em";
                             input.style.textAlign = "center";
                             input.style.marginLeft = "1em";
                             input.style.lineHeight = "1em";
                             input.value = config.pnmaxlength;
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li",async list=>{
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_defaultav_tip";
-                            label.setAttribute('for',"showav_defaultav");
-                            if(config.defaultAv)
+                            label.setAttribute('for', "showav_defaultav");
+                            if (config.defaultAv)
                                 label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
                             else
                                 label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
                         }),
-                        await CKTools.makeDom("input",input=>{
-                            input.type="checkbox";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
                             input.id = "showav_defaultav";
                             input.name = "showav_defaultav";
-                            input.style.display="none";
+                            input.style.display = "none";
                             input.checked = config.defaultAv;
-                            input.addEventListener('change',e=>{
+                            input.addEventListener('change', e => {
                                 const label = document.querySelector("#showav_defaultav_tip");
-                                if(!label) return;
-                                if(input.checked)
+                                if (!label) return;
+                                if (input.checked)
                                     label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
                                 else
                                     label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
 
                             })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能仅对<b>可切换视频编号和高级复制</b>功能起效。`;
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li",async list=>{
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_foldvidwarn_tip";
-                            label.setAttribute('for',"showav_foldvidwarn");
-                            if(config.foldedWarningTip)
+                            label.setAttribute('for', "showav_foldvidwarn");
+                            if (config.foldedWarningTip)
                                 label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
                             else
                                 label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
                         }),
-                        await CKTools.makeDom("input",input=>{
-                            input.type="checkbox";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
                             input.id = "showav_foldvidwarn";
                             input.name = "showav_foldvidwarn";
-                            input.style.display="none";
-                            input.checked = config.defaultAv;
-                            input.addEventListener('change',e=>{
+                            input.style.display = "none";
+                            input.checked = config.foldedWarningTip;
+                            input.addEventListener('change', e => {
                                 const label = document.querySelector("#showav_foldvidwarn_tip");
                                 if (!label) return;
                                 if (input.checked)
@@ -992,140 +958,170 @@
                                 else
                                     label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能可将视频警告(如 含有危险行为)折叠为图标，防止占用信息栏空间。`;
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li",async list=>{
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_hidetime_tip";
-                            label.setAttribute('for',"showav_hidetime");
-                            if(config.hideTime)
-                                label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                            label.setAttribute('for', "showav_hidetime");
+                            if (config.hideTime)
+                                label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
+                                label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
                         }),
-                        await CKTools.makeDom("input",input=>{
-                            input.type="checkbox";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
                             input.id = "showav_hidetime";
                             input.name = "showav_hidetime";
-                            input.style.display="none";
+                            input.style.display = "none";
                             input.checked = config.hideTime;
-                            input.addEventListener('change',e=>{
+                            input.addEventListener('change', e => {
                                 const label = document.querySelector("#showav_hidetime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>隐藏</b>具体时间 (点击切换)";
+                                    label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 当显示插件时间时<b>显示</b>具体时间 (点击切换)";
+                                    label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `此功能仅在开启<b>视频投稿时间</b>功能时起效，视频投稿时间可以显示两种时间格式，并且可排序。`;
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li",async list=>{
+                await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label",label=>{
+                        await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_deftxttime_tip";
-                            label.setAttribute('for',"showav_deftxttime");
-                            if(config.defaultTextTime)
-                                label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                            label.setAttribute('for', "showav_deftxttime");
+                            if (config.defaultTextTime)
+                                label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
+                                label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
                         }),
-                        await CKTools.makeDom("input",input=>{
-                            input.type="checkbox";
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
                             input.id = "showav_deftxttime";
                             input.name = "showav_deftxttime";
-                            input.style.display="none";
-                            input.checked = config.hideTime;
-                            input.addEventListener('change',e=>{
+                            input.style.display = "none";
+                            input.checked = config.defaultTextTime;
+                            input.addEventListener('change', e => {
                                 const label = document.querySelector("#showav_deftxttime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 默认显示<b>文本时间</b> (点击切换)";
+                                    label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 默认显示<b>原版时间</b> (点击切换)";
+                                    label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
                             })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>此功能仅对<b>视频投稿时间</b>功能起效。`;
                         })
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.style.paddingLeft = "3px";
+                            label.innerHTML = "高级复制: <b>自定义复制格式</b>";
+                            label.addEventListener("click", () => GUISettings_advcopy())
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `进入自定义复制格式设置界面。此功能仅在<b>高级复制</b>功能启用时生效。<br><b>请注意未保存的修改将会丢失</b>。`;
+                        })
+                    ].forEach(e => list.appendChild(e));
                 }),
                 // dragable code from ytb v=jfYWwQrtzzY
-                await CKTools.makeDom("li", async list=>{
-                    const makeDragable = async id=>{
-                        return await CKTools.makeDom("div",draggable=>{
+                await CKTools.makeDom("li", async list => {
+                    const makeDragable = async id => {
+                        return await CKTools.makeDom("div", draggable => {
                             draggable.className = "showav_dragableitem";
-                            draggable.setAttribute("draggable",true);
-                            draggable.setAttribute("data-id",id);
+                            draggable.setAttribute("draggable", true);
+                            draggable.setAttribute("data-id", id);
                             draggable.innerHTML = txtCn[id];
-                            draggable.innerHTML+= `<div>${descCn[id]}</div>`;
+                            draggable.innerHTML += `<div>${descCn[id]}</div>`;
                             let expanded = false;
-                            draggable.addEventListener('dragstart',e=>{
-                                if(expanded) draggable.classList.remove('showav_expand');
+                            draggable.addEventListener('dragstart', e => {
+                                if (expanded) draggable.classList.remove('showav_expand');
                                 draggable.classList.add('showav_dragging');
-                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e=>e.classList.add('showav_child_dragging'))
+                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e => e.classList.add('showav_child_dragging'))
                             })
-                            draggable.addEventListener('dragend',e=>{
-                                if(expanded) draggable.classList.add('showav_expand');
+                            draggable.addEventListener('dragend', e => {
+                                if (expanded) draggable.classList.add('showav_expand');
                                 draggable.classList.remove('showav_dragging');
-                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e=>e.classList.remove('showav_child_dragging'))
+                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e => e.classList.remove('showav_child_dragging'))
                                 refreshRecommendShield();
                             })
-                            draggable.addEventListener('click',e=>{
+                            draggable.addEventListener('click', e => {
                                 expanded = draggable.classList.toggle('showav_expand');
                             })
                         })
                     };
-                    function getClosestItem(container,y){
+                    function getClosestItem(container, y) {
                         const draggables = [...container.querySelectorAll(".showav_dragableitem:not(.showav_dragging)")];
-                        return draggables.reduce((closest,child)=>{
+                        return draggables.reduce((closest, child) => {
                             const box = child.getBoundingClientRect();
                             const offset = y - box.top - box.height / 2;
-                            if(offset < 0 && offset > closest.offset) return {offset,element:child};
+                            if (offset < 0 && offset > closest.offset) return { offset, element: child };
                             else return closest;
-                        },{offset:Number.NEGATIVE_INFINITY}).element;
+                        }, { offset: Number.NEGATIVE_INFINITY }).element;
                     }
-                    function registerDragEvent (draggablediv){
-                        draggablediv.addEventListener('dragover',e=>{
+                    function registerDragEvent(draggablediv) {
+                        draggablediv.addEventListener('dragover', e => {
                             e.preventDefault();
-                            const closestElement = getClosestItem(draggablediv,e.clientY);
+                            const closestElement = getClosestItem(draggablediv, e.clientY);
                             const dragging = document.querySelector(".showav_dragging");
-                            if(closestElement===null){
+                            if (closestElement === null) {
                                 draggablediv.appendChild(dragging);
-                            }else{
-                                draggablediv.insertBefore(dragging,closestElement);
+                            } else {
+                                draggablediv.insertBefore(dragging, closestElement);
                             }
                         })
                     }
                     [
-                        await CKTools.makeDom("div",div=>{
+                        await CKTools.makeDom("div", div => {
                             div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
                         }),
-                        await CKTools.makeDom("div",async enableddiv=>{
+                        await CKTools.makeDom("div", async enableddiv => {
                             enableddiv.innerHTML = `<b>启用</b>`;
                             enableddiv.className = "showav_dragablediv showav_enableddiv";
-                            config.orders.forEach(async k=>{
+                            config.orders.forEach(async k => {
                                 enableddiv.appendChild(await makeDragable(k));
                             });
                             registerDragEvent(enableddiv);
                         }),
-                        await CKTools.makeDom("div",async disableddiv=>{
+                        await CKTools.makeDom("div", async disableddiv => {
                             disableddiv.innerHTML = `<b>禁用</b>`;
                             disableddiv.className = "showav_dragablediv showav_disableddiv";
-                            config.all.forEach(async k=>{
-                                if(config.orders.includes(k)) return;
+                            config.all.forEach(async k => {
+                                if (config.orders.includes(k)) return;
                                 disableddiv.appendChild(await makeDragable(k));
                             });
                             registerDragEvent(disableddiv);
                         }),
-                        await CKTools.makeDom("div",async div=>{
+                        await CKTools.makeDom("div", async div => {
                             div.style.lineHeight = "2em";
                             div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
                         }),
-                        await CKTools.makeDom("div",async div => {
+                        await CKTools.makeDom("div", async div => {
                             div.appendChild(await CKTools.makeDom("div", async btns => {
                                 btns.style.display = "flex";
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
@@ -1135,7 +1131,7 @@
                                         const enableddiv = document.querySelector(".showav_enableddiv");
                                         const elements = enableddiv.querySelectorAll(".showav_dragableitem");
                                         let enabledArray = [];
-                                        for(let element of [...elements]){
+                                        for (let element of [...elements]) {
                                             enabledArray.push(element.getAttribute('data-id'));
                                         }
                                         config.orders = enabledArray;
@@ -1159,7 +1155,280 @@
                                             CKTools.addStyle('', 'showav_hidevidwarn', 'update');
                                         }
                                         let old = document.querySelector("#bilibiliShowInfos")
-                                        if(old)old.remove();
+                                        if (old) old.remove();
+                                        initScript(true);
+                                    }
+                                }))
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "关闭";
+                                    btn.style.background = "#ececec";
+                                    btn.style.color = "black";
+                                    btn.onclick = e => {
+                                        CKTools.modal.hideModal();
+                                    }
+                                }))
+                            }))
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                })
+            ].forEach(e => container.appendChild(e));
+            setTimeout(refreshRecommendShield, 500);
+        }));
+    }
+
+    async function GUISettings_advcopy() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
+                // dragable code from ytb v=jfYWwQrtzzY
+                await CKTools.makeDom("li", async list => {
+                    const makeDragable = async id => {
+                        return await CKTools.makeDom("div", draggable => {
+                            draggable.className = "showav_dragableitem copyitem";
+                            draggable.setAttribute("draggable", true);
+                            draggable.setAttribute("data-id", id);
+                            if (id.split(":")[0] === "custom") {
+                                draggable.innerHTML = config.customcopyitems[id].title;
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(config.customcopyitems[id].content));
+                                draggable.appendChild(node);
+                            } else {
+                                draggable.innerHTML = txtCn[id];
+                                draggable.innerHTML += `<div>${descCn[id]}</div>`;
+                            }
+                            draggable.removeItem = draggable.remove;
+                            let expanded = false;
+                            draggable.addEventListener('dragstart', e => {
+                                if (expanded) draggable.classList.remove('showav_expand');
+                                draggable.classList.add('showav_dragging');
+                                [...document.querySelectorAll('.showav_dragablediv')].forEach(e => e.classList.add('showav_child_dragging'))
+                            })
+                            draggable.addEventListener('dragend', e => {
+                                if (expanded) draggable.classList.add('showav_expand');
+                                draggable.classList.remove('showav_dragging');
+                                [...document.querySelectorAll('.showav_child_dragging')].forEach(e => e.classList.remove('showav_child_dragging'))
+                            })
+                            draggable.addEventListener('click', e => {
+                                expanded = draggable.classList.toggle('showav_expand');
+                            })
+                        })
+                    };
+                    function getClosestItem(container, y) {
+                        const draggables = [...container.querySelectorAll(".showav_dragableitem:not(.showav_dragging)")];
+                        return draggables.reduce((closest, child) => {
+                            const box = child.getBoundingClientRect();
+                            const offset = y - box.top - box.height / 2;
+                            if (offset < 0 && offset > closest.offset) return { offset, element: child };
+                            else return closest;
+                        }, { offset: Number.NEGATIVE_INFINITY }).element;
+                    }
+                    function registerDragEvent(draggablediv) {
+                        draggablediv.addEventListener('dragover', e => {
+                            e.preventDefault();
+                            const closestElement = getClosestItem(draggablediv, e.clientY);
+                            const dragging = document.querySelector(".showav_dragging");
+                            if (closestElement === null) {
+                                draggablediv.appendChild(dragging);
+                            } else {
+                                draggablediv.insertBefore(dragging, closestElement);
+                            }
+                        })
+                    }
+                    [
+                        await CKTools.makeDom("div", div => {
+                            div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
+                        }),
+                        await CKTools.makeDom("div", async enableddiv => {
+                            enableddiv.innerHTML = `<b>启用</b>`;
+                            enableddiv.className = "showav_dragablediv showav_enableddiv";
+                            config.copyitems.forEach(async k => {
+                                enableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(enableddiv);
+                        }),
+                        await CKTools.makeDom("div", async disableddiv => {
+                            disableddiv.innerHTML = `<b>禁用</b>`;
+                            disableddiv.className = "showav_dragablediv showav_disableddiv";
+                            config.copyitemsAll.forEach(async k => {
+                                if (config.copyitems.includes(k)) return;
+                                disableddiv.appendChild(await makeDragable(k));
+                            });
+                            registerDragEvent(disableddiv);
+                        }),
+                        await CKTools.makeDom("li", async list => {
+                            const makeItem = (copyitemid,focus=false) => {
+                                const item = config.customcopyitems[copyitemid];
+                                const node = document.createElement("li");
+                                node.className = "copyitem";
+                                if(focus){
+                                    node.classList.add("actionpending");
+                                    setTimeout(() => {
+                                        node.classList.remove("actionpending");
+                                        node.scrollIntoView();
+                                    },20);
+                                }
+                                node.setAttribute("data-id", copyitemid);
+                                node.innerHTML = `${item.title}<br>`;
+                                node.style.borderRadius = "3px";
+                                node.style.border = "solid 2px grey";
+                                node.style.padding = "3px";
+                                node.style.margin = "1px";
+                                const smallp = document.createElement("p");
+                                smallp.style.fontSize = "small";
+                                smallp.style.color = "grey";
+                                smallp.style.overflow = "hidden";
+                                smallp.style.wordWrap = "nowarp";
+                                smallp.appendChild(document.createTextNode(item.content));
+                                node.appendChild(smallp);
+                                node.removeItem = ()=>{
+                                    node.classList.add("actionpending");
+                                    setTimeout(()=>node.remove(),350);
+                                };
+                                node.onclick = async e => {
+                                    if(node.classList.contains("preremove")){
+                                        if (config.all.includes(copyitemid)) {
+                                            config.all.splice(config.all.indexOf(copyitemid), 1);
+                                        }
+                                        if (config.orders.includes(copyitemid)) {
+                                            config.orders.splice(config.orders.indexOf(copyitemid), 1);
+                                        }
+                                        delete config.customcopyitems[copyitemid];
+                                        saveAllConfig();
+                                        [...document.querySelectorAll(`.copyitem[data-id="${copyitemid}"]`)].forEach(e => e.removeItem());
+                                    }else{
+                                        [...document.querySelectorAll("li.copyitem.preremove")].forEach(e=>{
+                                            e.classList.remove("preremove");
+                                            try{if(e.clearTimer){
+                                                clearTimeout(e.clearTimer);
+                                            }}catch(e){};
+                                        });
+                                        node.classList.add("preremove");
+                                        node.clearTimer = setTimeout(() => {
+                                            node.classList.remove("preremove");
+                                            node.clearTimer = null;
+                                        },5000);
+                                    }
+                                }
+                                return node;
+                            };
+                            [
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "添加自定义复制项目";
+                                }),
+                                await CKTools.makeDom("div", async div => {
+                                    div.style.paddingLeft = "20px";
+                                    [
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopytitle";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.setAttribute("placeholder", "自定义标题");
+                                        }),
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopycontent";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.setAttribute("placeholder", "自定义内容");
+                                        }),
+                                        await CKTools.makeDom("div", div => {
+                                            div.style.paddingLeft = "20px";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `变量提示<br><ul>
+                                            <li>%timeurl% => 包含时间的完整地址</li>
+                                            <li>%vidurl% => 视频纯净地址</li>
+                                            <li>%shorturl% => 短地址</li>
+                                            <li>%seek% => 当前视频播放秒数</li>
+                                            <li>%title% => 视频标题</li>
+                                            <li>%av% => av号</li>
+                                            <li>%bv% => BV号</li>
+                                            <li>%cid% => CID号</li>
+                                            <li>%p% => 分P</li>
+                                            </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e => {
+                                                expanded = !expanded;
+                                                if (expanded) {
+                                                    div.style.maxHeight = "20rem";
+                                                } else {
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
+                                        }),
+                                        await CKTools.makeDom("button", btn => {
+                                            btn.className = "CKTOOLS-toolbar-btns";
+                                            btn.innerHTML = "添加";
+                                            btn.style.background = "#ececec";
+                                            btn.style.color = "black";
+                                            btn.onclick = async e => {
+                                                const ccid = "custom:" + Math.random().toString(36).replace('.', '');
+                                                const title = document.querySelector("#showav_customcopytitle").value;
+                                                const content = document.querySelector("#showav_customcopycontent").value;
+                                                if (title.trim().length < 1 || content.trim().length < 1) {
+                                                    popNotify.warn("无法添加自定义项目", "标题或内容为空");
+                                                    return;
+                                                }
+                                                config.customcopyitems[ccid] = { title, content };
+                                                if (!config.all.includes(ccid)) config.all.push(ccid);
+                                                saveAllConfig();
+                                                const disablediv = document.querySelector(".showav_disableddiv");
+                                                disablediv && disablediv.appendChild(await makeDragable(ccid));
+                                                const customlist = document.querySelector("#showav_customitems");
+                                                customlist && customlist.appendChild(makeItem(ccid,true));
+                                                document.querySelector("#showav_customcopytitle").value = "";
+                                                document.querySelector("#showav_customcopycontent").value = "";
+                                            }
+                                        })
+                                    ].forEach(e => div.appendChild(e));
+                                }),
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "已有自定义复制项目 <small>(点击移除)</small>";
+                                }),
+                                await CKTools.makeDom("ul", ul => {
+                                    ul.style.paddingLeft = "3px";
+                                    ul.id = "showav_customitems";
+                                    for (let copyitemid of Object.keys(config.customcopyitems)) {
+                                        ul.appendChild(makeItem(copyitemid));
+                                    }
+                                }),
+                            ].forEach(e => list.appendChild(e));
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "保存并关闭";
+                                    btn.onclick = e => {
+                                        const enableddiv = document.querySelector(".showav_enableddiv");
+                                        const elements = enableddiv.querySelectorAll(".showav_dragableitem");
+                                        let enabledArray = [];
+                                        for (let element of [...elements]) {
+                                            enabledArray.push(element.getAttribute('data-id'));
+                                        }
+                                        config.copyitems = enabledArray;
+                                        saveAllConfig();
+                                        CKTools.modal.hideModal();
                                         initScript(true);
                                     }
                                 }))
@@ -1172,35 +1441,178 @@
                                 }))
                             }))
                         }),
-                    ].forEach(e=>list.appendChild(e));
+                    ].forEach(e => list.appendChild(e));
                 })
-            ].forEach(e=>container.appendChild(e));
-            setTimeout(refreshRecommendShield,500);
+            ].forEach(e => container.appendChild(e));
         }));
     }
 
     const copy = function copy(text) {
         if (!navigator.clipboard) {
-            prompt('请手动复制',text);
+            prompt('请手动复制', text);
             return;
         }
-        navigator.clipboard.writeText(text).then(function() {
+        navigator.clipboard.writeText(text).then(function () {
             log('Copy OK');
-        }, function(err) {
-            log('Auto Copy Failed:',err);
-            prompt('请手动复制',text);
+        }, function (err) {
+            log('Auto Copy Failed:', err);
+            prompt('请手动复制', text);
         });
     }
 
-    unsafeWindow.showav_fastcopy = (el)=>{
+    unsafeWindow.showav_fastcopy = (el) => {
         copy(el.value);
         popNotify.success("复制成功", el.value);
     }
 
     unsafeWindow.showav_guisettings = GUISettings;
 
+    unsafeWindow.showav_guisettings_shoy = GUISettings_advcopy;
+
     CKTools.modal.initModal();
     CKTools.modal.hideModal();
+    const blockwin = CKTools.get("#CKTOOLS-blockWindow");
+    blockwin&&(blockwin.onclick = CKTools.modal.hideModal);
+    CKTools.addStyle(`
+    .showav_dragablediv {
+        width: 300px;
+        min-height: 60px;
+        border: dotted;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 5px;
+        position: relative;
+        margin: 3px auto;
+    }
+    .showav_dragableitem {
+        background: white;
+        margin: 3px;
+        padding: 3px;
+        border-radius: 4px;
+        border: solid #bdbdbd 2px;
+        color: black;
+        transition: all .3s;
+        max-height: 2rem;
+    }
+    .showav_dragableitem.showav_expand {
+        max-height: 8rem;
+    }
+    .showav_dragableitem>div {
+        color: #adadad;
+        margin: 0 6px;
+        opacity: 0;
+        transition: all .3s ease-in-out;
+        transform: translateX(-10px);
+        font-size: small;
+        overflow: hidden;
+        max-height: 0;
+    }
+    .showav_dragableitem.showav_expand>div{
+        transform: translateX(0px);
+        max-height: 8rem;
+        opacity: 1;
+    }
+    .showav_dragableitem::before {
+        content: "⋮⋮";
+        float: right;
+        font-size: xx-small;
+        padding: 3px;
+        color: #bbbbbb !important;
+    }
+    .showav_dragging {
+        background: grey;
+        color: white;
+        border: solid #515050 2px;
+        transform: scale(1.1);
+        transition: all .3s;
+    }
+    .showav_dragablediv:not(.showav_child_dragging) .showav_dragableitem:hover:not(.showav_dragging) {
+        background: grey;
+        color: white;
+        border: solid #515050 2px;
+        transform: scale(1.03);
+        transition: all .3s;
+    }
+    .showav_dragablediv>b {
+        position: absolute;
+        left: -4rem;
+    }
+    .showav_disableddiv .showav_dragableitem {
+        color: #a9a8a8;
+    }
+    .showav_enableddiv{
+        background: #dcedc8;
+    }
+    .showav_disableddiv{
+        background: #ffcdd2;
+    }
+    #showav_newlinetip{
+        font-size: small;
+        display: inline-block;
+        padding: 0 2px;
+        line-height: 1.5em;
+        border-radius: 3px;
+        background: #ff5722;
+        color: white;
+        overflow: hidden;
+        transition: all .3s;
+        opacity: 0;
+    }
+    #showav_newlinetip.showav_newlinetip_ok{
+        background: #0288d1!important;
+    }
+    #showav_newlinetip.showav_newlinetip{
+        opacity: 1;
+    }
+    ul#showav_customitems{
+        min-height: 60px;
+    }
+    ul#showav_customitems::after{
+        content:"目前没有自定义项目。当添加了自定义项目时，可以在这里删除。";
+        padding: 6px;
+        display: block;
+        opacity: 0;
+        transition: all.3s;
+        overflow: hidden;
+        height: 0px;
+    }
+    ul#showav_customitems:empty::after{
+        opacity: 1;
+        height: 4rem!important;
+    }
+    li.copyitem{
+        transition: all 0.3s;
+        opacity: 1;
+        max-height: 8em;
+    }
+    li.copyitem.preremove{
+        color: red!important;
+        border-color: red!important;
+    }
+    li.copyitem::after{
+        transition: all 0.3s;
+        line-height: 0px!important;
+        content:"再次点击以移除";
+        display: block;
+        overflow: hidden;
+        color: red!important;
+        opacity: 0;
+        max-height: 8em;
+    }
+    li.copyitem.actionpending{
+        transition: all 0.5s;
+        padding: 0px!important;
+        border-width: 0px;
+        margin-top: 0px!important;
+        margin-bottom: 0px!important;
+        max-height: 0em!important;
+        opacity: 0;
+    }
+    li.copyitem.preremove::after{
+        line-height: 2rem!important;
+        opacity: 1;
+    }
+    `, 'showav_dragablecss', "unique", document.head);
 
     initScript(false);
 })();
