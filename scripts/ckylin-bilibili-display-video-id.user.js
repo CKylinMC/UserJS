@@ -338,8 +338,12 @@
                 }
             const avspanHC = new CKTools.HoldClick(av_span);
             avspanHC.onclick(async e => {
+                const currpage = new URL(location.href);
+                let part = infos.p==currpage.searchParams.get("p")
+                    ? infos.p
+                    : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
                 let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
-                infos.p == 1 || url.searchParams.append("p", infos.p);
+                part == 1 || url.searchParams.append("p", part);
                 let t = await getPlayerSeeks();
                 if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 copy(url);
@@ -451,6 +455,7 @@
                                     "%av%": infos.aid,
                                     "%bv%": infos.bvid,
                                     "%cid%": infos.cid,
+                                    "%p%": part,
                                     "'": "\'"
                                 });
                                 modalcontent += `(自定义) ${ccopyitem.title}
