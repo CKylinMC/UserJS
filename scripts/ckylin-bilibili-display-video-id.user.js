@@ -1202,6 +1202,7 @@
                                 draggable.innerHTML = txtCn[id];
                                 draggable.innerHTML += `<div>${descCn[id]}</div>`;
                             }
+                            draggable.removeItem = draggable.remove;
                             let expanded = false;
                             draggable.addEventListener('dragstart', e => {
                                 if (expanded) draggable.classList.remove('showav_expand');
@@ -1261,10 +1262,17 @@
                             registerDragEvent(disableddiv);
                         }),
                         await CKTools.makeDom("li", async list => {
-                            const makeItem = copyitemid => {
+                            const makeItem = (copyitemid,focus=false) => {
                                 const item = config.customcopyitems[copyitemid];
                                 const node = document.createElement("li");
                                 node.className = "copyitem";
+                                if(focus){
+                                    node.classList.add("actionpending");
+                                    setTimeout(() => {
+                                        node.classList.remove("actionpending");
+                                        node.scrollIntoView();
+                                    },20);
+                                }
                                 node.setAttribute("data-id", copyitemid);
                                 node.innerHTML = `${item.title}<br>`;
                                 node.style.borderRadius = "3px";
@@ -1278,16 +1286,34 @@
                                 smallp.style.wordWrap = "nowarp";
                                 smallp.appendChild(document.createTextNode(item.content));
                                 node.appendChild(smallp);
+                                node.removeItem = ()=>{
+                                    node.classList.add("actionpending");
+                                    setTimeout(()=>node.remove(),350);
+                                };
                                 node.onclick = async e => {
-                                    if (config.all.includes(copyitemid)) {
-                                        config.all.splice(config.all.indexOf(copyitemid), 1);
+                                    if(node.classList.contains("preremove")){
+                                        if (config.all.includes(copyitemid)) {
+                                            config.all.splice(config.all.indexOf(copyitemid), 1);
+                                        }
+                                        if (config.orders.includes(copyitemid)) {
+                                            config.orders.splice(config.orders.indexOf(copyitemid), 1);
+                                        }
+                                        delete config.customcopyitems[copyitemid];
+                                        saveAllConfig();
+                                        [...document.querySelectorAll(`.copyitem[data-id="${copyitemid}"]`)].forEach(e => e.removeItem());
+                                    }else{
+                                        [...document.querySelectorAll("li.copyitem.preremove")].forEach(e=>{
+                                            e.classList.remove("preremove");
+                                            try{if(e.clearTimer){
+                                                clearTimeout(e.clearTimer);
+                                            }}catch(e){};
+                                        });
+                                        node.classList.add("preremove");
+                                        node.clearTimer = setTimeout(() => {
+                                            node.classList.remove("preremove");
+                                            node.clearTimer = null;
+                                        },5000);
                                     }
-                                    if (config.orders.includes(copyitemid)) {
-                                        config.orders.splice(config.orders.indexOf(copyitemid), 1);
-                                    }
-                                    delete config.customcopyitems[copyitemid];
-                                    saveAllConfig();
-                                    [...document.querySelectorAll(`.copyitem[data-id="${copyitemid}"]`)].forEach(e => e.remove());
                                 }
                                 return node;
                             };
@@ -1366,7 +1392,7 @@
                                                 const disablediv = document.querySelector(".showav_disableddiv");
                                                 disablediv && disablediv.appendChild(await makeDragable(ccid));
                                                 const customlist = document.querySelector("#showav_customitems");
-                                                customlist && customlist.appendChild(makeItem(ccid));
+                                                customlist && customlist.appendChild(makeItem(ccid,true));
                                                 document.querySelector("#showav_customcopytitle").value = "";
                                                 document.querySelector("#showav_customcopycontent").value = "";
                                             }
@@ -1538,10 +1564,53 @@
     #showav_newlinetip.showav_newlinetip{
         opacity: 1;
     }
-    ul#showav_customitems:empty::after{
+    ul#showav_customitems{
+        min-height: 60px;
+    }
+    ul#showav_customitems::after{
         content:"目前没有自定义项目。当添加了自定义项目时，可以在这里删除。";
         padding: 6px;
         display: block;
+        opacity: 0;
+        transition: all.3s;
+        overflow: hidden;
+        height: 0px;
+    }
+    ul#showav_customitems:empty::after{
+        opacity: 1;
+        height: 4rem!important;
+    }
+    li.copyitem{
+        transition: all 0.3s;
+        opacity: 1;
+        max-height: 8em;
+    }
+    li.copyitem.preremove{
+        color: red!important;
+        border-color: red!important;
+    }
+    li.copyitem::after{
+        transition: all 0.3s;
+        line-height: 0px!important;
+        content:"再次点击以移除";
+        display: block;
+        overflow: hidden;
+        color: red!important;
+        opacity: 0;
+        max-height: 8em;
+    }
+    li.copyitem.actionpending{
+        transition: all 0.5s;
+        padding: 0px!important;
+        border-width: 0px;
+        margin-top: 0px!important;
+        margin-bottom: 0px!important;
+        max-height: 0em!important;
+        opacity: 0;
+    }
+    li.copyitem.preremove::after{
+        line-height: 2rem!important;
+        opacity: 1;
     }
     `, 'showav_dragablecss', "unique", document.head);
 
