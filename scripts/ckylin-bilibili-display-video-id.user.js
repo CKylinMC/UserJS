@@ -856,6 +856,21 @@
         }
 
         config.orders.forEach(k => functions[k]());
+        
+        const titleobj = document.querySelector("span.tit");
+        if(titleobj&&!titleobj.getAttribute("data-copy-action-registered")){
+            titleobj.onclick = e => {
+                let content = e.target.innerText;
+                let tip = "已复制视频标题";
+                if(unsafeWindow.getSelection().toString().length){
+                    content = unsafeWindow.getSelection().toString();
+                    tip = "已复制视频标题选中部分";
+                }
+                copy(content);
+                popNotify.success(tip,content);
+            }
+            titleobj.setAttribute("data-copy-action-registered",true);
+        }
     }
 
     function closeButton(){
