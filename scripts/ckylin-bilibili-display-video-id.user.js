@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.14
+// @version      1.15
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -127,7 +127,7 @@
         md: "提供Markdown特殊语法的快速复制。",
         bb: "提供BBCode特殊语法的快速复制。",
         html: "提供HTML格式的快速复制。",
-        vid: "提供当前视频av号/BV号/CID号",
+        vid: "提供当前视频av号/BV号/CID号。请注意此项目不支持快速复制。",
         openGUI: "提供按钮快速进入设置选项。"
     };
     const idTn = {
@@ -294,8 +294,8 @@
         cate_span.style.textOverflow = "ellipsis";
         cate_span.style.whiteSpace = "nowarp";
         cate_span.style.overflow = "hidden";
-        cate_span.title = "分区:" + infos.tname;
-        cate_span.innerText = "分区:" + infos.tname;
+        cate_span.title = "分区: " + infos.tname;
+        cate_span.innerText = "分区: " + infos.tname;
         //} else cate_span.remove();
     }
 
@@ -336,26 +336,130 @@
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
                 }
-            const avspanHC = new CKTools.HoldClick(av_span);
-            avspanHC.onclick(async e => {
+            const getCopyItem = async (copyitem) => {
                 const currpage = new URL(location.href);
                 let part = infos.p==currpage.searchParams.get("p")
                     ? infos.p
                     : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
-                let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
+                let url = new URL(location.protocol + "//" + location.hostname + "/video/" + av_span.innerText);
                 part == 1 || url.searchParams.append("p", part);
+                let vidurl = new URL(url);
+                let shorturl = new URL(location.protocol + "//b23.tv/" + av_span.innerText);
                 let t = await getPlayerSeeks();
-                if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
-                copy(url);
-                popNotify.success("完整地址复制成功", url);
+                if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);  
+                try {
+                    partinfo = infos.pages[infos.p - 1];
+                } catch (e) {
+                    partinfo = infos.pages[0];
+                }
+                switch (copyitem) {
+                    case "curr":
+                        return {
+                            title: "当前地址",
+                            content: vidurl,
+                            type: "copiable"
+                        };
+                    case "currTime":
+                        return {
+                            title: "含视频进度地址(仅在播放时提供)",
+                            content: url,
+                            type: "copiable"
+                        };
+                    case "short":
+                        return {
+                            title: "短地址格式",
+                            content: shorturl,
+                            type: "copiable"
+                        };
+                    case "share":
+                        return {
+                            title: "快速分享",
+                            content: `${infos.title}_地址:${shorturl}`,
+                            type: "copiable"
+                        };
+                    case "shareTime":
+                        return {
+                            title: "快速分享(含视频进度)",
+                            content: `${infos.title}_地址:${url}`,
+                            type: "copiable"
+                        };
+                    case "md":
+                        return {
+                            title: "MarkDown格式",
+                            content: `[${infos.title}](${vidurl})`,
+                            type: "copiable"
+                        };
+                    case "bb":
+                        return {
+                            title: "BBCode格式",
+                            content: `[url=${vidurl}]${infos.title}[/url]`,
+                            type: "copiable"
+                        };
+                    case "html":
+                        return {
+                            title: "HTML格式",
+                            content: `<a href="${vidurl}">${infos.title}</a>`,
+                            type: "copiable"
+                        };
+                    case "vid":
+                        return {
+                            title: "",
+                            content: `<div class="shoav_expandinfo">
+                            <div>
+                            AV号
+                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            BV号
+                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                            <div>
+                            资源CID
+                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                            </div>
+                        </div>
+                        `,
+                            type: "component"
+                        };
+                    default:
+                        if (Object.keys(config.customcopyitems).includes(copyitem)) {
+                            let ccopyitem = config.customcopyitems[copyitem];
+                            let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
+                            pat = pat.mapReplace({
+                                "%timeurl%": url,
+                                "%vidurl%": vidurl,
+                                "%shorturl%": shorturl,
+                                "%seek%": t,
+                                "%title%": infos.title,
+                                "%av%": infos.aid,
+                                "%bv%": infos.bvid,
+                                "%cid%": infos.cid,
+                                "%p%": part,
+                                "%pname%": partinfo.part,
+                                "'": "\'"
+                            });
+                            return {
+                                title: `(自定义) ${ccopyitem.title}`,
+                                content: pat,
+                                type: "copiable"
+                            }
+                        }
+                }
+            };
+            const avspanHC = new CKTools.HoldClick(av_span);
+            avspanHC.onclick(async e => {
+                for (let copyitem of config.copyitems) {
+                    const copyiteminfo = await getCopyItem(copyitem);
+                    if(copyiteminfo.type=="copiable"){
+                        copy(copyiteminfo.content);
+                        popNotify.success(copyiteminfo.title+"复制成功", copyiteminfo.content);
+                        return;
+                    }
+                    else continue;
+                }
+                popNotify.error("快速复制失败","没有任何已启用的可用快速复制设定");
             });
             avspanHC.onhold(async e => {
-                let url = new URL(location.protocol + "//" + location.hostname + "/video/" + e.target.innerText);
-                infos.p == 1 || url.searchParams.append("p", infos.p);
-                let vidurl = new URL(url);
-                let shorturl = new URL(location.protocol + "//b23.tv/" + e.target.innerText);
-                let t = await getPlayerSeeks();
-                if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);
                 let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
@@ -383,85 +487,19 @@
                 }
                 </style>
                 <b>点击输入框可以快速复制</b><br>`;
+                let first = true;
                 for (let copyitem of config.copyitems) {
-                    switch (copyitem) {
-                        case "curr":
-                            modalcontent += `当前地址
-                            <input readonly value="${vidurl}" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "currTime":
-                            modalcontent += `含视频进度地址(仅在播放时提供)
-                            <input readonly value="${url}" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "short":
-                            modalcontent += `短地址格式
-                            <input readonly value="${shorturl}" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "share":
-                            modalcontent += `快速分享
-                            <input readonly value="${infos.title}_地址:${shorturl}" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "shareTime":
-                            modalcontent += `快速分享(含视频进度)
-                            <input readonly value="${infos.title}_地址:${url}" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "md":
-                            modalcontent += `MarkDown格式
-                            <input readonly value="[${infos.title}](${vidurl})" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "bb":
-                            modalcontent += `BBCode格式
-                            <input readonly value="[url=${vidurl}]${infos.title}[/url]" onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "html":
-                            modalcontent += `HTML格式
-                            <input readonly value='<a href="${vidurl}">${infos.title}</a>' onclick="showav_fastcopy(this);" />
-                            `;
-                            break;
-                        case "vid":
-                            modalcontent += `<div class="shoav_expandinfo">
-                            <div>
-                            AV号
-                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            BV号
-                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            资源CID
-                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                        </div>
-                        `;
-                            break;
-                        default:
-                            if (Object.keys(config.customcopyitems).includes(copyitem)) {
-                                let ccopyitem = config.customcopyitems[copyitem];
-                                let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
-                                pat = pat.mapReplace({
-                                    "%timeurl%": url,
-                                    "%vidurl%": vidurl,
-                                    "%shorturl%": shorturl,
-                                    "%seek%": t,
-                                    "%title%": infos.title,
-                                    "%av%": infos.aid,
-                                    "%bv%": infos.bvid,
-                                    "%cid%": infos.cid,
-                                    "%p%": part,
-                                    "'": "\'"
-                                });
-                                modalcontent += `(自定义) ${ccopyitem.title}
-                            <input readonly value='${pat}' onclick="showav_fastcopy(this);" />
-                            `;
-                            }
+                    const copyiteminfo = await getCopyItem(copyitem);
+                    if(copyiteminfo.type=="copiable"){
+                        let titleex = "";
+                        if(first){
+                            titleex = " (默认快速复制)"
+                            first = false;
+                        }
+                        modalcontent+=`<span class="copyitem-title">${copyiteminfo.title}${titleex}</span><input readonly value="${copyiteminfo.content}" onclick="showav_fastcopy(this);" />`
+                    }
+                    else{
+                        modalcontent+=copyiteminfo.content;
                     }
                 }
                 modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
@@ -735,12 +773,12 @@
         if (pn_span.getAttribute("setup") != "ok") {
             const pnspanHC = new CKTools.HoldClick(pn_span);
             pnspanHC.onclick(() => {
-                copy(currentPageName);
-                popNotify.success("分P标题复制成功", currentPageName);
+                copy(part.part);
+                popNotify.success("分P标题复制成功", part.part);
             });
             pnspanHC.onhold(() => {
                 CKTools.modal.alertModal("分P标题", `
-                <input readonly style="width:440px" value="${currentPageName}" />
+                <input readonly style="width:440px" value="${part.part}" />
                 `, "关闭");
             });
             pn_span.setAttribute("setup", "ok");
@@ -818,6 +856,21 @@
         }
 
         config.orders.forEach(k => functions[k]());
+        
+        const titleobj = document.querySelector("span.tit");
+        if(titleobj&&!titleobj.getAttribute("data-copy-action-registered")){
+            titleobj.onclick = e => {
+                let content = e.target.innerText;
+                let tip = "已复制视频标题";
+                if(unsafeWindow.getSelection().toString().length){
+                    content = unsafeWindow.getSelection().toString();
+                    tip = "已复制视频标题选中部分";
+                }
+                copy(content);
+                popNotify.success(tip,content);
+            }
+            titleobj.setAttribute("data-copy-action-registered",true);
+        }
     }
 
     function closeButton(){
@@ -1242,7 +1295,7 @@
                     }
                     [
                         await CKTools.makeDom("div", div => {
-                            div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
+                            div.innerHTML = `<b>拖动下面的功能模块进行排序</b>，第一个单项将成为默认快速复制项目。`;
                         }),
                         await CKTools.makeDom("div", async enableddiv => {
                             enableddiv.innerHTML = `<b>启用</b>`;
