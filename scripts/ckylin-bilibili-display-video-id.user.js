@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.14
+// @version      1.15
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -735,12 +735,12 @@
         if (pn_span.getAttribute("setup") != "ok") {
             const pnspanHC = new CKTools.HoldClick(pn_span);
             pnspanHC.onclick(() => {
-                copy(currentPageName);
-                popNotify.success("分P标题复制成功", currentPageName);
+                copy(part.part);
+                popNotify.success("分P标题复制成功", part.part);
             });
             pnspanHC.onhold(() => {
                 CKTools.modal.alertModal("分P标题", `
-                <input readonly style="width:440px" value="${currentPageName}" />
+                <input readonly style="width:440px" value="${part.part}" />
                 `, "关闭");
             });
             pn_span.setAttribute("setup", "ok");
