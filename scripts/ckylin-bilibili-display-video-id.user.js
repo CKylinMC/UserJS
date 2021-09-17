@@ -294,8 +294,8 @@
         cate_span.style.textOverflow = "ellipsis";
         cate_span.style.whiteSpace = "nowarp";
         cate_span.style.overflow = "hidden";
-        cate_span.title = "分区:" + infos.tname;
-        cate_span.innerText = "分区:" + infos.tname;
+        cate_span.title = "分区: " + infos.tname;
+        cate_span.innerText = "分区: " + infos.tname;
         //} else cate_span.remove();
     }
 
