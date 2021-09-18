@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.15.2
+// @version      1.16
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -74,6 +74,7 @@
         copyitems: ['currTime', 'short', 'shareTime', 'vid'],
         copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
         customcopyitems: {},
+        customComponents: {},
         vduration: 0
     };
     const menuId = {
@@ -177,8 +178,7 @@
 
     async function saveAllConfig() {
         for (let configKey of Object.keys(config)) {
-            if ([
-                "all", "vduration", "firstTimeLoad"
+            if (["vduration", "firstTimeLoad"
             ].includes(configKey)) continue;
             await GM_setValue(configKey, config[configKey]);
         }
@@ -190,8 +190,7 @@
             if (menuId[menuitem] != -1) GM_unregisterMenuCommand(menuId[menuitem]);
         }
         for (let configKey of Object.keys(config)) {
-            if ([
-                "all", "vduration", "firstTimeLoad"
+            if (["vduration", "firstTimeLoad"
             ].includes(configKey)) continue;
             if (typeof (await GM_getValue(configKey)) === 'undefined') {
                 await GM_setValue(configKey, config[configKey]);
@@ -310,6 +309,127 @@
         func(true, 'bv');
     }
 
+    async function prepareData(infos,el=null){
+        const defaultVid = el?el.innerText:infos.aid;
+        const currpage = new URL(location.href);
+        let part = infos.p==currpage.searchParams.get("p")
+            ? infos.p
+            : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
+        let url = new URL(location.protocol + "//" + location.hostname + "/video/" + defaultVid);
+        part == 1 || url.searchParams.append("p", part);
+        let vidurl = new URL(url);
+        let shorturl = new URL(location.protocol + "//b23.tv/" + defaultVid);
+        let t = await getPlayerSeeks();
+        if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);  
+        try {
+            partinfo = infos.pages[infos.p - 1];
+        } catch (e) {
+            partinfo = infos.pages[0];
+        }
+        return {currpage,partinfo,url,vidurl,shorturl,part,t,infos}
+    }
+    
+    async function getCopyItem(copyitem,infos){
+        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos,this.av_span);
+        switch (copyitem) {
+            case "curr":
+                return {
+                    title: "当前地址",
+                    content: vidurl,
+                    type: "copiable"
+                };
+            case "currTime":
+                return {
+                    title: "含视频进度地址(仅在播放时提供)",
+                    content: url,
+                    type: "copiable"
+                };
+            case "short":
+                return {
+                    title: "短地址格式",
+                    content: shorturl,
+                    type: "copiable"
+                };
+            case "share":
+                return {
+                    title: "快速分享",
+                    content: `${infos.title}_地址:${shorturl}`,
+                    type: "copiable"
+                };
+            case "shareTime":
+                return {
+                    title: "快速分享(含视频进度)",
+                    content: `${infos.title}_地址:${url}`,
+                    type: "copiable"
+                };
+            case "md":
+                return {
+                    title: "MarkDown格式",
+                    content: `[${infos.title}](${vidurl})`,
+                    type: "copiable"
+                };
+            case "bb":
+                return {
+                    title: "BBCode格式",
+                    content: `[url=${vidurl}]${infos.title}[/url]`,
+                    type: "copiable"
+                };
+            case "html":
+                return {
+                    title: "HTML格式",
+                    content: `<a href="${vidurl}">${infos.title}</a>`,
+                    type: "copiable"
+                };
+            case "vid":
+                return {
+                    title: "",
+                    content: `<div class="shoav_expandinfo">
+                    <div>
+                    AV号
+                    <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    BV号
+                    <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    资源CID
+                    <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                </div>
+                `,
+                    type: "component",
+                    copyaction: function(){
+                        copy(this.av_span.innerText);
+                        popNotify.success("已复制到剪贴板",this.av_span.innerText);
+                    }
+                };
+            default:
+                if (Object.keys(config.customcopyitems).includes(copyitem)) {
+                    let ccopyitem = config.customcopyitems[copyitem];
+                    let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
+                    pat = pat.mapReplace({
+                        "%timeurl%": url,
+                        "%vidurl%": vidurl,
+                        "%shorturl%": shorturl,
+                        "%seek%": t,
+                        "%title%": infos.title,
+                        "%av%": infos.aid,
+                        "%bv%": infos.bvid,
+                        "%cid%": infos.cid,
+                        "%p%": part,
+                        "%pname%": partinfo.part,
+                        "'": "\'"
+                    });
+                    return {
+                        title: `(自定义) ${ccopyitem.title}`,
+                        content: pat,
+                        type: "copiable"
+                    }
+                }else return null;
+        }
+    };
+
     async function feat_showAv(force = false, mode = 'av'/* 'bv' */) {
         const { av_root, infos } = this;
         const av_span = getOrNew("bilibiliShowAV" + (force ? mode : ''), av_root);
@@ -337,120 +457,6 @@
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
                 }
-            const getCopyItem = async (copyitem) => {
-                const currpage = new URL(location.href);
-                let part = infos.p==currpage.searchParams.get("p")
-                    ? infos.p
-                    : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
-                let url = new URL(location.protocol + "//" + location.hostname + "/video/" + av_span.innerText);
-                part == 1 || url.searchParams.append("p", part);
-                let vidurl = new URL(url);
-                let shorturl = new URL(location.protocol + "//b23.tv/" + av_span.innerText);
-                let t = await getPlayerSeeks();
-                if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);  
-                try {
-                    partinfo = infos.pages[infos.p - 1];
-                } catch (e) {
-                    partinfo = infos.pages[0];
-                }
-                switch (copyitem) {
-                    case "curr":
-                        return {
-                            title: "当前地址",
-                            content: vidurl,
-                            type: "copiable"
-                        };
-                    case "currTime":
-                        return {
-                            title: "含视频进度地址(仅在播放时提供)",
-                            content: url,
-                            type: "copiable"
-                        };
-                    case "short":
-                        return {
-                            title: "短地址格式",
-                            content: shorturl,
-                            type: "copiable"
-                        };
-                    case "share":
-                        return {
-                            title: "快速分享",
-                            content: `${infos.title}_地址:${shorturl}`,
-                            type: "copiable"
-                        };
-                    case "shareTime":
-                        return {
-                            title: "快速分享(含视频进度)",
-                            content: `${infos.title}_地址:${url}`,
-                            type: "copiable"
-                        };
-                    case "md":
-                        return {
-                            title: "MarkDown格式",
-                            content: `[${infos.title}](${vidurl})`,
-                            type: "copiable"
-                        };
-                    case "bb":
-                        return {
-                            title: "BBCode格式",
-                            content: `[url=${vidurl}]${infos.title}[/url]`,
-                            type: "copiable"
-                        };
-                    case "html":
-                        return {
-                            title: "HTML格式",
-                            content: `<a href="${vidurl}">${infos.title}</a>`,
-                            type: "copiable"
-                        };
-                    case "vid":
-                        return {
-                            title: "",
-                            content: `<div class="shoav_expandinfo">
-                            <div>
-                            AV号
-                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            BV号
-                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            资源CID
-                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                        </div>
-                        `,
-                            type: "component",
-                            copyaction: function(){
-                                copy(this.av_span.innerText);
-                                popNotify.success("已复制到剪贴板",this.av_span.innerText);
-                            }
-                        };
-                    default:
-                        if (Object.keys(config.customcopyitems).includes(copyitem)) {
-                            let ccopyitem = config.customcopyitems[copyitem];
-                            let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
-                            pat = pat.mapReplace({
-                                "%timeurl%": url,
-                                "%vidurl%": vidurl,
-                                "%shorturl%": shorturl,
-                                "%seek%": t,
-                                "%title%": infos.title,
-                                "%av%": infos.aid,
-                                "%bv%": infos.bvid,
-                                "%cid%": infos.cid,
-                                "%p%": part,
-                                "%pname%": partinfo.part,
-                                "'": "\'"
-                            });
-                            return {
-                                title: `(自定义) ${ccopyitem.title}`,
-                                content: pat,
-                                type: "copiable"
-                            }
-                        }else return null;
-                }
-            };
             const avspanHC = new CKTools.HoldClick(av_span);
             avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
@@ -510,7 +516,7 @@
                 <b>点击输入框可以快速复制</b><br>`;
                 let first = true;
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem(copyitem);
+                    const copyiteminfo = await getCopyItem(copyitem,infos);
                     if(copyiteminfo.type=="copiable"){
                         let titleex = "";
                         if(first){
@@ -523,7 +529,7 @@
                         modalcontent+=copyiteminfo.content;
                     }
                 }
-                modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
+                modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_advcopy()">⚙ 复制设置</a><br>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `;
                 modalcontent+= closeButton().outerHTML;
@@ -807,6 +813,42 @@
         //} else pn_span.remove();
     }
 
+    async function feat_custom(itemid){
+        const { av_root, infos } = this;
+        const custom_span = getOrNew("bilibili_"+itemid, av_root);
+        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos);
+        if(Object.keys(config.customComponents).includes(itemid)){
+            const item = config.customComponents[itemid];
+            let content = item.content.mapReplace({
+                "%timeurl%": url,
+                "%vidurl%": vidurl,
+                "%shorturl%": shorturl,
+                "%seek%": t,
+                "%title%": infos.title,
+                "%av%": infos.aid,
+                "%bv%": infos.bvid,
+                "%cid%": infos.cid,
+                "%p%": part,
+                "%pname%": partinfo.part,
+                "'": "\'"
+            });
+            custom_span.style.overflow = "hidden";
+            custom_span.innerHTML = content;
+            custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
+            const customHC = new CKTools.HoldClick(custom_span)
+            customHC.onclick(e => {
+                copy(content);
+                popNotify.success("已复制"+item.title,content);
+            });
+            customHC.onhold(e=>{
+                GUISettings_customcomponents();
+            })
+        }else{
+            log("Errored while handling custom components:",k,"not found");
+            custom_span.remove();
+        }
+    } 
+
     async function tryInject(flag) {
         if (flag && config.orders.length === 0) return log('Terminated because no option is enabled.');
         if (!(await playerReady())) return log('Can not load player in time.');
@@ -880,10 +922,20 @@
             showDmk: feat_showDmk.bind(that),
             showViews: feat_showViews.bind(that),
             showTop: feat_showTop.bind(that),
-            openGUI: feat_openGUI.bind(that)
+            openGUI: feat_openGUI.bind(that),
+            customDriver: feat_custom.bind(that)
         }
 
-        config.orders.forEach(k => functions[k]());
+        config.orders.forEach(k => {
+            if(Object.keys(functions).includes(k)) functions[k]();
+            else{
+                try{
+                    functions.customDriver(k);
+                }catch(e){
+                    log(`Custom component "${k}" throwed an error:`,e)
+                };
+            }
+        });
         
         const titleobj = document.querySelector("span.tit");
         if(titleobj&&!titleobj.getAttribute("data-copy-action-registered")){
@@ -1153,8 +1205,15 @@
                             draggable.className = "showav_dragableitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
-                            draggable.innerHTML = txtCn[id];
-                            draggable.innerHTML += `<div>${descCn[id]}</div>`;
+                            if (id.split("_")[0] === "custom") {
+                                draggable.innerHTML = config.customComponents[id].title;
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(config.customComponents[id].content));
+                                draggable.appendChild(node);
+                            } else {
+                                draggable.innerHTML = txtCn[id];
+                                draggable.innerHTML += `<div>${descCn[id]}</div>`;
+                            }
                             let expanded = false;
                             draggable.addEventListener('dragstart', e => {
                                 if (expanded) draggable.classList.remove('showav_expand');
@@ -1213,6 +1272,12 @@
                                 disableddiv.appendChild(await makeDragable(k));
                             });
                             registerDragEvent(disableddiv);
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.style.lineHeight = "2em";
+                            div.style.cursor = "pointer";
+                            div.innerHTML = `管理自定义组件`;
+                            div.onclick = e => GUISettings_customcomponents();
                         }),
                         await CKTools.makeDom("div", async div => {
                             div.style.lineHeight = "2em";
@@ -1291,7 +1356,7 @@
                             draggable.className = "showav_dragableitem copyitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
-                            if (id.split(":")[0] === "custom") {
+                            if (id.split("_")[0] === "custom") {
                                 draggable.innerHTML = config.customcopyitems[id].title;
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(config.customcopyitems[id].content));
@@ -1466,7 +1531,7 @@
                                             div.onclick = e => {
                                                 expanded = !expanded;
                                                 if (expanded) {
-                                                    div.style.maxHeight = "20rem";
+                                                    div.style.maxHeight = "30rem";
                                                 } else {
                                                     div.style.maxHeight = '2rem';
                                                 }
@@ -1478,7 +1543,7 @@
                                             btn.style.background = "#ececec";
                                             btn.style.color = "black";
                                             btn.onclick = async e => {
-                                                const ccid = "custom:" + Math.random().toString(36).replace('.', '');
+                                                const ccid = "custom_" + Math.random().toString(36).replace('.', '');
                                                 const title = document.querySelector("#showav_customcopytitle").value;
                                                 const content = document.querySelector("#showav_customcopycontent").value;
                                                 if (title.trim().length < 1 || content.trim().length < 1) {
@@ -1546,6 +1611,197 @@
         }));
     }
 
+    async function GUISettings_customcomponents() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 自定义组件", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
+                // dragable code from ytb v=jfYWwQrtzzY
+                await CKTools.makeDom("li", async list => {
+                    [
+                        await CKTools.makeDom("li", async list => {
+                            const makeItem = (customitemid,focus=false) => {
+                                const item = config.customComponents[customitemid];
+                                const node = document.createElement("li");
+                                node.className = "copyitem";
+                                if(focus){
+                                    node.classList.add("actionpending");
+                                    setTimeout(() => {
+                                        node.classList.remove("actionpending");
+                                        node.scrollIntoView();
+                                    },20);
+                                }
+                                node.setAttribute("data-id", customitemid);
+                                node.innerHTML = `${item.title}<br>`;
+                                node.style.borderRadius = "3px";
+                                node.style.border = "solid 2px grey";
+                                node.style.padding = "3px";
+                                node.style.margin = "1px";
+                                const smallp = document.createElement("p");
+                                smallp.style.fontSize = "small";
+                                smallp.style.color = "grey";
+                                smallp.style.overflow = "hidden";
+                                smallp.style.wordWrap = "nowarp";
+                                smallp.appendChild(document.createTextNode(item.content));
+                                node.appendChild(smallp);
+                                node.removeItem = ()=>{
+                                    node.classList.add("actionpending");
+                                    setTimeout(()=>node.remove(),350);
+                                };
+                                node.onclick = async e => {
+                                    if(node.classList.contains("preremove")){
+                                        if (config.orders.includes(customitemid)) {
+                                            config.orders.splice(config.orders.indexOf(customitemid), 1);
+                                        }
+                                        if (config.all.includes(customitemid)) {
+                                            config.all.splice(config.all.indexOf(customitemid), 1);
+                                        }
+                                        delete config.customComponents[customitemid];
+                                        saveAllConfig();
+                                        [...document.querySelectorAll(`.copyitem[data-id="${customitemid}"]`)].forEach(e => e.removeItem());
+                                    }else{
+                                        [...document.querySelectorAll("li.copyitem.preremove")].forEach(e=>{
+                                            e.classList.remove("preremove");
+                                            try{if(e.clearTimer){
+                                                clearTimeout(e.clearTimer);
+                                            }}catch(e){};
+                                        });
+                                        node.classList.add("preremove");
+                                        node.clearTimer = setTimeout(() => {
+                                            node.classList.remove("preremove");
+                                            node.clearTimer = null;
+                                        },5000);
+                                    }
+                                }
+                                return node;
+                            };
+                            [
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "添加组件";
+                                }),
+                                await CKTools.makeDom("div", async div => {
+                                    div.style.paddingLeft = "20px";
+                                    [
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopntitle";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.setAttribute("placeholder", "自定义标题");
+                                        }),
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopncontent";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.setAttribute("placeholder", "自定义内容");
+                                        }),
+                                        await CKTools.makeDom("div", div => {
+                                            div.style.paddingLeft = "20px";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `变量提示<br><ul>
+                                            <li>%timeurl% => 包含时间的完整地址</li>
+                                            <li>%vidurl% => 视频纯净地址</li>
+                                            <li>%shorturl% => 短地址</li>
+                                            <li>%seek% => 当前视频播放秒数</li>
+                                            <li>%title% => 视频标题</li>
+                                            <li>%av% => av号</li>
+                                            <li>%bv% => BV号</li>
+                                            <li>%cid% => CID号</li>
+                                            <li>%p% => 分P</li>
+                                            <li>%pname% => 分P名</li>
+                                            </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e => {
+                                                expanded = !expanded;
+                                                if (expanded) {
+                                                    div.style.maxHeight = "30rem";
+                                                } else {
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
+                                        }),
+                                        await CKTools.makeDom("button", btn => {
+                                            btn.className = "CKTOOLS-toolbar-btns";
+                                            btn.innerHTML = "添加";
+                                            btn.style.background = "#ececec";
+                                            btn.style.color = "black";
+                                            btn.onclick = async e => {
+                                                const ccid = "custom_" + Math.random().toString(36).replace('.', '');
+                                                const title = document.querySelector("#showav_customcopntitle").value;
+                                                const content = document.querySelector("#showav_customcopncontent").value;
+                                                if (title.trim().length < 1 || content.trim().length < 1) {
+                                                    popNotify.warn("无法添加自定义组件", "标题或内容为空");
+                                                    return;
+                                                }
+                                                config.customComponents[ccid] = { title, content };
+                                                if (!config.all.includes(ccid)) config.all.push(ccid);
+                                                saveAllConfig();
+                                                const customlist = document.querySelector("#showav_customitems");
+                                                customlist && customlist.appendChild(makeItem(ccid,true));
+                                                document.querySelector("#showav_customcopntitle").value = "";
+                                                document.querySelector("#showav_customcopncontent").value = "";
+                                            }
+                                        })
+                                    ].forEach(e => div.appendChild(e));
+                                }),
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "已有自定义组件 <small>(点击移除)</small>";
+                                }),
+                                await CKTools.makeDom("ul", ul => {
+                                    ul.style.paddingLeft = "3px";
+                                    ul.id = "showav_customitems";
+                                    for (let itemid of Object.keys(config.customComponents)) {
+                                        ul.appendChild(makeItem(itemid));
+                                    }
+                                }),
+                            ].forEach(e => list.appendChild(e));
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "返回设置";
+                                    btn.onclick = e => {
+                                        saveAllConfig();
+                                        CKTools.modal.hideModal();
+                                        setTimeout(GUISettings,300);
+                                    }
+                                }))
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "关闭";
+                                    btn.onclick = e => {
+                                        saveAllConfig();
+                                        CKTools.modal.hideModal();
+                                    }
+                                }))
+                            }))
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                })
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
     const copy = function copy(text) {
         if (!navigator.clipboard) {
             prompt('请手动复制', text);
@@ -1565,8 +1821,8 @@
     }
 
     unsafeWindow.showav_guisettings = GUISettings;
-
-    unsafeWindow.showav_guisettings_shoy = GUISettings_advcopy;
+    unsafeWindow.showav_guisettings_advcopy = GUISettings_advcopy;
+    unsafeWindow.showav_guisettings_customcomponents = GUISettings_customcomponents;
 
     CKTools.modal.initModal();
     CKTools.modal.hideModal();
