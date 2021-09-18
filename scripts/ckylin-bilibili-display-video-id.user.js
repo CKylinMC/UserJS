@@ -775,7 +775,7 @@
         } catch (e) {
             part = videoData.pages[0];
         }
-        let currentPageName = part.part.length ? `《${part.part}》` : '';
+        let currentPageName = part.part.length ? part.part : '';
         let currentPageNum;
         let delimiters;
         if (videoData.videos != 1) {
