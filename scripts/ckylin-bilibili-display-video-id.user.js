@@ -67,6 +67,7 @@
         defaultTextTime: true,
         foldedWarningTip: true,
         showInNewLine: false,
+        forceGap: false,
         pnmaxlength: 18,
         orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
         all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
@@ -815,6 +816,13 @@
             config.firstTimeLoad = false;
         }
 
+        if (config.forceGap) {
+            CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
+        }else{
+            
+            CKTools.addStyle(``,"showav_forceGapCss","update",document.head);
+        }
+
         if (location.pathname.startsWith("/medialist")) {
             let aid = unsafeWindow.aid;
             if (!aid) {
@@ -926,6 +934,22 @@
             }
             [
                 closeButton(),
+                await CKTools.makeDom("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_forcegap";
+                            input.name = "showav_forcegap";
+                            input.checked = config.forceGap;
+                        }),
+                        await CKTools.makeDom("label", label => {
+                            label.style.paddingLeft = "3px";
+                            label.setAttribute('for', "showav_forcegap");
+                            label.innerHTML = "在第一个组件前强制添加间隔";
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
@@ -1209,6 +1233,7 @@
                                         }
                                         config.orders = enabledArray;
                                         config.defaultAv = document.querySelector("#showav_defaultav").checked;
+                                        config.forceGap = document.querySelector("#showav_forcegap").checked;
                                         config.hideTime = document.querySelector("#showav_hidetime").checked;
                                         config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
                                         config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
