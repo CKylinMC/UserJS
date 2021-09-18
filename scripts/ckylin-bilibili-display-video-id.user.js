@@ -68,6 +68,7 @@
         foldedWarningTip: true,
         showInNewLine: false,
         forceGap: false,
+        jssafetyWarning: true,
         pnmaxlength: 18,
         orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
         all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
@@ -174,6 +175,12 @@
             param.unit = sizes[i];
         }
         return param;
+    }
+
+    function exec(code,binding=this){
+        return (async function(){
+            eval(code);
+        }).bind(binding);
     }
 
     async function saveAllConfig() {
@@ -813,34 +820,49 @@
 
     async function feat_custom(itemid){
         const { av_root, infos } = this;
+        const that = this;
         const custom_span = getOrNew("bilibili_"+itemid, av_root);
         const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos);
+        const parseTxt = txt=>txt.mapReplace({
+            "%timeurl%": url,
+            "%vidurl%": vidurl,
+            "%shorturl%": shorturl,
+            "%seek%": t,
+            "%title%": infos.title,
+            "%av%": infos.aid,
+            "%bv%": infos.bvid,
+            "%cid%": infos.cid,
+            "%p%": part,
+            "%pname%": partinfo.part,
+            "'": "\'"
+        });
         if(Object.keys(config.customComponents).includes(itemid)){
             const item = config.customComponents[itemid];
-            let content = item.content.mapReplace({
-                "%timeurl%": url,
-                "%vidurl%": vidurl,
-                "%shorturl%": shorturl,
-                "%seek%": t,
-                "%title%": infos.title,
-                "%av%": infos.aid,
-                "%bv%": infos.bvid,
-                "%cid%": infos.cid,
-                "%p%": part,
-                "%pname%": partinfo.part,
-                "'": "\'"
-            });
+            let content = item.content;
+            if(item.content.startsWith("js:")){
+                content = item.content.replace("js:","");
+            }
+            else content = parseTxt(item.content);
             custom_span.style.overflow = "hidden";
-            custom_span.innerHTML = content;
+            custom_span.innerHTML = parseTxt(item.title);
             custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
-            const customHC = new CKTools.HoldClick(custom_span)
-            customHC.onclick(e => {
-                copy(content);
-                popNotify.success("已复制"+item.title,content);
-            });
-            customHC.onhold(e=>{
-                GUISettings_customcomponents();
-            })
+            if(!custom_span.getAttribute("setup")){
+                custom_span.setAttribute("setup","1");
+                const customHC = new CKTools.HoldClick(custom_span)
+                customHC.onclick(e => {
+                    console.log(item.content)
+                    if(item.content.startsWith("js:")){
+                        log("executing:",content);
+                        exec(content,that)();
+                    }else{
+                        copy(content);
+                        popNotify.success("已复制"+item.title,content);
+                    }
+                });
+                customHC.onhold(e=>{
+                    GUISettings_customcomponents();
+                })
+            }
         }else{
             log("Errored while handling custom components:",k,"not found");
             custom_span.remove();
@@ -1695,7 +1717,13 @@
                                             input.style.padding = "6px";
                                             input.style.borderRadius = "6px";
                                             input.style.border = "solid 2px grey";
-                                            input.setAttribute("placeholder", "自定义标题");
+                                            input.setAttribute("placeholder", "自定义显示文本");
+                                            input.addEventListener("keydown",e=>{
+                                                const contentel = document.querySelector("#showav_customcopncontent");
+                                                if(!contentel) return;
+                                                if(contentel.getAttribute("data-sync")!=="1") return;
+                                                setTimeout(()=>contentel.value = input.value,10);
+                                            })
                                         }),
                                         await CKTools.makeDom("input", async input => {
                                             input.id = "showav_customcopncontent";
@@ -1705,7 +1733,22 @@
                                             input.style.padding = "6px";
                                             input.style.borderRadius = "6px";
                                             input.style.border = "solid 2px grey";
-                                            input.setAttribute("placeholder", "自定义内容");
+                                            input.title = `默认与自定义显示文本同步\n使用"js:"开头时将在点击时执行脚本`;
+                                            input.setAttribute("data-sync","1");
+                                            input.setAttribute("placeholder", "自定义复制内容或脚本");
+                                            input.addEventListener("keydown",e=>input.setAttribute("data-sync","0"));
+                                            input.addEventListener("change",e=>{
+                                                if(input.value.startsWith("js:")){
+                                                    if(config.jssafetyWarning){
+                                                        config.jssafetyWarning = confirm(`安全性警告：\n\n"js:"开头的内容将作为JS脚本执行。\n\nJS脚本拥有您在当前页面的所有权限，请勿复制和执行未知来源的脚本！\n请仅在了解你输入的内容情况下使用此功能！\n\n如果不点击确定，则每次输入"js:"时都会弹出此消息。\n\n继续输入吗？`);
+                                                        if(config.jssafetyWarning){
+                                                            saveAllConfig();
+                                                        }else{
+                                                            input.value = input.value.replace("js:","");
+                                                        }
+                                                    }
+                                                }
+                                            })
                                         }),
                                         await CKTools.makeDom("div", div => {
                                             div.style.paddingLeft = "20px";
