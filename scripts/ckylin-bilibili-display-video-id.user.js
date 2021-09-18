@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.15
+// @version      1.15.1
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -419,7 +419,11 @@
                             </div>
                         </div>
                         `,
-                            type: "component"
+                            type: "component",
+                            copyaction: function(){
+                                copy(this.av_span.innerText);
+                                popNotify.success("已复制到剪贴板",this.av_span.innerText);
+                            }
                         };
                     default:
                         if (Object.keys(config.customcopyitems).includes(copyitem)) {
@@ -443,16 +447,32 @@
                                 content: pat,
                                 type: "copiable"
                             }
-                        }
+                        }else return null;
                 }
             };
             const avspanHC = new CKTools.HoldClick(av_span);
             avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
                     const copyiteminfo = await getCopyItem(copyitem);
+                    if(copyiteminfo===null) {
+                        log(`[ADVCOPY] warning: unknown custom copy item id "${copyitem}", maybe should clean settings up.`);
+                        continue;
+                    }
                     if(copyiteminfo.type=="copiable"){
                         copy(copyiteminfo.content);
                         popNotify.success(copyiteminfo.title+"复制成功", copyiteminfo.content);
+                        return;
+                    }
+                    else if(copyiteminfo.type=="component"){
+                        if(typeof(copyiteminfo.copyaction)==="function"){
+                            try{
+                                const func = copyiteminfo.copyaction.bind({av_span});
+                                func();
+                            }catch(e){log(copyiteminfo,e);}
+                        }else{
+                            copy(copyiteminfo.copyaction.toString());
+                            popNotify.success("已复制到剪贴板",copyiteminfo.copyaction.toString())
+                        }
                         return;
                     }
                     else continue;
@@ -1345,11 +1365,11 @@
                                 };
                                 node.onclick = async e => {
                                     if(node.classList.contains("preremove")){
-                                        if (config.all.includes(copyitemid)) {
-                                            config.all.splice(config.all.indexOf(copyitemid), 1);
+                                        if (config.copyitems.includes(copyitemid)) {
+                                            config.copyitems.splice(config.copyitems.indexOf(copyitemid), 1);
                                         }
-                                        if (config.orders.includes(copyitemid)) {
-                                            config.orders.splice(config.orders.indexOf(copyitemid), 1);
+                                        if (config.copyitemsAll.includes(copyitemid)) {
+                                            config.copyitemsAll.splice(config.copyitemsAll.indexOf(copyitemid), 1);
                                         }
                                         delete config.customcopyitems[copyitemid];
                                         saveAllConfig();
@@ -1412,6 +1432,7 @@
                                             <li>%bv% => BV号</li>
                                             <li>%cid% => CID号</li>
                                             <li>%p% => 分P</li>
+                                            <li>%pname% => 分P名</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
@@ -1440,7 +1461,7 @@
                                                     return;
                                                 }
                                                 config.customcopyitems[ccid] = { title, content };
-                                                if (!config.all.includes(ccid)) config.all.push(ccid);
+                                                if (!config.copyitemsAll.includes(ccid)) config.copyitemsAll.push(ccid);
                                                 saveAllConfig();
                                                 const disablediv = document.querySelector(".showav_disableddiv");
                                                 disablediv && disablediv.appendChild(await makeDragable(ccid));
