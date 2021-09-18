@@ -241,12 +241,10 @@
     }
 
     function getOrNew(id, parent,) {
-        let marginDirection = config.showInNewLine ? "Right" : "Left";
         let target = document.querySelector("#" + id);
         if (!target) {
             target = document.createElement("span");
             target.id = id;
-            target.style['margin' + marginDirection] = "16px";
             parent.appendChild(target);
         }
         return target;
@@ -904,6 +902,7 @@
         av_root.style.textOverflow = "ellipsis";
         av_root.style.whiteSpace = "nowarp";
         av_root.style.overflow = "hidden";
+        
         const that = {
             av_root, config, av_infobar, infos, CKTools
         };
@@ -1967,6 +1966,10 @@
         line-height: 2rem!important;
         opacity: 1;
     }
+    #bilibiliShowInfos {
+        display: inline-flex;
+        column-gap: 12px;
+      }
     `, 'showav_dragablecss', "unique", document.head);
 
     initScript(false);
