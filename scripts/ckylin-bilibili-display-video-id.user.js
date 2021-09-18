@@ -1737,21 +1737,29 @@
                                             input.setAttribute("data-sync","1");
                                             input.setAttribute("placeholder", "自定义复制内容或脚本");
                                             input.addEventListener("keydown",e=>input.setAttribute("data-sync","0"));
-                                            input.addEventListener("change",e=>{
+                                            input.addEventListener("keydown",async e=>{
+                                                await wait(1);
                                                 if(input.value.startsWith("js:")){
                                                     if(config.jssafetyWarning){
-                                                        config.jssafetyWarning = confirm(`安全性警告：\n\n"js:"开头的内容将作为JS脚本执行。\n\nJS脚本拥有您在当前页面的所有权限，请勿复制和执行未知来源的脚本！\n请仅在了解你输入的内容情况下使用此功能！\n\n如果不点击确定，则每次输入"js:"时都会弹出此消息。\n\n继续输入吗？`);
+                                                        config.jssafetyWarning = !confirm(`安全性警告：\n\n"js:"开头的内容将作为JS脚本执行。\n\nJS脚本拥有您在当前页面的所有权限，请勿复制和执行未知来源的脚本！\n请仅在了解你输入的内容情况下使用此功能！\n\n如果不点击确定，则每次输入"js:"时都会弹出此消息。\n\n继续输入吗？`);
                                                         if(config.jssafetyWarning){
                                                             saveAllConfig();
                                                         }else{
                                                             input.value = input.value.replace("js:","");
                                                         }
+                                                    }else{
+                                                        document.querySelector("#showav_custom_txttip").style.display = "none";
+                                                        document.querySelector("#showav_custom_jstip").style.display = "block";
                                                     }
+                                                }else{
+                                                    document.querySelector("#showav_custom_jstip").style.display = "none";
+                                                    document.querySelector("#showav_custom_txttip").style.display = "block";
                                                 }
                                             })
                                         }),
                                         await CKTools.makeDom("div", div => {
                                             div.style.paddingLeft = "20px";
+                                            div.id = "showav_custom_txttip";
                                             div.style.color = "#919191";
                                             div.innerHTML = `变量提示<br><ul>
                                             <li>%timeurl% => 包含时间的完整地址</li>
@@ -1764,6 +1772,29 @@
                                             <li>%cid% => CID号</li>
                                             <li>%p% => 分P</li>
                                             <li>%pname% => 分P名</li>
+                                            </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e => {
+                                                expanded = !expanded;
+                                                if (expanded) {
+                                                    div.style.maxHeight = "30rem";
+                                                } else {
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
+                                        }),
+                                        await CKTools.makeDom("div", div => {
+                                            div.style.paddingLeft = "20px";
+                                            div.id = "showav_custom_jstip";
+                                            div.style.display = "none";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `脚本提示<br><ul>
+                                            <li>变量 infos => 视频信息</li>
+                                            <li>方法 parseTxt("string") => 解析文本</li>
+                                            <li>方法 copy("string") => 复制文字</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
