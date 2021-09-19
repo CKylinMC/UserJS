@@ -1902,8 +1902,14 @@
     const blockwin = CKTools.get("#CKTOOLS-blockWindow");
     blockwin&&(blockwin.onclick = CKTools.modal.hideModal);
     CKTools.addStyle(`
+    #CKTOOLS-modal{
+        width: fit-content!important;
+        max-width: 80%!important;
+    }
     .showav_dragablediv {
-        width: 300px;
+        width: 400px;
+        max-width: 80%;
+        max-width: 400px;
         min-height: 60px;
         border: dotted;
         border-radius: 8px;
