@@ -149,7 +149,7 @@
         showTop: 0,
         openGUI: 1
     };
-    let infos = {};
+    let globalinfos = {};
     // https://stackoverflow.com/questions/10726638
     String.prototype.mapReplace = function (map) {
         var regex = [];
@@ -465,7 +465,7 @@
             const avspanHC = new CKTools.HoldClick(av_span);
             avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,infos);
+                    const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
                     if(copyiteminfo===null) {
                         log(`[ADVCOPY] warning: unknown custom copy item id "${copyitem}", maybe should clean settings up.`);
                         continue;
@@ -521,7 +521,7 @@
                 <b>点击输入框可以快速复制</b><br>`;
                 let first = true;
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,infos);
+                    const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,globalinfos);
                     if(copyiteminfo.type=="copiable"){
                         let titleex = "";
                         if(first){
@@ -882,18 +882,15 @@
                 log("Variable 'aid' is not available from unsafeWindow.");
                 let activeVideo = await waitForDom(".player-auxiliary-playlist-item-active");
                 aid = activeVideo.getAttribute("data-aid");
-                //console.log("SHOWAV",activeVideo);
             }
-            log(aid);
             let apidata = await getAidAPI(aid);
-            //console.log("SHOWAV",apidata);
-            infos = apidata.data;
+            globalinfos = apidata.data;
         } else {
             if (flag)
-                infos = (await getAPI(unsafeWindow.bvid)).data;
-            else infos = unsafeWindow.vd;
+            globalinfos = (await getAPI(unsafeWindow.bvid)).data;
+            else globalinfos = unsafeWindow.vd;
         }
-        infos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, infos);
+        globalinfos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, globalinfos);
 
         const av_infobar = await waitForDom(".video-data");
         if (!av_infobar) return log('Can not load info-bar in time.');
@@ -917,7 +914,7 @@
         av_root.style.overflow = "hidden";
         
         const that = {
-            av_root, config, av_infobar, infos, CKTools
+            av_root, config, av_infobar, infos : globalinfos, CKTools
         };
 
         const functions = {
