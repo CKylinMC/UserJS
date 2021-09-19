@@ -1201,7 +1201,6 @@
                             const updatePreview = () =>
                                 wait(2).then(() => CKTools.addStyle(`
                                 #showav_lengthpreview{
-                                    max-width: 0em !important;
                                     max-width: ${input.value}em !important;
                                 }
                                 `, "showav_lengthpreviewcss", "update"));
@@ -1211,6 +1210,7 @@
                         await CKTools.makeDom("span", span => {
                             span.id = "showav_lengthpreview";
                             span.innerText = "这里是一条长度预览，你可以在这里查看长度限制的效果。好吧，我承认，后面这几个字只是为了凑个字数而已的。等等，你还要更长？？？相信我，你不会想要这么长的。";
+                            span.style.maxWidth = "0em";
                             span.style.marginLeft = "30px";
                             span.style.textOverflow = "ellipsis";
                             span.style.whiteSpace = "nowarp";
@@ -1356,6 +1356,7 @@
                             config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                             config.showInNewLine = document.querySelector("#showav_newline").checked;
                             saveAllConfig();
+                            CKTools.addStyle(``, "showav_lengthpreviewcss", "update");
                             CKTools.modal.hideModal();
                             let old = document.querySelector("#bilibiliShowInfos")
                             if (old) old.remove();
@@ -1369,6 +1370,7 @@
                         btn.style.background = "#ececec";
                         btn.style.color = "black";
                         btn.onclick = e => {
+                            CKTools.addStyle(``, "showav_lengthpreviewcss", "update");
                             CKTools.modal.hideModal();
                             wait(300).then(()=>GUISettings());
                         }
