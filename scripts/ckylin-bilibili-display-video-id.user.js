@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.16.1
+// @version      1.16.2
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -986,27 +986,91 @@
     }
 
     async function GUISettings() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
         CKTools.modal.openModal("ShowAV / 设置", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
-            const refreshRecommendShield = () => {
-                let shield = document.querySelector("#showav_newlinetip");
-                if (!shield) return;
-                let enabledArray = [];
-                const enableddiv = document.querySelector(".showav_enableddiv");
-                const elements = enableddiv.querySelectorAll(".showav_dragableitem");
-                for (let element of [...elements]) {
-                    enabledArray.push(element.getAttribute('data-id'));
-                }
-                let sum = 0;
-                enabledArray.forEach(k => sum += idTn[k]);
-                if (sum >= 6) {
-                    shield.classList.add('showav_newlinetip');
-                } else {
-                    shield.classList.remove('showav_newlinetip');
-                }
-            }
+            container.style.minWidth = "300px";
             [
                 closeButton(),
+                await CKTools.makeDom("div", async tip => {
+                    tip.style.lineHeight = "2em";
+                    tip.style.fontSize = "small";
+                    tip.style.fontStyle = "italic";
+                    tip.style.width = "100%";
+                    tip.innerText = "修改设置后记得点击保存哦";
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_options();
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "功能选项";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "调整每个功能模块的单独选项";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_components();
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "组件设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "启用/排序/自定义功能组件";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_customcomponents(()=>GUISettings());
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "自定义组件设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "添加或删除自定义的信息栏组件";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_advcopy(()=>GUISettings());
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "高级复制设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "自定义复制弹窗和默认动作";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
+    async function GUISettings_options() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 功能选项", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "信息栏";
+                    sectiontitle.className = "showav_settings_sectiontitle";
+                }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
@@ -1014,12 +1078,31 @@
                             input.type = "checkbox";
                             input.id = "showav_forcegap";
                             input.name = "showav_forcegap";
+                            input.style.display = "none";
                             input.checked = config.forceGap;
+                            input.addEventListener("change",e=>{
+                                const label = document.querySelector("#showav_forcegaptip");
+                                if(!label) return;
+                                if(input.checked){
+                                    label.innerHTML = "在第一个组件前<b>强制添加</b>间隔(点击切换)"
+                                }else{
+                                    label.innerHTML = "在第一个组件前<b>保持默认</b>间隔(点击切换)"
+                                }
+                            })
                         }),
                         await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
+                            label.id = "showav_forcegaptip";
                             label.setAttribute('for', "showav_forcegap");
-                            label.innerHTML = "在第一个组件前强制添加间隔";
+                            if(config.forceGap){
+                                label.innerHTML = "在第一个组件前<b>强制添加</b>间隔(点击切换)"
+                            }else{
+                                label.innerHTML = "在第一个组件前<b>保持默认</b>间隔(点击切换)"
+                            }
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `可选扩展信息栏和原版信息栏之间强制添加一个间隔，或保持默认`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
@@ -1029,19 +1112,32 @@
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_newline";
+                            input.style.display = "none";
                             input.name = "showav_newline";
                             input.checked = config.showInNewLine;
-                            input.addEventListener("change", e => {
-                                let shield = document.querySelector("#showav_newlinetip");
-                                if (!shield) return;
-                                if (input.checked) shield.classList.add('showav_newlinetip_ok');
-                                else shield.classList.remove('showav_newlinetip_ok');
+                            input.addEventListener("change",e=>{
+                                const label = document.querySelector("#showav_showinnewlinetip");
+                                if(!label) return;
+                                if(input.checked){
+                                    label.innerHTML = "在<b>新的一行中</b>显示扩展信息栏(点击切换)"
+                                }else{
+                                    label.innerHTML = "在<b>当前位置后</b>显示扩展信息栏(点击切换)"
+                                }
                             })
                         }),
                         await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
+                            label.id = "showav_showinnewlinetip";
                             label.setAttribute('for', "showav_newline");
-                            label.innerHTML = "在新的一行中显示信息 <span id='showav_newlinetip'>建议开启</span>";
+                            if(config.showInNewLine){
+                                label.innerHTML = "在<b>新的一行中</b>显示扩展信息栏(点击切换)"
+                            }else{
+                                label.innerHTML = "在<b>当前位置后</b>显示扩展信息栏(点击切换)"
+                            }
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `可选将扩展信息栏显示在下一行，尽量减少对原信息栏的修改`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
@@ -1050,8 +1146,46 @@
                     [
                         await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
+                            label.id = "showav_foldvidwarn_tip";
+                            label.setAttribute('for', "showav_foldvidwarn");
+                            if (config.foldedWarningTip)
+                                label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
+                            else
+                                label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                        }),
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_foldvidwarn";
+                            input.name = "showav_foldvidwarn";
+                            input.style.display = "none";
+                            input.checked = config.foldedWarningTip;
+                            input.addEventListener('change', e => {
+                                const label = document.querySelector("#showav_foldvidwarn_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
+                                else
+                                    label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                            })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。`;
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频分P信息";
+                    sectiontitle.className = "showav_settings_sectiontitle";
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.style.paddingLeft = "3px";
                             label.setAttribute('for', "showav_pnwid");
-                            label.innerHTML = "视频分P名: 字数限制";
+                            label.innerHTML = "字数限制";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "number";
@@ -1064,8 +1198,37 @@
                             input.style.marginLeft = "1em";
                             input.style.lineHeight = "1em";
                             input.value = config.pnmaxlength;
+                            const updatePreview = () =>
+                                wait(2).then(() => CKTools.addStyle(`
+                                #showav_lengthpreview{
+                                    max-width: ${input.value}em !important;
+                                }
+                                `, "showav_lengthpreviewcss", "update"));
+                            input.addEventListener("input", updatePreview);
+                            wait(300).then(updatePreview);
+                        }),
+                        await CKTools.makeDom("span", span => {
+                            span.id = "showav_lengthpreview";
+                            span.innerText = "这里是一条长度预览，你可以在这里查看长度限制的效果。好吧，我承认，后面这几个字只是为了凑个字数而已的。等等，你还要更长？？？相信我，你不会想要这么长的。";
+                            span.style.marginLeft = "30px";
+                            span.style.textOverflow = "ellipsis";
+                            span.style.whiteSpace = "nowarp";
+                            span.style.overflow = "hidden";
+                            span.style.whiteSpace = "nowrap";
+                            span.style.display = "block";
+                            span.style.fontSize = "12px";
+                            span.style.transition = "all .5s";
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `限制分P信息显示时的最大长度`;
                         })
                     ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频编号和高级复制";
+                    sectiontitle.className = "showav_settings_sectiontitle";
                 }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
@@ -1075,9 +1238,9 @@
                             label.id = "showav_defaultav_tip";
                             label.setAttribute('for', "showav_defaultav");
                             if (config.defaultAv)
-                                label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                                label.innerHTML = "默认展示 <b>视频AV号</b> (点击切换)";
                             else
-                                label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+                                label.innerHTML = "默认展示 <b>视频BV号</b> (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -1089,52 +1252,24 @@
                                 const label = document.querySelector("#showav_defaultav_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                                    label.innerHTML = "默认展示 <b>视频AV号</b> (点击切换)";
                                 else
-                                    label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+                                    label.innerHTML = "默认展示 <b>视频BV号</b> (点击切换)";
 
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `此功能仅对<b>可切换视频编号和高级复制</b>功能起效。`;
+                            div.innerHTML = `仅对<b>可切换视频编号和高级复制</b>功能起效。<br>
+                            可切换视频编号和高级复制组件可以使用右键临时切换显示内容。<br>
+                            高级复制和快速复制默认读取对应组件显示内容，因此此处设置也会影响可切换视频编号组件的默认复制内容。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
-                    list.style.lineHeight = "2em";
-                    [
-                        await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
-                            label.id = "showav_foldvidwarn_tip";
-                            label.setAttribute('for', "showav_foldvidwarn");
-                            if (config.foldedWarningTip)
-                                label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
-                            else
-                                label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
-                        }),
-                        await CKTools.makeDom("input", input => {
-                            input.type = "checkbox";
-                            input.id = "showav_foldvidwarn";
-                            input.name = "showav_foldvidwarn";
-                            input.style.display = "none";
-                            input.checked = config.foldedWarningTip;
-                            input.addEventListener('change', e => {
-                                const label = document.querySelector("#showav_foldvidwarn_tip");
-                                if (!label) return;
-                                if (input.checked)
-                                    label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
-                                else
-                                    label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
-                            })
-                        }),
-                        await CKTools.makeDom("div", div => {
-                            div.style.paddingLeft = "20px";
-                            div.style.color = "#919191";
-                            div.innerHTML = `此功能可将视频警告(如 含有危险行为)折叠为图标，防止占用信息栏空间。`;
-                        })
-                    ].forEach(e => list.appendChild(e));
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频投稿时间";
+                    sectiontitle.className = "showav_settings_sectiontitle";
                 }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
@@ -1144,9 +1279,9 @@
                             label.id = "showav_hidetime_tip";
                             label.setAttribute('for', "showav_hidetime");
                             if (config.hideTime)
-                                label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
+                                label.innerHTML = "<b>隐藏</b>原版发布时间 (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
+                                label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -1158,15 +1293,16 @@
                                 const label = document.querySelector("#showav_hidetime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
+                                    label.innerHTML = "<b>隐藏</b>原版发布时间 (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
+                                    label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `此功能仅在开启<b>视频投稿时间</b>功能时起效，视频投稿时间可以显示两种时间格式，并且可排序。`;
+                            div.innerHTML = `仅在开启<b>视频投稿时间</b>功能时起效。<br>
+                            插件添加的视频投稿时间可以选择显示两种时间格式，并且可排序。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
@@ -1178,9 +1314,9 @@
                             label.id = "showav_deftxttime_tip";
                             label.setAttribute('for', "showav_deftxttime");
                             if (config.defaultTextTime)
-                                label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
+                                label.innerHTML = "显示<b>相对时间</b> (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
+                                label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -1192,33 +1328,64 @@
                                 const label = document.querySelector("#showav_deftxttime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
+                                    label.innerHTML = "显示<b>相对时间</b> (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
+                                    label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>此功能仅对<b>视频投稿时间</b>功能起效。`;
+                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>仅对<b>视频投稿时间</b>功能起效。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
-                    list.style.lineHeight = "2em";
-                    [
-                        await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
-                            label.innerHTML = "高级复制: <b>自定义复制格式</b>";
-                            label.addEventListener("click", () => GUISettings_advcopy())
-                        }),
-                        await CKTools.makeDom("div", div => {
-                            div.style.paddingLeft = "20px";
-                            div.style.color = "#919191";
-                            div.innerHTML = `进入自定义复制格式设置界面。此功能仅在<b>高级复制</b>功能启用时生效。<br><b>请注意未保存的修改将会丢失</b>。`;
-                        })
-                    ].forEach(e => list.appendChild(e));
-                }),
+                await CKTools.makeDom("div", async btns => {
+                    btns.style.display = "flex";
+                    btns.style.alignItems = "flex-end";
+                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                        btn.className = "CKTOOLS-toolbar-btns";
+                        btn.innerHTML = "保存并返回";
+                        btn.onclick = e => {
+                            config.defaultAv = document.querySelector("#showav_defaultav").checked;
+                            config.forceGap = document.querySelector("#showav_forcegap").checked;
+                            config.hideTime = document.querySelector("#showav_hidetime").checked;
+                            config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
+                            config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
+                            config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
+                            config.showInNewLine = document.querySelector("#showav_newline").checked;
+                            saveAllConfig();
+                            CKTools.modal.hideModal();
+                            let old = document.querySelector("#bilibiliShowInfos")
+                            if (old) old.remove();
+                            initScript(true);
+                            wait(300).then(()=>GUISettings());
+                        }
+                    }))
+                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                        btn.className = "CKTOOLS-toolbar-btns";
+                        btn.innerHTML = "返回";
+                        btn.style.background = "#ececec";
+                        btn.style.color = "black";
+                        btn.onclick = e => {
+                            CKTools.modal.hideModal();
+                            wait(300).then(()=>GUISettings());
+                        }
+                    }))
+                })
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
+    async function GUISettings_components() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 组件", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
                 await CKTools.makeDom("li", async list => {
                     const makeDragable = async id => {
@@ -1245,7 +1412,6 @@
                                 if (expanded) draggable.classList.add('showav_expand');
                                 draggable.classList.remove('showav_dragging');
                                 [...document.querySelectorAll('.showav_child_dragging')].forEach(e => e.classList.remove('showav_child_dragging'))
-                                refreshRecommendShield();
                             })
                             draggable.addEventListener('click', e => {
                                 expanded = draggable.classList.toggle('showav_expand');
@@ -1297,6 +1463,16 @@
                         await CKTools.makeDom("div", async div => {
                             div.style.lineHeight = "2em";
                             div.style.cursor = "pointer";
+                            div.style.color = "#1976d2";
+                            div.style.fontWeight = "bold";
+                            div.innerHTML = `功能设置`;
+                            div.onclick = e => GUISettings_options();
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.style.lineHeight = "2em";
+                            div.style.cursor = "pointer";
+                            div.style.color = "#1976d2";
+                            div.style.fontWeight = "bold";
                             div.innerHTML = `管理自定义组件`;
                             div.onclick = e => GUISettings_customcomponents();
                         }),
@@ -1309,7 +1485,7 @@
                                 btns.style.display = "flex";
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
-                                    btn.innerHTML = "保存并关闭";
+                                    btn.innerHTML = "保存并返回";
                                     btn.onclick = e => {
                                         const enableddiv = document.querySelector(".showav_enableddiv");
                                         const elements = enableddiv.querySelectorAll(".showav_dragableitem");
@@ -1318,38 +1494,22 @@
                                             enabledArray.push(element.getAttribute('data-id'));
                                         }
                                         config.orders = enabledArray;
-                                        config.defaultAv = document.querySelector("#showav_defaultav").checked;
-                                        config.forceGap = document.querySelector("#showav_forcegap").checked;
-                                        config.hideTime = document.querySelector("#showav_hidetime").checked;
-                                        config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
-                                        config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
-                                        config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
-                                        config.showInNewLine = document.querySelector("#showav_newline").checked;
                                         saveAllConfig();
                                         CKTools.modal.hideModal();
-                                        if (config.foldedWarningTip) {
-                                            CKTools.addStyle(`
-                                                .video-data>span.argue{
-                                                    width: 0.5rem;
-                                                    margin-left: 0!important;
-                                                    margin-right: 16px;
-                                                }
-                                            `, 'showav_hidevidwarn', 'update');
-                                        } else {
-                                            CKTools.addStyle('', 'showav_hidevidwarn', 'update');
-                                        }
                                         let old = document.querySelector("#bilibiliShowInfos")
                                         if (old) old.remove();
                                         initScript(true);
+                                        wait(310).then(()=>GUISettings());
                                     }
                                 }))
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
-                                    btn.innerHTML = "关闭";
+                                    btn.innerHTML = "返回";
                                     btn.style.background = "#ececec";
                                     btn.style.color = "black";
                                     btn.onclick = e => {
                                         CKTools.modal.hideModal();
+                                        wait(310).then(()=>GUISettings());
                                     }
                                 }))
                             }))
@@ -1357,11 +1517,10 @@
                     ].forEach(e => list.appendChild(e));
                 })
             ].forEach(e => container.appendChild(e));
-            setTimeout(refreshRecommendShield, 500);
         }));
     }
 
-    async function GUISettings_advcopy() {
+    async function GUISettings_advcopy(back=null) {
         if (CKTools.modal.isModalShowing()) {
             CKTools.modal.hideModal();
             await wait(300);
@@ -1604,6 +1763,8 @@
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "保存并关闭";
+                                    if(back!=null)
+                                        btn.innerHTML = "保存并返回";
                                     btn.onclick = e => {
                                         const enableddiv = document.querySelector(".showav_enableddiv");
                                         const elements = enableddiv.querySelectorAll(".showav_dragableitem");
@@ -1613,15 +1774,19 @@
                                         }
                                         config.copyitems = enabledArray;
                                         saveAllConfig();
-                                        CKTools.modal.hideModal();
                                         initScript(true);
+                                        if(back!=null) back();
+                                        else CKTools.modal.hideModal();
                                     }
                                 }))
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "关闭";
+                                    if(back!=null)
+                                        btn.innerHTML = "返回";
                                     btn.onclick = e => {
-                                        CKTools.modal.hideModal();
+                                        if(back!=null) back();
+                                        else CKTools.modal.hideModal();
                                     }
                                 }))
                             }))
@@ -1632,12 +1797,12 @@
         }));
     }
 
-    async function GUISettings_customcomponents() {
+    async function GUISettings_customcomponents(back=GUISettings_components) {
         if (CKTools.modal.isModalShowing()) {
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置 / 自定义组件", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置 / 组件 / 自定义组件", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
             [
                 closeButton(),
@@ -1847,16 +2012,21 @@
                                 }),
                             ].forEach(e => list.appendChild(e));
                         }),
+                        await CKTools.makeDom("label", label => {
+                            label.style.width = "100%";
+                            label.style.display = "block";
+                            label.style.textAlign = "center";
+                            label.innerHTML = "此页面内容自动保存";
+                        }),
                         await CKTools.makeDom("div", async div => {
                             div.appendChild(await CKTools.makeDom("div", async btns => {
                                 btns.style.display = "flex";
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
-                                    btn.innerHTML = "返回设置";
+                                    btn.innerHTML = "返回";
                                     btn.onclick = e => {
                                         saveAllConfig();
-                                        CKTools.modal.hideModal();
-                                        setTimeout(GUISettings,300);
+                                        back();
                                     }
                                 }))
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
@@ -1905,6 +2075,24 @@
     #CKTOOLS-modal{
         width: fit-content!important;
         max-width: 80%!important;
+    }
+    .CKTOOLS-modal-content li label b {
+        color: #1976d2!important;
+    }
+    .showav_menuitem{
+        line-height: 2em;
+        width: 100%;
+        transition: all .3s;
+        cursor: pointer;
+    }
+    .showav_menuitem:hover{
+        transform: translateX(6px);
+    }
+    .showav_menuitem>label{
+        color: #1976d2;
+        font-weight: bold;
+        font-size: large;
+        display: block;
     }
     .showav_dragablediv {
         width: 400px;
@@ -1979,6 +2167,17 @@
     }
     .showav_disableddiv{
         background: #ffcdd2;
+    }
+    .showav_settings_sectiontitle{
+        display: block;
+        width: 100%;
+        font-weight: bold;
+        color: #1976d2;
+        border-bottom: 2px solid #1976d2;
+        margin: 18px 0 3px 0;
+    }
+    .showav_settings_sectiontitle:first-of-type{
+        margin-top: 0!important;
     }
     #showav_newlinetip{
         font-size: small;
