@@ -624,10 +624,7 @@
         if (config.hideTime) ct_span.innerHTML += `
         <style>
         .video-data>span:nth-child(3){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+            display:none!important;
         }
         </style>`;
     }
@@ -645,11 +642,8 @@
         })();
         v_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(1){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+        .video-data>span.view{
+            display:none!important;
         }
         </style>`;
     }
@@ -667,11 +661,8 @@
         })();
         dmk_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(2){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+        .video-data>span.dm{
+            display:none!important;
         }
         </style>`;
     }
@@ -687,7 +678,7 @@
         top_span.innerHTML += `
         <style>
         .video-data>span.rank{
-            display:none;
+            display:none!important;
         }
         </style>`;
         if (infos.stat.his_rank === 0) {
