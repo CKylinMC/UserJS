@@ -1201,6 +1201,7 @@
                             const updatePreview = () =>
                                 wait(2).then(() => CKTools.addStyle(`
                                 #showav_lengthpreview{
+                                    max-width: 0em !important;
                                     max-width: ${input.value}em !important;
                                 }
                                 `, "showav_lengthpreviewcss", "update"));
