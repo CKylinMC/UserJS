@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.16
+// @version      1.16.1
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -315,7 +315,7 @@
     }
 
     async function prepareData(infos,el=null){
-        const defaultVid = el?el.innerText:infos.aid;
+        const defaultVid = el?el.innerText:'av'+infos.aid;
         const currpage = new URL(location.href);
         let part = infos.p==currpage.searchParams.get("p")
             ? infos.p
