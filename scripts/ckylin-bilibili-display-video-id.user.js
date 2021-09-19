@@ -465,7 +465,7 @@
             const avspanHC = new CKTools.HoldClick(av_span);
             avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem(copyitem);
+                    const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,infos);
                     if(copyiteminfo===null) {
                         log(`[ADVCOPY] warning: unknown custom copy item id "${copyitem}", maybe should clean settings up.`);
                         continue;
@@ -521,7 +521,7 @@
                 <b>点击输入框可以快速复制</b><br>`;
                 let first = true;
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem(copyitem,infos);
+                    const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,infos);
                     if(copyiteminfo.type=="copiable"){
                         let titleex = "";
                         if(first){
