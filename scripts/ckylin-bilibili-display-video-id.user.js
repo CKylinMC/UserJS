@@ -6,7 +6,7 @@
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
 // @match        https://www.bilibili.com/medialist/play/*
-// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=972238
+// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=972241
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
 // @resource     timeago https://unpkg.com/timeago.js@4.0.2/dist/timeago.min.js
