@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.16.2
+// @version      1.16.3
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -76,8 +76,10 @@
         copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
         customcopyitems: {},
         customComponents: {},
-        vduration: 0
+        vduration: 0,
+        running: {}
     };
+    const ignoredConfigKeys = ["vduration", "firstTimeLoad", "running"];
     const menuId = {
         defaultAv: -1,
         foldedWarningTip: -1,
@@ -185,8 +187,7 @@
 
     async function saveAllConfig() {
         for (let configKey of Object.keys(config)) {
-            if (["vduration", "firstTimeLoad"
-            ].includes(configKey)) continue;
+            if (ignoredConfigKeys.includes(configKey)) continue;
             await GM_setValue(configKey, config[configKey]);
         }
         popNotify.success("配置保存成功");
@@ -197,8 +198,7 @@
             if (menuId[menuitem] != -1) GM_unregisterMenuCommand(menuId[menuitem]);
         }
         for (let configKey of Object.keys(config)) {
-            if (["vduration", "firstTimeLoad"
-            ].includes(configKey)) continue;
+            if (ignoredConfigKeys.includes(configKey)) continue;
             if (typeof (await GM_getValue(configKey)) === 'undefined') {
                 await GM_setValue(configKey, config[configKey]);
             } else {
@@ -455,15 +455,16 @@
             config.vduration = Math.floor(video.duration);
         }
 
-        if (av_span.getAttribute("setup") != "ok") {
+        if (av_span.getAttribute("setup") != globalinfos.cid) {
             if (!force)
                 av_span.oncontextmenu = e => {
                     if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
                 }
-            const avspanHC = new CKTools.HoldClick(av_span);
-            avspanHC.onclick(async e => {
+            config.running.avspanHC && config.running.avspanHC.uninstall();
+            config.running.avspanHC = new CKTools.HoldClick(av_span);
+            config.running.onclick(async e => {
                 for (let copyitem of config.copyitems) {
                     const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
                     if(copyiteminfo===null) {
@@ -491,7 +492,7 @@
                 }
                 popNotify.error("快速复制失败","没有任何已启用的可用快速复制设定");
             });
-            avspanHC.onhold(async e => {
+            config.running.avspanHC.onhold(async e => {
                 let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
@@ -540,30 +541,29 @@
                 modalcontent+= closeButton().outerHTML;
                 CKTools.modal.alertModal("高级复制", modalcontent, "关闭");
             });
-            av_span.setAttribute("setup", "ok");
+            av_span.setAttribute("setup", globalinfos.cid);
         }
         //} else av_span.remove();
     }
 
     async function feat_showMore() {
-        const { av_root, infos } = this;
-        log('infos', infos);
+        const { av_root } = this;
         const more_span = getOrNew("bilibiliShowMore", av_root);
         more_span.innerHTML = '⋯';
         more_span.title = "展示更多信息";
         more_span.style.cursor = "pointer";
-        if (more_span.getAttribute("setup") != "ok") {
+        if (more_span.getAttribute("setup") != globalinfos.cid) {
             more_span.addEventListener('click', async e => {
-                let part, videoData = infos;
+                let part, videoData = globalinfos;
                 try {
-                    part = videoData.pages[infos.p - 1];
+                    part = videoData.pages[globalinfos.p - 1];
                 } catch (e) {
                     part = videoData.pages[0];
                 }
                 let currentPageName = part.part.length ? part.part : '';
                 let currentPageNum;
                 if (videoData.videos != 1) {
-                    currentPageNum = `P ${infos.p}/${videoData.videos}`;
+                    currentPageNum = `P ${globalinfos.p}/${videoData.videos}`;
                 } else {
                     currentPageNum = "P 1/1";
                 }
@@ -574,13 +574,13 @@
                 }
             </style>
             <li>
-                <b>AV号: </b>av${infos.aid}
+                <b>AV号: </b>av${globalinfos.aid}
             </li>
             <li>
-                <b>BV号: </b>${infos.bvid}
+                <b>BV号: </b>${globalinfos.bvid}
             </li>
             <li>
-                <b>CID: </b>${infos.cid}
+                <b>CID: </b>${globalinfos.cid}
             </li>
             <li>
                 <b>分P: </b>${currentPageNum}
@@ -589,23 +589,23 @@
                 <b>P名: </b>${currentPageName}
             </li>
             <li>
-                <b>长度: </b>${infos.duration}s
+                <b>长度: </b>${globalinfos.duration}s
             </li>
             <li>
-                <b>投稿: </b>${timeago.format(infos.ctime * 1000, 'zh_CN')}
+                <b>投稿: </b>${timeago.format(globalinfos.ctime * 1000, 'zh_CN')}
             </li>
             <li>
-                <b>分区: </b>${infos.tname}
+                <b>分区: </b>${globalinfos.tname}
             </li>
             <li>
-                <b>大小: </b>${infos.dimension.width}x${infos.dimension.height}
+                <b>大小: </b>${globalinfos.dimension.width}x${globalinfos.dimension.height}
             </li>
             <li>
-                <b>封面: </b><a href="${infos.pic}" target="_blank">点击查看</a>
+                <b>封面: </b><a href="${globalinfos.pic}" target="_blank">点击查看</a>
             </li>
             `, "确定");
             })
-            more_span.setAttribute("setup", "ok");
+            more_span.setAttribute("setup", globalinfos.cid);
         }
     }
 
@@ -702,17 +702,18 @@
         pic_span.title = "查看封面";
         pic_span.innerHTML = "🖼️";
         pic_span.style.cursor = "pointer";
-        if (pic_span.getAttribute("setup") != "ok") {
-            const picHC = new CKTools.HoldClick(pic_span);
-            picHC.onclick(() => {
+        if (pic_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.picHC && config.running.picHC.uninstall();
+            config.running.picHC = new CKTools.HoldClick(pic_span);
+            config.running.picHC.onclick(() => {
                 CKTools.modal.alertModal("封面", `
-            <img src="${infos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
+            <img src="${globalinfos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
             `, "关闭");
             });
-            picHC.onhold(() => {
-                open(infos.pic);
+            config.running.picHC.onhold(() => {
+                open(globalinfos.pic);
             });
-            pic_span.setAttribute("setup", "ok");
+            pic_span.setAttribute("setup", globalinfos.cid);
         }
     }
 
@@ -725,18 +726,19 @@
         cid_span.style.overflow = "hidden";
         cid_span.title = "CID:" + infos.cid;
         cid_span.innerText = "CID:" + infos.cid;
-        if (cid_span.getAttribute("setup") != "ok") {
-            const cidspanHC = new CKTools.HoldClick(cid_span);
-            cidspanHC.onclick(() => {
+        if (cid_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.cidspanHC && config.running.cidspanHC.uninstall();
+            config.running.cidspanHC = new CKTools.HoldClick(cid_span);
+            config.running.cidspanHC.onclick(() => {
                 copy(currentPageName);
-                popNotify.success("CID复制成功", infos.cid);
+                popNotify.success("CID复制成功", globalinfos.cid);
             });
-            cidspanHC.onhold(() => {
+            config.running.cidspanHC.onhold(() => {
                 CKTools.modal.alertModal("CID信息", `
-                <input readonly style="width:440px" value="${infos.cid}" />
+                <input readonly style="width:440px" value="${globalinfos.cid}" />
                 `, "关闭");
             });
-            cid_span.setAttribute("setup", "ok");
+            cid_span.setAttribute("setup", globalinfos.cid);
         }
         //} else cid_span.remove();
     }
@@ -793,18 +795,19 @@
         pn_span.title = currentPageNum + delimiters[0] + currentPageName
         pn_span.innerText = currentPageNum + delimiters[1] + currentPageName;
 
-        if (pn_span.getAttribute("setup") != "ok") {
-            const pnspanHC = new CKTools.HoldClick(pn_span);
-            pnspanHC.onclick(() => {
-                copy(part.part);
-                popNotify.success("分P标题复制成功", part.part);
+        if (pn_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.pnspanHC && config.running.pnspanHC.uninstall();
+            config.running.pnspanHC = new CKTools.HoldClick(pn_span);
+            config.running.pnspanHC.onclick(() => {
+                copy(currentPageName);
+                popNotify.success("分P标题复制成功", currentPageName);
             });
-            pnspanHC.onhold(() => {
+            config.running.pnspanHC.onhold(() => {
                 CKTools.modal.alertModal("分P标题", `
-                <input readonly style="width:440px" value="${part.part}" />
+                <input readonly style="width:440px" value="${currentPageName}" />
                 `, "关闭");
             });
-            pn_span.setAttribute("setup", "ok");
+            pn_span.setAttribute("setup", globalinfos.cid);
         }
         //} else pn_span.remove();
     }
@@ -837,10 +840,11 @@
             custom_span.style.overflow = "hidden";
             custom_span.innerHTML = parseTxt(item.title);
             custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
-            if(!custom_span.getAttribute("setup")){
-                custom_span.setAttribute("setup","1");
-                const customHC = new CKTools.HoldClick(custom_span)
-                customHC.onclick(e => {
+            if(custom_span.getAttribute("setup")!=globalinfos.cid){
+                custom_span.setAttribute("setup",globalinfos.cid);
+                config.running[k] && config.running[k].uninstall();
+                config.running[k] = new CKTools.HoldClick(custom_span);
+                config.running[k].onclick(e => {
                     console.log(item.content)
                     if(item.content.startsWith("js:")){
                         log("executing:",content);
@@ -850,7 +854,7 @@
                         popNotify.success("已复制"+item.title,content);
                     }
                 });
-                customHC.onhold(e=>{
+                config.running[k].onhold(e=>{
                     GUISettings_customcomponents();
                 })
             }
