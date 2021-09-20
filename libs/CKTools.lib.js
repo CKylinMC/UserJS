@@ -310,6 +310,11 @@ const CKTools = {
 				}
 			}
 		}
+		clean(name){
+			if (name in this.handlers) {
+				this.handlers[name] = [];
+			}
+		}
 		emit(name, ...args) {
 			if (name in this.handlers) {
 				for (let func of this.handlers[name]) {
@@ -366,6 +371,15 @@ const CKTools = {
             this.emitter.off("up", func);
             return this;
         }
+
+		unregListeners(name = "all"){
+			const allEv = ["click","hold","up"];
+			if(name==="all"){
+				allEv.forEach(e=>this.emitter.clean(e));
+			}else if(allEv.includes(name)){
+				this.emitter.clean(name);
+			}
+		}
 
         handleMouseDown(e) {
 			if(e.button!==0&&e.button!==1) return;

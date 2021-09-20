@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKHoldClick
 // @namespace    holdclick.ckylin.site
-// @version      0.2
+// @version      0.3
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
@@ -49,6 +49,15 @@ class HoldClick {
     offup(func) {
         this.emitter.off("up", func);
         return this;
+    }
+
+    unregListeners(name = "all"){
+        const allEv = ["click","hold","up"];
+        if(name==="all"){
+            allEv.forEach(e=>this.emitter.clean(e));
+        }else if(allEv.includes(name)){
+            this.emitter.clean(name);
+        }
     }
 
     handleMouseDown(e) {
