@@ -464,7 +464,7 @@
                 }
             config.running.avspanHC && config.running.avspanHC.uninstall();
             config.running.avspanHC = new CKTools.HoldClick(av_span);
-            config.running.onclick(async e => {
+            config.running.avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
                     const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
                     if(copyiteminfo===null) {
