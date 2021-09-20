@@ -1,24 +1,31 @@
 // ==UserScript==
 // @name         CKHoldClick
 // @namespace    holdclick.ckylin.site
-// @version      0.3
+// @version      1.0
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
 // ==/UserScript==
 class HoldClick {
     dom;
-    emitter = new EventEmitter;
+    emitter = new CKTools.EventEmitter;
     downTime = 0;
     holdingTime = 250;
     mouseDown = false;
 
     constructor(dom, holdingTime = 250) {
+        this.bind(dom);
+        this.holdingTime = holdingTime;
+    }
+
+    bind(dom){
+        if(this.dom){
+            this.unregListeners();
+        }
         if (dom instanceof HTMLElement) {
             this.dom = dom;
             this.initListener();
         }
-        this.holdingTime = holdingTime;
     }
 
     onclick(func) {
@@ -51,13 +58,24 @@ class HoldClick {
         return this;
     }
 
-    unregListeners(name = "all"){
+    resetCallback(name = "all"){
         const allEv = ["click","hold","up"];
         if(name==="all"){
             allEv.forEach(e=>this.emitter.clean(e));
         }else if(allEv.includes(name)){
             this.emitter.clean(name);
         }
+    }
+
+    unregListeners(){
+        this.dom.removeEventListener("mouseup", this.handleMouseUp.bind(this));
+        this.dom.removeEventListener("mousedown", this.handleMouseDown.bind(this));
+        this.dom.removeEventListener("mouseout", this.handleMouseOut.bind(this));
+    }
+
+    uninstall(){
+        this.resetCallback();
+        this.unregListeners();
     }
 
     handleMouseDown(e) {
@@ -96,7 +114,7 @@ class HoldClick {
         if (this.mouseDown) {
             this.mouseDown = false;
             this.downTime = 0;
-            this.emitter.emit("click", e);
+            this.emitter.emit("hold", e);
         }
     }
 
