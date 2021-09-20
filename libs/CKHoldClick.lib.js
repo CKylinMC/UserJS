@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKHoldClick
 // @namespace    holdclick.ckylin.site
-// @version      1.0
+// @version      1.1
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
