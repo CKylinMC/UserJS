@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      0.6
+// @version      1.0
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
@@ -335,12 +335,19 @@ const CKTools = {
         mouseDown = false;
 
         constructor(dom, holdingTime = 250) {
+			this.bind(dom);
+            this.holdingTime = holdingTime;
+        }
+
+		bind(dom){
+			if(this.dom){
+				this.unregListeners();
+			}
             if (dom instanceof HTMLElement) {
                 this.dom = dom;
                 this.initListener();
             }
-            this.holdingTime = holdingTime;
-        }
+		}
 
         onclick(func) {
             this.emitter.on("click", func);
@@ -372,13 +379,24 @@ const CKTools = {
             return this;
         }
 
-		unregListeners(name = "all"){
+		resetCallback(name = "all"){
 			const allEv = ["click","hold","up"];
 			if(name==="all"){
 				allEv.forEach(e=>this.emitter.clean(e));
 			}else if(allEv.includes(name)){
 				this.emitter.clean(name);
 			}
+		}
+
+		unregListeners(){
+            this.dom.removeEventListener("mouseup", this.handleMouseUp.bind(this));
+            this.dom.removeEventListener("mousedown", this.handleMouseDown.bind(this));
+            this.dom.removeEventListener("mouseout", this.handleMouseOut.bind(this));
+		}
+
+		uninstall(){
+			this.resetCallback();
+			this.unregListeners();
 		}
 
         handleMouseDown(e) {
