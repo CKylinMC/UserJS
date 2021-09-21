@@ -26,15 +26,16 @@
     const clearMenu = () => { menuIds.forEach(id => GM_unregisterMenuCommand(id)); menuIds = []; };
     const getTotalTime = async () => await waitForAttribute(cfg.video,'duration');
     const getCurrentTime = () => cfg.video.currentTime;
-    const setTime = t => unsafeWindow.player.seek(t);
+    const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim('motion-play',`回到开头 已循环 ${cfg.loopcounter} 次`)})() : null];
     const play = () => unsafeWindow.player.play();
     const pause = () => unsafeWindow.player.pause();
     const cfg = {
         a: 0,
         b: 999,
+        loopcounter: 0,
         video: null,
         isLooping: false,
-        listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a) : 0
+        listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a,true) : 0
     }
     const guibar = {
         toBar: null,
@@ -121,6 +122,7 @@
 
     function triggerToggleDoStart(autostart=true) {
         triggerToggleDoStop(true);
+        cfg.loopcounter = 0;
         cfg.isLooping = !cfg.isLooping;
         cfg.video.addEventListener('timeupdate',cfg.listener);
         setTime(cfg.a);
