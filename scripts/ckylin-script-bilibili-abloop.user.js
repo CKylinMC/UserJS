@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.5
+// @version      0.6
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -26,15 +26,16 @@
     const clearMenu = () => { menuIds.forEach(id => GM_unregisterMenuCommand(id)); menuIds = []; };
     const getTotalTime = async () => await waitForAttribute(cfg.video,'duration');
     const getCurrentTime = () => cfg.video.currentTime;
-    const setTime = t => unsafeWindow.player.seek(t);
+    const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim('motion-play',`回到开头 已循环 ${cfg.loopcounter} 次`)})() : null];
     const play = () => unsafeWindow.player.play();
     const pause = () => unsafeWindow.player.pause();
     const cfg = {
         a: 0,
         b: 999,
+        loopcounter: 0,
         video: null,
         isLooping: false,
-        listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a) : 0
+        listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a,true) : 0
     }
     const guibar = {
         toBar: null,
@@ -98,6 +99,7 @@
         //d('getCurrentTime', getCurrentTime());
         setFromBarPos();
         setAPointMenu();
+        showAnim("alpha-a-box",`起始点已设置: ${cfg.a}`);
     }
 
     function triggerBPoint() {
@@ -105,6 +107,7 @@
         //d('getCurrentTime', getCurrentTime());
         setToBarPos();
         setBPointMenu();
+        showAnim("alpha-b-box",`结束点已设置: ${cfg.b}`);
     }
 
     function triggerToggleDoStop(fast=false) {
@@ -114,10 +117,12 @@
         if(!fast)hideBars();
         if(!fast)setLoopListenerMenu(false);
         if(!fast)forgiveAllPoint()
+        if(!fast)showAnim("play",`回到正常播放模式`,"moveright");
     }
 
     function triggerToggleDoStart(autostart=true) {
         triggerToggleDoStop(true);
+        cfg.loopcounter = 0;
         cfg.isLooping = !cfg.isLooping;
         cfg.video.addEventListener('timeupdate',cfg.listener);
         setTime(cfg.a);
@@ -125,6 +130,7 @@
         showBars();
         setLoopListenerMenu(false);
         saveAllPoint()
+        showAnim("sync",`开始循环 ${cfg.a} - ${cfg.b}`,"rotate");
     }
 
     function triggerToggleDoAuto() {
@@ -391,9 +397,105 @@
         return loopauto;
     }
 
+    function removeAllAnim(){
+        removeDom(".abloop-loopcontainer",".abloop-loopanim",".abloop-asetanim",".abloop-bsetanim",".abloop-stopanim");
+    }
+
+    function makeAnimContainer(extraClass = ""){
+        const container = document.createElement("div");
+        container.classList.add("abloop-loopcontainer",extraClass);
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function makeIcon(name="",extras=""){
+        const icon = document.createElement("span");
+        icon.className = "mdi mdi-"+name+" abloop-anim-icon abloop-ico-"+extras;
+        return icon;
+    }
+
+    function makeTipText(text=""){
+        const tip = document.createElement("span");
+        tip.className = "abloop-anim-tip";
+        tip.innerHTML = text;
+        return tip;
+    }
+
+    async function showAnim(ico,txt,icoextra = ""){
+        await playerReady();
+        removeAllAnim();
+        const base = makeAnimContainer("abloop-loopanim");
+        const icon = makeIcon(ico,icoextra);
+        base.appendChild(icon);
+        const tip = makeTipText(txt);
+        base.appendChild(tip);
+    }
+
     async function init() {
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return log("No player found on this page.");
+        setTimeout(() => {
+            if (!document.querySelector("#mdiiconcss"))
+                document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.1.95/css/materialdesignicons.min.css"/>`
+            addStyleOnce('anim-tip-css', `
+            .abloop-anim-icon{
+                margin: 0 4px;
+            }
+            .abloop-ico-rotate::before{
+                animation: abloop-ico-anim-rotate forwards .5s .5s ease-in-out;
+            }
+            .abloop-ico-moveright::before{
+                animation: abloop-ico-anim-move forwards .5s .5s ease-in-out;
+            }
+            .abloop-loopcontainer{
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 900000;
+                background: #00000060;
+                color:white;
+                font-size: 1.5rem;
+                min-height: 3rem;
+                transition: all .3s;
+                padding-right: 4px;
+                overflow: hidden;
+                white-space: nowrap;
+                line-height: 3rem;
+                animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4s ease-in-out;
+            }
+            @keyframes abloop-in{
+                0%{
+                    opacity: 0;
+                    max-width: 1.8rem;
+                    top:-100%;
+                }
+                40%,50%{
+                    opacity:1;
+                    top:0rem;
+                    max-width: 1.8rem;
+                }
+                100%{
+                    max-width: 40rem;
+                }
+            }
+            @keyframes abloop-ico-anim-move{
+                0%,100%{
+                    transform: translateX(0px);
+                }
+                50%{
+                    transform: translateX(10px);
+                }
+            }
+            @keyframes abloop-ico-anim-rotate{
+                0%{
+                    transform: rotate(0deg);
+                }
+                100%{
+                    transform: rotate(-180deg);
+                }
+            }
+            `);
+        }, 1000);
         cfg.video = await waitForDom(".bilibili-player-video video");
         //d('video', get(".bilibili-player-video video"));
         //d('total', await getTotalTime());
