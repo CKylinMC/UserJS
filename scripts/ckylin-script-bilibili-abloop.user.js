@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.6
+// @version      0.7
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -26,7 +26,7 @@
     const clearMenu = () => { menuIds.forEach(id => GM_unregisterMenuCommand(id)); menuIds = []; };
     const getTotalTime = async () => await waitForAttribute(cfg.video,'duration');
     const getCurrentTime = () => cfg.video.currentTime;
-    const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim('motion-play',`回到开头 已循环 ${cfg.loopcounter} 次`)})() : null];
+    const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim({ico:'motion-play',txt:`回到开头 已循环 ${cfg.loopcounter} 次`})})() : null];
     const play = () => unsafeWindow.player.play();
     const pause = () => unsafeWindow.player.pause();
     const cfg = {
@@ -99,7 +99,7 @@
         //d('getCurrentTime', getCurrentTime());
         setFromBarPos();
         setAPointMenu();
-        showAnim("alpha-a-box",`起始点已设置: ${cfg.a}`);
+        showAnim({ico:"alpha-a-box",txt:`起始点已设置: ${cfg.a}`});
     }
 
     function triggerBPoint() {
@@ -107,7 +107,7 @@
         //d('getCurrentTime', getCurrentTime());
         setToBarPos();
         setBPointMenu();
-        showAnim("alpha-b-box",`结束点已设置: ${cfg.b}`);
+        showAnim({ico:"alpha-b-box",txt:`结束点已设置: ${cfg.b}`});
     }
 
     function triggerToggleDoStop(fast=false) {
@@ -117,7 +117,7 @@
         if(!fast)hideBars();
         if(!fast)setLoopListenerMenu(false);
         if(!fast)forgiveAllPoint()
-        if(!fast)showAnim("play",`回到正常播放模式`,"moveright");
+        if(!fast)showAnim({ico:"play",txt:`回到正常播放模式`,icoextra:"moveright"});
     }
 
     function triggerToggleDoStart(autostart=true) {
@@ -130,7 +130,7 @@
         showBars();
         setLoopListenerMenu(false);
         saveAllPoint()
-        showAnim("sync",`开始循环 ${cfg.a} - ${cfg.b}`,"rotate");
+        showAnim({ico:"sync",txt:`开始循环 ${cfg.a} - ${cfg.b}`,icoextra:"rotate"});
     }
 
     function triggerToggleDoAuto() {
@@ -403,7 +403,7 @@
 
     function makeAnimContainer(extraClass = ""){
         const container = document.createElement("div");
-        container.classList.add("abloop-loopcontainer",extraClass);
+        container.classList.add("abloop-loopcontainer",...extraClass.split(' '));
         document.body.appendChild(container);
         return container;
     }
@@ -421,19 +421,45 @@
         return tip;
     }
 
-    async function showAnim(ico,txt,icoextra = ""){
-        await playerReady();
+    async function showAnim(options){
+        const{
+            icoextra = '',
+            forwards = false,
+            ico = '',
+            txt = 'Empty Tip',
+            waitPlayer = true,
+        } = options;
+        if(waitPlayer)await playerReady();
         removeAllAnim();
-        const base = makeAnimContainer("abloop-loopanim");
+        const base = makeAnimContainer("abloop-loopanim"+(forwards ? " forwards" : ""));
         const icon = makeIcon(ico,icoextra);
         base.appendChild(icon);
         const tip = makeTipText(txt);
         base.appendChild(tip);
     }
 
-    async function init() {
+    async function handleLoadFail(){
+        log("No player found on this page.");
+        unsafeWindow.abloop_reinit = ()=>[
+            delete unsafeWindow.abloop_reinit,
+            init(true),showAnim({
+            waitPlayer:false,
+            ico:"alert-circle-check-outline",
+            txt:"正在尝试重新加载"
+        })];
+        unsafeWindow.abloop_ignore = ()=>[showAnim({
+            waitPlayer:false,
+            ico:"alert-circle-check-outline",
+            txt:"已忽略。本次播放将无法加载AB循环功能，可以刷新重试。"
+        }),delete unsafeWindow.abloop_ignore];
+        showAnim({waitPlayer:false,forwards:true,ico:"alert-circle-outline",txt:`加载出现问题。<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">忽略</a>`});
+    }
+
+    unsafeWindow.abloop_loadfail = ()=>handleLoadFail();
+
+    async function init(tip_when_ok=false) {
         log("Waiting for player to be ready...");
-        if(!(await playerReady())) return log("No player found on this page.");
+        if(!(await playerReady())) return handleLoadFail();
         setTimeout(() => {
             if (!document.querySelector("#mdiiconcss"))
                 document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.1.95/css/materialdesignicons.min.css"/>`
@@ -453,6 +479,8 @@
                 left: 0;
                 z-index: 900000;
                 background: #00000060;
+                backdrop-filter: blur(4px);
+                text-shadow: 0 0 3px white;
                 color:white;
                 font-size: 1.5rem;
                 min-height: 3rem;
@@ -462,6 +490,9 @@
                 white-space: nowrap;
                 line-height: 3rem;
                 animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4s ease-in-out;
+            }
+            .abloop-loopcontainer.forwards{
+                animation: abloop-in forwards 1.2s ease-in-out !important;
             }
             @keyframes abloop-in{
                 0%{
@@ -508,6 +539,12 @@
         await createMarkBar();
         regHotKey();
         log("Initialization OK");
+        if(tip_when_ok){
+            showAnim({
+                ico:"alert-circle-check-outline",
+                txt:"加载成功"
+            });
+        }
         if((await loadFromSavedData())+(await loadFromURL())) showBars();
     }
 
