@@ -421,10 +421,11 @@
         removeDom(".abloop-loopcontainer",".abloop-loopanim",".abloop-asetanim",".abloop-bsetanim",".abloop-stopanim");
     }
 
-    function makeAnimContainer(extraClass = ""){
+    function makeAnimContainer(extraClass = "",outside=false){
         const container = document.createElement("div");
         container.classList.add("abloop-loopcontainer",...extraClass.split(' '));
-        (document.querySelector("#bilibiliPlayer")||document.body).appendChild(container);
+        let target = outside?null:document.querySelector("#bilibiliPlayer");
+        (target||document.body).appendChild(container);
         return container;
     }
 
@@ -450,10 +451,11 @@
             ico = '',
             txt = 'Empty Tip',
             waitPlayer = true,
+            injectToBody = false,
         } = options;
         if(waitPlayer)await playerReady();
         removeAllAnim();
-        const base = makeAnimContainer("abloop-loopanim"+(forwards ? " forwards" : ""));
+        const base = makeAnimContainer("abloop-loopanim"+(forwards ? " forwards" : ""),injectToBody);
         const icon = makeIcon(ico,icoextra);
         base.appendChild(icon);
         const tip = makeTipText(txt);
@@ -462,21 +464,24 @@
 
     async function handleLoadFail(){
         log("No player found on this page.");
+        initAnimCss();
         unsafeWindow.abloop_reinit = ()=>[
             delete unsafeWindow.abloop_reinit,
             init(true),showAnim({
             waitPlayer:false,
+            injectToBody:true,
             ico:"alert-circle-check-outline",
             txt:"正在尝试重新加载"
         })];
         unsafeWindow.abloop_ignore = ()=>[showAnim({
             waitPlayer:false,
+            injectToBody:true,
             ico:"alert-circle-check-outline",
             txt:"已忽略。本次播放将无法加载AB循环功能，可以刷新重试。"
         }),delete unsafeWindow.abloop_ignore];
-        showAnim({waitPlayer:false,forwards:true,ico:"alert-circle-outline",txt:`加载出现问题。<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">忽略</a>`});
+        showAnim({waitPlayer:false,injectToBody:true,forwards:true,ico:"alert-circle-outline",txt:`未能按时加载。<br><span style="padding:0 4px;display:inline-block">如果你是后台打开的标签页面，这可能很常见。<br>你可以尝试：<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">暂时禁用AB循环</a></span>`});
     }
-
+    unsafeWindow.abloop_testfail = handleLoadFail;
     function initAnimCss(){
         if(cfg.showAnimTip)setTimeout(() => {
         if (!document.querySelector("#mdiiconcss"))
@@ -518,14 +523,17 @@
             0%{
                 opacity: 0;
                 max-width: 1.8rem;
+                max-height: 3rem;
                 top:-100%;
             }
-            40%,50%{
+            45%,55%{
                 opacity:1;
                 top:0rem;
+                max-height: 3rem;
                 max-width: 1.8rem;
             }
             100%{
+                max-height: 40rem;
                 max-width: 40rem;
             }
         }
