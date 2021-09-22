@@ -404,7 +404,7 @@
     function makeAnimContainer(extraClass = ""){
         const container = document.createElement("div");
         container.classList.add("abloop-loopcontainer",...extraClass.split(' '));
-        document.body.appendChild(container);
+        (document.querySelector("#bilibiliPlayer")??document.body).appendChild(container);
         return container;
     }
 
@@ -455,8 +455,6 @@
         showAnim({waitPlayer:false,forwards:true,ico:"alert-circle-outline",txt:`加载出现问题。<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">忽略</a>`});
     }
 
-    unsafeWindow.abloop_loadfail = ()=>handleLoadFail();
-
     async function init(tip_when_ok=false) {
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
@@ -476,9 +474,11 @@
             .abloop-loopcontainer{
                 position: fixed;
                 top: 0;
-                left: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 0 0 6px 6px;
                 z-index: 900000;
-                background: #00000060;
+                background: #000000a1;
                 backdrop-filter: blur(4px);
                 text-shadow: 0 0 3px white;
                 color:white;
