@@ -424,7 +424,7 @@
     function makeAnimContainer(extraClass = ""){
         const container = document.createElement("div");
         container.classList.add("abloop-loopcontainer",...extraClass.split(' '));
-        (document.querySelector("#bilibiliPlayer")??document.body).appendChild(container);
+        (document.querySelector("#bilibiliPlayer")||document.body).appendChild(container);
         return container;
     }
 
