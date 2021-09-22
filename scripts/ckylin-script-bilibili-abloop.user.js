@@ -35,6 +35,7 @@
         loopcounter: 0,
         video: null,
         isLooping: false,
+        showAnimTip: true,
         listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a,true) : 0
     }
     const guibar = {
@@ -43,6 +44,8 @@
     }
     let menuIds = [];
     let menus = {};
+    
+    cfg.showAnimTip = ["null","undefined"].includes(typeof(GM_getValue('animtipenabled')))?cfg.showAnimTip:GM_getValue('animtipenabled');
 
     async function playerReady(){
         let i=50;
@@ -139,6 +142,23 @@
         } else {
             triggerToggleDoStart();
         }
+    }
+
+    function triggerAnimTipStatus(update=true,noapply = false){
+        if(update){
+            cfg.showAnimTip=!cfg.showAnimTip;
+        }
+        GM_setValue("animtipenabled",cfg.showAnimTip);
+        cfg.showAnimTip ? setAnimTipEnabled(noapply) : setAnimTipDisabled(noapply);
+        initAnimCss();
+    }
+
+    function setAnimTipEnabled(noapply = false){
+        setMenu("ANIMTIP", "点此不再显示动作提示框", triggerAnimTipStatus, noapply);
+    }
+
+    function setAnimTipDisabled(noapply = false){
+        setMenu("ANIMTIP", "点此恢复显示动作提示框", triggerAnimTipStatus, noapply);
     }
 
     function setAPointMenu(noapply = false) {
@@ -422,6 +442,8 @@
     }
 
     async function showAnim(options){
+        if(!cfg.showAnimTip) return;
+        await waitForDom("#abloop-css-anim-tip-css");
         const{
             icoextra = '',
             forwards = false,
@@ -455,83 +477,88 @@
         showAnim({waitPlayer:false,forwards:true,ico:"alert-circle-outline",txt:`加载出现问题。<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">忽略</a>`});
     }
 
+    function initAnimCss(){
+        if(cfg.showAnimTip)setTimeout(() => {
+        if (!document.querySelector("#mdiiconcss"))
+            document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.1.95/css/materialdesignicons.min.css"/>`
+        addStyleOnce('anim-tip-css', `
+        .abloop-anim-icon{
+            margin: 0 4px;
+        }
+        .abloop-ico-rotate::before{
+            animation: abloop-ico-anim-rotate forwards .5s .5s ease-in-out;
+        }
+        .abloop-ico-moveright::before{
+            animation: abloop-ico-anim-move forwards .5s .5s ease-in-out;
+        }
+        .abloop-loopcontainer{
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 0 0 6px 6px;
+            z-index: 900000;
+            background: #000000a1;
+            backdrop-filter: blur(4px);
+            text-shadow: 0 0 3px white;
+            color:white;
+            font-size: 1.5rem;
+            min-height: 3rem;
+            transition: all .3s;
+            padding-right: 4px;
+            overflow: hidden;
+            white-space: nowrap;
+            line-height: 3rem;
+            animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4s ease-in-out;
+        }
+        .abloop-loopcontainer.forwards{
+            animation: abloop-in forwards 1.2s ease-in-out !important;
+        }
+        @keyframes abloop-in{
+            0%{
+                opacity: 0;
+                max-width: 1.8rem;
+                top:-100%;
+            }
+            40%,50%{
+                opacity:1;
+                top:0rem;
+                max-width: 1.8rem;
+            }
+            100%{
+                max-width: 40rem;
+            }
+        }
+        @keyframes abloop-ico-anim-move{
+            0%,100%{
+                transform: translateX(0px);
+            }
+            50%{
+                transform: translateX(10px);
+            }
+        }
+        @keyframes abloop-ico-anim-rotate{
+            0%{
+                transform: rotate(0deg);
+            }
+            100%{
+                transform: rotate(-180deg);
+            }
+        }
+        `);
+    }, 300);
+    }
+
     async function init(tip_when_ok=false) {
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
-        setTimeout(() => {
-            if (!document.querySelector("#mdiiconcss"))
-                document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.1.95/css/materialdesignicons.min.css"/>`
-            addStyleOnce('anim-tip-css', `
-            .abloop-anim-icon{
-                margin: 0 4px;
-            }
-            .abloop-ico-rotate::before{
-                animation: abloop-ico-anim-rotate forwards .5s .5s ease-in-out;
-            }
-            .abloop-ico-moveright::before{
-                animation: abloop-ico-anim-move forwards .5s .5s ease-in-out;
-            }
-            .abloop-loopcontainer{
-                position: fixed;
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                border-radius: 0 0 6px 6px;
-                z-index: 900000;
-                background: #000000a1;
-                backdrop-filter: blur(4px);
-                text-shadow: 0 0 3px white;
-                color:white;
-                font-size: 1.5rem;
-                min-height: 3rem;
-                transition: all .3s;
-                padding-right: 4px;
-                overflow: hidden;
-                white-space: nowrap;
-                line-height: 3rem;
-                animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4s ease-in-out;
-            }
-            .abloop-loopcontainer.forwards{
-                animation: abloop-in forwards 1.2s ease-in-out !important;
-            }
-            @keyframes abloop-in{
-                0%{
-                    opacity: 0;
-                    max-width: 1.8rem;
-                    top:-100%;
-                }
-                40%,50%{
-                    opacity:1;
-                    top:0rem;
-                    max-width: 1.8rem;
-                }
-                100%{
-                    max-width: 40rem;
-                }
-            }
-            @keyframes abloop-ico-anim-move{
-                0%,100%{
-                    transform: translateX(0px);
-                }
-                50%{
-                    transform: translateX(10px);
-                }
-            }
-            @keyframes abloop-ico-anim-rotate{
-                0%{
-                    transform: rotate(0deg);
-                }
-                100%{
-                    transform: rotate(-180deg);
-                }
-            }
-            `);
-        }, 1000);
+        initAnimCss();
         cfg.video = await waitForDom(".bilibili-player-video video");
         //d('video', get(".bilibili-player-video video"));
         //d('total', await getTotalTime());
         cfg.video = get(".bilibili-player-video video");
         cfg.b = (await getTotalTime())-0.1;
+        triggerAnimTipStatus(false,true);
         setAPointMenu(true);
         setBPointMenu(true);
         setLoopListenerMenu(true);
