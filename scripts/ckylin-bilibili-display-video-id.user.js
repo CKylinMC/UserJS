@@ -969,11 +969,13 @@
 
     function closeButton(){
         const closebtn = document.createElement("div");
-        closebtn.innerHTML = "✖️";
+        closebtn.innerHTML = " × ";
         closebtn.style.position = "absolute";
         closebtn.style.top = "10px";
         closebtn.style.right = "10px";
         closebtn.style.cursor = "pointer";
+        closebtn.style.fontWeight = 900;
+        closebtn.style.fontSize = "larger";
         closebtn.setAttribute("onclick","CKTools.modal.hideModal()");
         return closebtn;
     }
