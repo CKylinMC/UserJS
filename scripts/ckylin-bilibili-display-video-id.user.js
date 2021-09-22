@@ -815,6 +815,7 @@
     async function feat_custom(itemid){
         const { av_root, infos } = this;
         const that = this;
+        that.window = unsafeWindow;
         const custom_span = getOrNew("bilibili_"+itemid, av_root);
         const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos);
         const parseTxt = txt=>txt.mapReplace({
@@ -842,9 +843,9 @@
             custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
             if(custom_span.getAttribute("setup")!=globalinfos.cid){
                 custom_span.setAttribute("setup",globalinfos.cid);
-                config.running[k] && config.running[k].uninstall();
-                config.running[k] = new CKTools.HoldClick(custom_span);
-                config.running[k].onclick(e => {
+                config.running[itemid] && config.running[itemid].uninstall();
+                config.running[itemid] = new CKTools.HoldClick(custom_span);
+                config.running[itemid].onclick(e => {
                     console.log(item.content)
                     if(item.content.startsWith("js:")){
                         log("executing:",content);
@@ -854,7 +855,7 @@
                         popNotify.success("已复制"+item.title,content);
                     }
                 });
-                config.running[k].onhold(e=>{
+                config.running[itemid].onhold(e=>{
                     GUISettings_customcomponents();
                 })
             }
