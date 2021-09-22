@@ -36,6 +36,7 @@
         video: null,
         isLooping: false,
         showAnimTip: true,
+        initok: false,
         listener: () => getCurrentTime() >= (cfg.b-0.2) ? setTime(cfg.a,true) : 0
     }
     const guibar = {
@@ -558,6 +559,7 @@
     }
 
     async function init(tip_when_ok=false) {
+        cfg.initok = false;
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
         initAnimCss();
@@ -580,8 +582,31 @@
                 txt:"加载成功"
             });
         }
+        cfg.initok = true;
         if((await loadFromSavedData())+(await loadFromURL())) showBars();
     }
+
+    // API
+    unsafeWindow.abloop_setAPoint = (t=getCurrentTime(),remeber=false)=>{
+        cfg.a = t;
+        if(remeber)saveAPoint();
+        setAPointBarPos();
+        setAPointMenu();
+    }
+    unsafeWindow.abloop_setBPoint = (t=getCurrentTime(),remeber=false)=>{
+        cfg.b = t;
+        if(remeber)saveBPoint();
+        setBPointBarPos();
+        setBPointMenu();
+    }
+    unsafeWindow.abloop_isinited = ()=>cfg.initok;
+    unsafeWindow.abloop_isLooping = ()=>cfg.isLooping;
+    unsafeWindow.abloop_getLoopCount = ()=>cfg.loopcounter;
+    unsafeWindow.abloop_startloop = triggerToggleDoStart;
+    unsafeWindow.abloop_stoploop = triggerToggleDoStop;
+    unsafeWindow.abloop_showTip = showAnim;
+    unsafeWindow.abloop_setTipStatus = (enabled=cfg.showAnimTip)=>cfg.showAnimTip=enabled;
+    unsafeWindow.abloop_init = init;
 
     init();
 
