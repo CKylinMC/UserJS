@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.7
+// @version      0.8
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -20,6 +20,7 @@
 
     const get = q => document.querySelector(q);
     const wait = t => new Promise(r => setTimeout(r, t));
+    const waitForPageVisible = async () => document.hidden && new Promise(r=>document.addEventListener("visibilitychange",r));
     const log = (...m) => console.log('[ABLoop]', ...m);
     //const d = (...m) => unsafeWindow.ABLOOPDEBUG ? console.log('[ABLoop Debug]', ...m) : 0;
     const registerMenu = (text, callback) => menuIds.push(GM_registerMenuCommand(text, callback));
@@ -480,7 +481,7 @@
             ico:"alert-circle-check-outline",
             txt:"已忽略。本次播放将无法加载AB循环功能，可以刷新重试。"
         }),delete unsafeWindow.abloop_ignore];
-        showAnim({waitPlayer:false,injectToBody:true,forwards:true,ico:"alert-circle-outline",txt:`未能按时加载。<br><span style="padding:0 4px;display:inline-block">如果你是后台打开的标签页面，这可能很常见。<br>你可以尝试：<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">暂时禁用AB循环</a></span>`});
+        showAnim({waitPlayer:false,injectToBody:true,forwards:true,ico:"alert-circle-outline",txt:`未能按时加载。<br><span style="padding:0 10px;display:inline-block">如果你是后台打开的标签页面，这可能很常见。<br>你可以尝试：<a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_reinit()">重新加载</a> 或 <a style="color:#83ff7e" href="javascript:void(0)" onclick="abloop_ignore()">暂时禁用AB循环</a></span>`});
     }
     unsafeWindow.abloop_testfail = handleLoadFail;
     function initAnimCss(){
@@ -489,7 +490,7 @@
             document.head.innerHTML += `<link id="mdiiconcss" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.1.95/css/materialdesignicons.min.css"/>`
         addStyleOnce('anim-tip-css', `
         .abloop-anim-icon{
-            margin: 0 4px;
+            margin: 0 10px;
         }
         .abloop-ico-rotate::before{
             animation: abloop-ico-anim-rotate forwards .5s .5s ease-in-out;
@@ -501,6 +502,7 @@
             position: fixed;
             top: 0;
             left: 50%;
+            max-height: 3rem !important;
             transform: translateX(-50%);
             border-radius: 0 0 6px 6px;
             z-index: 900000;
@@ -511,11 +513,26 @@
             font-size: 1.5rem;
             min-height: 3rem;
             transition: all .3s;
-            padding-right: 4px;
+            padding-right: 10px;
             overflow: hidden;
             white-space: nowrap;
             line-height: 3rem;
-            animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4s ease-in-out;
+            animation: abloop-in forwards 1.2s ease-in-out, abloop-in forwards reverse 1.2s 4.2s ease-in-out;
+        }
+        .abloop-loopcontainer:not(.forwards)::before {
+            background: #ffffff30;
+            content: " ";
+            position: fixed;
+            top: 0;
+            left: 50%;
+            height: 100%;
+            width: 100%;
+            transform: translateX(-150%);
+            animation: abloop-progress forwards 3s 1.2s linear, abloop-fadeout forwards .3s 4.2s linear;
+        }
+        .abloop-loopcontainer:hover{
+            max-height: 10rem !important;
+            transition: all .3s ease-in-out;
         }
         .abloop-loopcontainer.forwards{
             animation: abloop-in forwards 1.2s ease-in-out !important;
@@ -523,19 +540,32 @@
         @keyframes abloop-in{
             0%{
                 opacity: 0;
-                max-width: 1.8rem;
-                max-height: 3rem;
+                max-width: 2.2rem;
                 top:-100%;
             }
             45%,55%{
                 opacity:1;
                 top:0rem;
-                max-height: 3rem;
-                max-width: 1.8rem;
+                max-width: 2.2rem;
             }
             100%{
-                max-height: 40rem;
                 max-width: 40rem;
+            }
+        }
+        @keyframes abloop-progress{
+            0%{
+                transform: translateX(-150%);
+            }
+            100%{
+                transform: translateX(-50%);
+            }
+        }
+        @keyframes abloop-fadeout{
+            0%{
+                opacity: 1;
+            }
+            100%{
+                opacity: 0;
             }
         }
         @keyframes abloop-ico-anim-move{
@@ -560,6 +590,7 @@
 
     async function init(tip_when_ok=false) {
         cfg.initok = false;
+        await waitForPageVisible();
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
         initAnimCss();
