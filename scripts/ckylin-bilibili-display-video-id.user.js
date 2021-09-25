@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.15
+// @version      1.16.4
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
 // @match        https://www.bilibili.com/medialist/play/*
-// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=967994
+// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=972241
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
 // @resource     timeago https://unpkg.com/timeago.js@4.0.2/dist/timeago.min.js
@@ -67,14 +67,19 @@
         defaultTextTime: true,
         foldedWarningTip: true,
         showInNewLine: false,
+        forceGap: false,
+        jssafetyWarning: true,
         pnmaxlength: 18,
         orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
         all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
         copyitems: ['currTime', 'short', 'shareTime', 'vid'],
         copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
         customcopyitems: {},
-        vduration: 0
+        customComponents: {},
+        vduration: 0,
+        running: {}
     };
+    const ignoredConfigKeys = ["vduration", "firstTimeLoad", "running"];
     const menuId = {
         defaultAv: -1,
         foldedWarningTip: -1,
@@ -146,7 +151,7 @@
         showTop: 0,
         openGUI: 1
     };
-    let infos = {};
+    let globalinfos = {};
     // https://stackoverflow.com/questions/10726638
     String.prototype.mapReplace = function (map) {
         var regex = [];
@@ -174,11 +179,15 @@
         return param;
     }
 
+    function exec(code,binding=this){
+        return (async function(){
+            eval(code);
+        }).bind(binding);
+    }
+
     async function saveAllConfig() {
         for (let configKey of Object.keys(config)) {
-            if ([
-                "all", "vduration", "firstTimeLoad"
-            ].includes(configKey)) continue;
+            if (ignoredConfigKeys.includes(configKey)) continue;
             await GM_setValue(configKey, config[configKey]);
         }
         popNotify.success("配置保存成功");
@@ -189,9 +198,7 @@
             if (menuId[menuitem] != -1) GM_unregisterMenuCommand(menuId[menuitem]);
         }
         for (let configKey of Object.keys(config)) {
-            if ([
-                "all", "vduration", "firstTimeLoad"
-            ].includes(configKey)) continue;
+            if (ignoredConfigKeys.includes(configKey)) continue;
             if (typeof (await GM_getValue(configKey)) === 'undefined') {
                 await GM_setValue(configKey, config[configKey]);
             } else {
@@ -241,12 +248,10 @@
     }
 
     function getOrNew(id, parent,) {
-        let marginDirection = config.showInNewLine ? "Right" : "Left";
         let target = document.querySelector("#" + id);
         if (!target) {
             target = document.createElement("span");
             target.id = id;
-            target.style['margin' + marginDirection] = "16px";
             parent.appendChild(target);
         }
         return target;
@@ -309,6 +314,127 @@
         func(true, 'bv');
     }
 
+    async function prepareData(infos,el=null){
+        const defaultVid = el?el.innerText:'av'+infos.aid;
+        const currpage = new URL(location.href);
+        let part = infos.p==currpage.searchParams.get("p")
+            ? infos.p
+            : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
+        let url = new URL(location.protocol + "//" + location.hostname + "/video/" + defaultVid);
+        part == 1 || url.searchParams.append("p", part);
+        let vidurl = new URL(url);
+        let shorturl = new URL(location.protocol + "//b23.tv/" + defaultVid);
+        let t = await getPlayerSeeks();
+        if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);  
+        try {
+            partinfo = infos.pages[infos.p - 1];
+        } catch (e) {
+            partinfo = infos.pages[0];
+        }
+        return {currpage,partinfo,url,vidurl,shorturl,part,t,infos}
+    }
+    
+    async function getCopyItem(copyitem,infos){
+        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos,this.av_span);
+        switch (copyitem) {
+            case "curr":
+                return {
+                    title: "当前地址",
+                    content: vidurl,
+                    type: "copiable"
+                };
+            case "currTime":
+                return {
+                    title: "含视频进度地址(仅在播放时提供)",
+                    content: url,
+                    type: "copiable"
+                };
+            case "short":
+                return {
+                    title: "短地址格式",
+                    content: shorturl,
+                    type: "copiable"
+                };
+            case "share":
+                return {
+                    title: "快速分享",
+                    content: `${infos.title}_地址:${shorturl}`,
+                    type: "copiable"
+                };
+            case "shareTime":
+                return {
+                    title: "快速分享(含视频进度)",
+                    content: `${infos.title}_地址:${url}`,
+                    type: "copiable"
+                };
+            case "md":
+                return {
+                    title: "MarkDown格式",
+                    content: `[${infos.title}](${vidurl})`,
+                    type: "copiable"
+                };
+            case "bb":
+                return {
+                    title: "BBCode格式",
+                    content: `[url=${vidurl}]${infos.title}[/url]`,
+                    type: "copiable"
+                };
+            case "html":
+                return {
+                    title: "HTML格式",
+                    content: `<a href="${vidurl}">${infos.title}</a>`,
+                    type: "copiable"
+                };
+            case "vid":
+                return {
+                    title: "",
+                    content: `<div class="shoav_expandinfo">
+                    <div>
+                    AV号
+                    <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    BV号
+                    <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                    <div>
+                    资源CID
+                    <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
+                    </div>
+                </div>
+                `,
+                    type: "component",
+                    copyaction: function(){
+                        copy(this.av_span.innerText);
+                        popNotify.success("已复制到剪贴板",this.av_span.innerText);
+                    }
+                };
+            default:
+                if (Object.keys(config.customcopyitems).includes(copyitem)) {
+                    let ccopyitem = config.customcopyitems[copyitem];
+                    let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
+                    pat = pat.mapReplace({
+                        "%timeurl%": url,
+                        "%vidurl%": vidurl,
+                        "%shorturl%": shorturl,
+                        "%seek%": t,
+                        "%title%": infos.title,
+                        "%av%": infos.aid,
+                        "%bv%": infos.bvid,
+                        "%cid%": infos.cid,
+                        "%p%": part,
+                        "%pname%": partinfo.part,
+                        "'": "\'"
+                    });
+                    return {
+                        title: `(自定义) ${ccopyitem.title}`,
+                        content: pat,
+                        type: "copiable"
+                    }
+                }else return null;
+        }
+    };
+
     async function feat_showAv(force = false, mode = 'av'/* 'bv' */) {
         const { av_root, infos } = this;
         const av_span = getOrNew("bilibiliShowAV" + (force ? mode : ''), av_root);
@@ -329,137 +455,44 @@
             config.vduration = Math.floor(video.duration);
         }
 
-        if (av_span.getAttribute("setup") != "ok") {
+        if (av_span.getAttribute("setup") != globalinfos.cid) {
             if (!force)
                 av_span.oncontextmenu = e => {
                     if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
                 }
-            const getCopyItem = async (copyitem) => {
-                const currpage = new URL(location.href);
-                let part = infos.p==currpage.searchParams.get("p")
-                    ? infos.p
-                    : (currpage.searchParams.get("p") ? currpage.searchParams.get("p") : infos.p);
-                let url = new URL(location.protocol + "//" + location.hostname + "/video/" + av_span.innerText);
-                part == 1 || url.searchParams.append("p", part);
-                let vidurl = new URL(url);
-                let shorturl = new URL(location.protocol + "//b23.tv/" + av_span.innerText);
-                let t = await getPlayerSeeks();
-                if (t && t != "0" && t != ("" + config.vduration)) url.searchParams.append("t", t);  
-                try {
-                    partinfo = infos.pages[infos.p - 1];
-                } catch (e) {
-                    partinfo = infos.pages[0];
-                }
-                switch (copyitem) {
-                    case "curr":
-                        return {
-                            title: "当前地址",
-                            content: vidurl,
-                            type: "copiable"
-                        };
-                    case "currTime":
-                        return {
-                            title: "含视频进度地址(仅在播放时提供)",
-                            content: url,
-                            type: "copiable"
-                        };
-                    case "short":
-                        return {
-                            title: "短地址格式",
-                            content: shorturl,
-                            type: "copiable"
-                        };
-                    case "share":
-                        return {
-                            title: "快速分享",
-                            content: `${infos.title}_地址:${shorturl}`,
-                            type: "copiable"
-                        };
-                    case "shareTime":
-                        return {
-                            title: "快速分享(含视频进度)",
-                            content: `${infos.title}_地址:${url}`,
-                            type: "copiable"
-                        };
-                    case "md":
-                        return {
-                            title: "MarkDown格式",
-                            content: `[${infos.title}](${vidurl})`,
-                            type: "copiable"
-                        };
-                    case "bb":
-                        return {
-                            title: "BBCode格式",
-                            content: `[url=${vidurl}]${infos.title}[/url]`,
-                            type: "copiable"
-                        };
-                    case "html":
-                        return {
-                            title: "HTML格式",
-                            content: `<a href="${vidurl}">${infos.title}</a>`,
-                            type: "copiable"
-                        };
-                    case "vid":
-                        return {
-                            title: "",
-                            content: `<div class="shoav_expandinfo">
-                            <div>
-                            AV号
-                            <input class="shortinput" readonly value="av${infos.aid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            BV号
-                            <input class="shortinput" readonly value="${infos.bvid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                            <div>
-                            资源CID
-                            <input class="shortinput" readonly value="${infos.cid}" onclick="showav_fastcopy(this);" />
-                            </div>
-                        </div>
-                        `,
-                            type: "component"
-                        };
-                    default:
-                        if (Object.keys(config.customcopyitems).includes(copyitem)) {
-                            let ccopyitem = config.customcopyitems[copyitem];
-                            let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
-                            pat = pat.mapReplace({
-                                "%timeurl%": url,
-                                "%vidurl%": vidurl,
-                                "%shorturl%": shorturl,
-                                "%seek%": t,
-                                "%title%": infos.title,
-                                "%av%": infos.aid,
-                                "%bv%": infos.bvid,
-                                "%cid%": infos.cid,
-                                "%p%": part,
-                                "%pname%": partinfo.part,
-                                "'": "\'"
-                            });
-                            return {
-                                title: `(自定义) ${ccopyitem.title}`,
-                                content: pat,
-                                type: "copiable"
-                            }
-                        }
-                }
-            };
-            const avspanHC = new CKTools.HoldClick(av_span);
-            avspanHC.onclick(async e => {
+            config.running.avspanHC && config.running.avspanHC.uninstall();
+            config.running.avspanHC = new CKTools.HoldClick(av_span);
+            config.running.avspanHC.onclick(async e => {
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem(copyitem);
+                    const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
+                    if(copyiteminfo===null) {
+                        log(`[ADVCOPY] warning: unknown custom copy item id "${copyitem}", maybe should clean settings up.`);
+                        continue;
+                    }
                     if(copyiteminfo.type=="copiable"){
                         copy(copyiteminfo.content);
                         popNotify.success(copyiteminfo.title+"复制成功", copyiteminfo.content);
+                        return;
+                    }
+                    else if(copyiteminfo.type=="component"){
+                        if(typeof(copyiteminfo.copyaction)==="function"){
+                            try{
+                                const func = copyiteminfo.copyaction.bind({av_span});
+                                func();
+                            }catch(e){log(copyiteminfo,e);}
+                        }else{
+                            copy(copyiteminfo.copyaction.toString());
+                            popNotify.success("已复制到剪贴板",copyiteminfo.copyaction.toString())
+                        }
                         return;
                     }
                     else continue;
                 }
                 popNotify.error("快速复制失败","没有任何已启用的可用快速复制设定");
             });
-            avspanHC.onhold(async e => {
+            config.running.avspanHC.onhold(async e => {
                 let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
@@ -489,7 +522,7 @@
                 <b>点击输入框可以快速复制</b><br>`;
                 let first = true;
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem(copyitem);
+                    const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,globalinfos);
                     if(copyiteminfo.type=="copiable"){
                         let titleex = "";
                         if(first){
@@ -502,36 +535,35 @@
                         modalcontent+=copyiteminfo.content;
                     }
                 }
-                modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_shoy()">⚙ 复制设置</a><br>
+                modalcontent += `<br><hr><a href="javascript:void(0)" onclick="showav_guisettings_advcopy()">⚙ 复制设置</a><br>
                 <a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E9%A2%84%E8%AE%BE%E9%93%BE%E6%8E%A5%E6%A0%BC%E5%BC%8F%EF%BC%8C%E5%A6%82%E4%B8%8B...">缺少你需要的格式？反馈来添加...</a>
                 `;
                 modalcontent+= closeButton().outerHTML;
                 CKTools.modal.alertModal("高级复制", modalcontent, "关闭");
             });
-            av_span.setAttribute("setup", "ok");
+            av_span.setAttribute("setup", globalinfos.cid);
         }
         //} else av_span.remove();
     }
 
     async function feat_showMore() {
-        const { av_root, infos } = this;
-        log('infos', infos);
+        const { av_root } = this;
         const more_span = getOrNew("bilibiliShowMore", av_root);
         more_span.innerHTML = '⋯';
         more_span.title = "展示更多信息";
         more_span.style.cursor = "pointer";
-        if (more_span.getAttribute("setup") != "ok") {
+        if (more_span.getAttribute("setup") != globalinfos.cid) {
             more_span.addEventListener('click', async e => {
-                let part, videoData = infos;
+                let part, videoData = globalinfos;
                 try {
-                    part = videoData.pages[infos.p - 1];
+                    part = videoData.pages[globalinfos.p - 1];
                 } catch (e) {
                     part = videoData.pages[0];
                 }
                 let currentPageName = part.part.length ? part.part : '';
                 let currentPageNum;
                 if (videoData.videos != 1) {
-                    currentPageNum = `P ${infos.p}/${videoData.videos}`;
+                    currentPageNum = `P ${globalinfos.p}/${videoData.videos}`;
                 } else {
                     currentPageNum = "P 1/1";
                 }
@@ -542,13 +574,13 @@
                 }
             </style>
             <li>
-                <b>AV号: </b>av${infos.aid}
+                <b>AV号: </b>av${globalinfos.aid}
             </li>
             <li>
-                <b>BV号: </b>${infos.bvid}
+                <b>BV号: </b>${globalinfos.bvid}
             </li>
             <li>
-                <b>CID: </b>${infos.cid}
+                <b>CID: </b>${globalinfos.cid}
             </li>
             <li>
                 <b>分P: </b>${currentPageNum}
@@ -557,23 +589,23 @@
                 <b>P名: </b>${currentPageName}
             </li>
             <li>
-                <b>长度: </b>${infos.duration}s
+                <b>长度: </b>${globalinfos.duration}s
             </li>
             <li>
-                <b>投稿: </b>${timeago.format(infos.ctime * 1000, 'zh_CN')}
+                <b>投稿: </b>${timeago.format(globalinfos.ctime * 1000, 'zh_CN')}
             </li>
             <li>
-                <b>分区: </b>${infos.tname}
+                <b>分区: </b>${globalinfos.tname}
             </li>
             <li>
-                <b>大小: </b>${infos.dimension.width}x${infos.dimension.height}
+                <b>大小: </b>${globalinfos.dimension.width}x${globalinfos.dimension.height}
             </li>
             <li>
-                <b>封面: </b><a href="${infos.pic}" target="_blank">点击查看</a>
+                <b>封面: </b><a href="${globalinfos.pic}" target="_blank">点击查看</a>
             </li>
             `, "确定");
             })
-            more_span.setAttribute("setup", "ok");
+            more_span.setAttribute("setup", globalinfos.cid);
         }
     }
 
@@ -592,10 +624,7 @@
         if (config.hideTime) ct_span.innerHTML += `
         <style>
         .video-data>span:nth-child(3){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+            display:none!important;
         }
         </style>`;
     }
@@ -613,11 +642,8 @@
         })();
         v_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(1){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+        .video-data>span.view{
+            display:none!important;
         }
         </style>`;
     }
@@ -635,11 +661,8 @@
         })();
         dmk_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(2){
-            display:none;
-        }
-        #bilibiliShowInfos>*:nth-child(1){
-            margin-left: 0!important;
+        .video-data>span.dm{
+            display:none!important;
         }
         </style>`;
     }
@@ -655,7 +678,7 @@
         top_span.innerHTML += `
         <style>
         .video-data>span.rank{
-            display:none;
+            display:none!important;
         }
         </style>`;
         if (infos.stat.his_rank === 0) {
@@ -679,17 +702,18 @@
         pic_span.title = "查看封面";
         pic_span.innerHTML = "🖼️";
         pic_span.style.cursor = "pointer";
-        if (pic_span.getAttribute("setup") != "ok") {
-            const picHC = new CKTools.HoldClick(pic_span);
-            picHC.onclick(() => {
+        if (pic_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.picHC && config.running.picHC.uninstall();
+            config.running.picHC = new CKTools.HoldClick(pic_span);
+            config.running.picHC.onclick(() => {
                 CKTools.modal.alertModal("封面", `
-            <img src="${infos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
+            <img src="${globalinfos.pic}" style="width:100%" onload="this.parentElement.style.width='100%'" />
             `, "关闭");
             });
-            picHC.onhold(() => {
-                open(infos.pic);
+            config.running.picHC.onhold(() => {
+                open(globalinfos.pic);
             });
-            pic_span.setAttribute("setup", "ok");
+            pic_span.setAttribute("setup", globalinfos.cid);
         }
     }
 
@@ -702,18 +726,19 @@
         cid_span.style.overflow = "hidden";
         cid_span.title = "CID:" + infos.cid;
         cid_span.innerText = "CID:" + infos.cid;
-        if (cid_span.getAttribute("setup") != "ok") {
-            const cidspanHC = new CKTools.HoldClick(cid_span);
-            cidspanHC.onclick(() => {
+        if (cid_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.cidspanHC && config.running.cidspanHC.uninstall();
+            config.running.cidspanHC = new CKTools.HoldClick(cid_span);
+            config.running.cidspanHC.onclick(() => {
                 copy(currentPageName);
-                popNotify.success("CID复制成功", infos.cid);
+                popNotify.success("CID复制成功", globalinfos.cid);
             });
-            cidspanHC.onhold(() => {
+            config.running.cidspanHC.onhold(() => {
                 CKTools.modal.alertModal("CID信息", `
-                <input readonly style="width:440px" value="${infos.cid}" />
+                <input readonly style="width:440px" value="${globalinfos.cid}" />
                 `, "关闭");
             });
-            cid_span.setAttribute("setup", "ok");
+            cid_span.setAttribute("setup", globalinfos.cid);
         }
         //} else cid_span.remove();
     }
@@ -754,7 +779,7 @@
         } catch (e) {
             part = videoData.pages[0];
         }
-        let currentPageName = part.part.length ? `《${part.part}》` : '';
+        let currentPageName = part.part.length ? part.part : '';
         let currentPageNum;
         let delimiters;
         if (videoData.videos != 1) {
@@ -770,21 +795,75 @@
         pn_span.title = currentPageNum + delimiters[0] + currentPageName
         pn_span.innerText = currentPageNum + delimiters[1] + currentPageName;
 
-        if (pn_span.getAttribute("setup") != "ok") {
-            const pnspanHC = new CKTools.HoldClick(pn_span);
-            pnspanHC.onclick(() => {
-                copy(part.part);
-                popNotify.success("分P标题复制成功", part.part);
+        if (pn_span.getAttribute("setup") != globalinfos.cid) {
+            config.running.pnspanHC && config.running.pnspanHC.uninstall();
+            config.running.pnspanHC = new CKTools.HoldClick(pn_span);
+            config.running.pnspanHC.onclick(() => {
+                copy(currentPageName);
+                popNotify.success("分P标题复制成功", currentPageName);
             });
-            pnspanHC.onhold(() => {
+            config.running.pnspanHC.onhold(() => {
                 CKTools.modal.alertModal("分P标题", `
-                <input readonly style="width:440px" value="${part.part}" />
+                <input readonly style="width:440px" value="${currentPageName}" />
                 `, "关闭");
             });
-            pn_span.setAttribute("setup", "ok");
+            pn_span.setAttribute("setup", globalinfos.cid);
         }
         //} else pn_span.remove();
     }
+
+    async function feat_custom(itemid){
+        const { av_root, infos } = this;
+        const that = this;
+        that.window = unsafeWindow;
+        const custom_span = getOrNew("bilibili_"+itemid, av_root);
+        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos);
+        const parseTxt = txt=>txt.mapReplace({
+            "%timeurl%": url,
+            "%vidurl%": vidurl,
+            "%shorturl%": shorturl,
+            "%seek%": t,
+            "%title%": infos.title,
+            "%av%": infos.aid,
+            "%bv%": infos.bvid,
+            "%cid%": infos.cid,
+            "%p%": part,
+            "%pname%": partinfo.part,
+            "'": "\'"
+        });
+        if(Object.keys(config.customComponents).includes(itemid)){
+            const item = config.customComponents[itemid];
+            let content = item.content;
+            if(item.content.startsWith("js:")){
+                content = item.content.replace("js:","");
+            }
+            else content = parseTxt(item.content);
+            custom_span.style.overflow = "hidden";
+            custom_span.innerHTML = parseTxt(item.title);
+            custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
+            if(custom_span.getAttribute("setup")!=globalinfos.cid){
+                custom_span.setAttribute("setup",globalinfos.cid);
+                config.running[itemid] && config.running[itemid].uninstall();
+                config.running[itemid] = new CKTools.HoldClick(custom_span);
+                config.running[itemid].onclick(e => {
+                    console.log(item.content)
+                    if(item.content.startsWith("js:")){
+                        log("executing:",content);
+                        exec(content,that)();
+                    }else{
+                        copy(content);
+                        popNotify.success("已复制"+item.title,content);
+                    }
+                });
+                config.running[itemid].onhold(e=>{
+                    GUISettings_customcomponents();
+                })
+            }
+        }else{
+            log("Errored while handling custom components:",k,"not found");
+            custom_span.remove();
+        }
+    } 
 
     async function tryInject(flag) {
         if (flag && config.orders.length === 0) return log('Terminated because no option is enabled.');
@@ -795,24 +874,28 @@
             config.firstTimeLoad = false;
         }
 
+        if (config.forceGap) {
+            CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
+        }else{
+            
+            CKTools.addStyle(``,"showav_forceGapCss","update",document.head);
+        }
+
         if (location.pathname.startsWith("/medialist")) {
             let aid = unsafeWindow.aid;
             if (!aid) {
                 log("Variable 'aid' is not available from unsafeWindow.");
                 let activeVideo = await waitForDom(".player-auxiliary-playlist-item-active");
                 aid = activeVideo.getAttribute("data-aid");
-                //console.log("SHOWAV",activeVideo);
             }
-            log(aid);
             let apidata = await getAidAPI(aid);
-            //console.log("SHOWAV",apidata);
-            infos = apidata.data;
+            globalinfos = apidata.data;
         } else {
             if (flag)
-                infos = (await getAPI(unsafeWindow.bvid)).data;
-            else infos = unsafeWindow.vd;
+            globalinfos = (await getAPI(unsafeWindow.bvid)).data;
+            else globalinfos = unsafeWindow.vd;
         }
-        infos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, infos);
+        globalinfos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, globalinfos);
 
         const av_infobar = await waitForDom(".video-data");
         if (!av_infobar) return log('Can not load info-bar in time.');
@@ -834,8 +917,9 @@
         av_root.style.textOverflow = "ellipsis";
         av_root.style.whiteSpace = "nowarp";
         av_root.style.overflow = "hidden";
+        
         const that = {
-            av_root, config, av_infobar, infos, CKTools
+            av_root, config, av_infobar, infos : globalinfos, CKTools
         };
 
         const functions = {
@@ -852,10 +936,20 @@
             showDmk: feat_showDmk.bind(that),
             showViews: feat_showViews.bind(that),
             showTop: feat_showTop.bind(that),
-            openGUI: feat_openGUI.bind(that)
+            openGUI: feat_openGUI.bind(that),
+            customDriver: feat_custom.bind(that)
         }
 
-        config.orders.forEach(k => functions[k]());
+        config.orders.forEach(k => {
+            if(Object.keys(functions).includes(k)) functions[k]();
+            else{
+                try{
+                    functions.customDriver(k);
+                }catch(e){
+                    log(`Custom component "${k}" throwed an error:`,e)
+                };
+            }
+        });
         
         const titleobj = document.querySelector("span.tit");
         if(titleobj&&!titleobj.getAttribute("data-copy-action-registered")){
@@ -875,56 +969,170 @@
 
     function closeButton(){
         const closebtn = document.createElement("div");
-        closebtn.innerHTML = "✖️";
+        closebtn.innerHTML = " × ";
         closebtn.style.position = "absolute";
         closebtn.style.top = "10px";
         closebtn.style.right = "10px";
         closebtn.style.cursor = "pointer";
+        closebtn.style.fontWeight = 900;
+        closebtn.style.fontSize = "larger";
         closebtn.setAttribute("onclick","CKTools.modal.hideModal()");
         return closebtn;
     }
 
     async function GUISettings() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
         CKTools.modal.openModal("ShowAV / 设置", await CKTools.makeDom("div", async container => {
             container.style.alignItems = "stretch";
-            const refreshRecommendShield = () => {
-                let shield = document.querySelector("#showav_newlinetip");
-                if (!shield) return;
-                let enabledArray = [];
-                const enableddiv = document.querySelector(".showav_enableddiv");
-                const elements = enableddiv.querySelectorAll(".showav_dragableitem");
-                for (let element of [...elements]) {
-                    enabledArray.push(element.getAttribute('data-id'));
-                }
-                let sum = 0;
-                enabledArray.forEach(k => sum += idTn[k]);
-                if (sum >= 6) {
-                    shield.classList.add('showav_newlinetip');
-                } else {
-                    shield.classList.remove('showav_newlinetip');
-                }
-            }
+            container.style.minWidth = "300px";
             [
                 closeButton(),
+                await CKTools.makeDom("div", async tip => {
+                    tip.style.lineHeight = "2em";
+                    tip.style.fontSize = "small";
+                    tip.style.fontStyle = "italic";
+                    tip.style.width = "100%";
+                    tip.innerText = "修改设置后记得点击保存哦";
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_options();
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "功能选项";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "调整每个功能模块的单独选项";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_components();
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "组件设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "启用/排序/自定义功能组件";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_customcomponents(()=>GUISettings());
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "自定义组件设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "添加或删除自定义的信息栏组件";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.classList.add("showav_menuitem");
+                    list.onclick = e => GUISettings_advcopy(()=>GUISettings());
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.innerHTML = "高级复制设置";
+                        }),
+                        await CKTools.makeDom("span", label => {
+                            label.innerHTML = "自定义复制弹窗和默认动作";
+                            label.style.marginLeft = "6px";
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                }),
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
+    async function GUISettings_options() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 功能选项", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "信息栏";
+                    sectiontitle.className = "showav_settings_sectiontitle";
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_forcegap";
+                            input.name = "showav_forcegap";
+                            input.style.display = "none";
+                            input.checked = config.forceGap;
+                            input.addEventListener("change",e=>{
+                                const label = document.querySelector("#showav_forcegaptip");
+                                if(!label) return;
+                                if(input.checked){
+                                    label.innerHTML = "在第一个组件前<b>强制添加</b>间隔(点击切换)"
+                                }else{
+                                    label.innerHTML = "在第一个组件前<b>保持默认</b>间隔(点击切换)"
+                                }
+                            })
+                        }),
+                        await CKTools.makeDom("label", label => {
+                            label.id = "showav_forcegaptip";
+                            label.setAttribute('for', "showav_forcegap");
+                            if(config.forceGap){
+                                label.innerHTML = "在第一个组件前<b>强制添加</b>间隔(点击切换)"
+                            }else{
+                                label.innerHTML = "在第一个组件前<b>保持默认</b>间隔(点击切换)"
+                            }
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `可选扩展信息栏和原版信息栏之间强制添加一个间隔，或保持默认`;
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
                     [
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_newline";
+                            input.style.display = "none";
                             input.name = "showav_newline";
                             input.checked = config.showInNewLine;
-                            input.addEventListener("change", e => {
-                                let shield = document.querySelector("#showav_newlinetip");
-                                if (!shield) return;
-                                if (input.checked) shield.classList.add('showav_newlinetip_ok');
-                                else shield.classList.remove('showav_newlinetip_ok');
+                            input.addEventListener("change",e=>{
+                                const label = document.querySelector("#showav_showinnewlinetip");
+                                if(!label) return;
+                                if(input.checked){
+                                    label.innerHTML = "在<b>新的一行中</b>显示扩展信息栏(点击切换)"
+                                }else{
+                                    label.innerHTML = "在<b>当前位置后</b>显示扩展信息栏(点击切换)"
+                                }
                             })
                         }),
                         await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
+                            label.id = "showav_showinnewlinetip";
                             label.setAttribute('for', "showav_newline");
-                            label.innerHTML = "在新的一行中显示信息 <span id='showav_newlinetip'>建议开启</span>";
+                            if(config.showInNewLine){
+                                label.innerHTML = "在<b>新的一行中</b>显示扩展信息栏(点击切换)"
+                            }else{
+                                label.innerHTML = "在<b>当前位置后</b>显示扩展信息栏(点击切换)"
+                            }
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `可选将扩展信息栏显示在下一行，尽量减少对原信息栏的修改`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
@@ -933,8 +1141,46 @@
                     [
                         await CKTools.makeDom("label", label => {
                             label.style.paddingLeft = "3px";
+                            label.id = "showav_foldvidwarn_tip";
+                            label.setAttribute('for', "showav_foldvidwarn");
+                            if (config.foldedWarningTip)
+                                label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
+                            else
+                                label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                        }),
+                        await CKTools.makeDom("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_foldvidwarn";
+                            input.name = "showav_foldvidwarn";
+                            input.style.display = "none";
+                            input.checked = config.foldedWarningTip;
+                            input.addEventListener('change', e => {
+                                const label = document.querySelector("#showav_foldvidwarn_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
+                                else
+                                    label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                            })
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。`;
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频分P信息";
+                    sectiontitle.className = "showav_settings_sectiontitle";
+                }),
+                await CKTools.makeDom("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.makeDom("label", label => {
+                            label.style.paddingLeft = "3px";
                             label.setAttribute('for', "showav_pnwid");
-                            label.innerHTML = "视频分P名: 字数限制";
+                            label.innerHTML = "字数限制";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "number";
@@ -947,8 +1193,38 @@
                             input.style.marginLeft = "1em";
                             input.style.lineHeight = "1em";
                             input.value = config.pnmaxlength;
+                            const updatePreview = () =>
+                                wait(2).then(() => CKTools.addStyle(`
+                                #showav_lengthpreview{
+                                    max-width: ${input.value}em !important;
+                                }
+                                `, "showav_lengthpreviewcss", "update"));
+                            input.addEventListener("input", updatePreview);
+                            wait(300).then(updatePreview);
+                        }),
+                        await CKTools.makeDom("span", span => {
+                            span.id = "showav_lengthpreview";
+                            span.innerText = "这里是一条长度预览，你可以在这里查看长度限制的效果。好吧，我承认，后面这几个字只是为了凑个字数而已的。等等，你还要更长？？？相信我，你不会想要这么长的。";
+                            span.style.maxWidth = "0em";
+                            span.style.marginLeft = "30px";
+                            span.style.textOverflow = "ellipsis";
+                            span.style.whiteSpace = "nowarp";
+                            span.style.overflow = "hidden";
+                            span.style.whiteSpace = "nowrap";
+                            span.style.display = "block";
+                            span.style.fontSize = "12px";
+                            span.style.transition = "all .5s";
+                        }),
+                        await CKTools.makeDom("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `限制分P信息显示时的最大长度`;
                         })
                     ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频编号和高级复制";
+                    sectiontitle.className = "showav_settings_sectiontitle";
                 }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
@@ -958,9 +1234,9 @@
                             label.id = "showav_defaultav_tip";
                             label.setAttribute('for', "showav_defaultav");
                             if (config.defaultAv)
-                                label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                                label.innerHTML = "默认展示 <b>视频AV号</b> (点击切换)";
                             else
-                                label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+                                label.innerHTML = "默认展示 <b>视频BV号</b> (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -972,52 +1248,24 @@
                                 const label = document.querySelector("#showav_defaultav_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "视频编号: 默认展示 <b>视频AV号</b> (点击切换)";
+                                    label.innerHTML = "默认展示 <b>视频AV号</b> (点击切换)";
                                 else
-                                    label.innerHTML = "视频编号: 默认展示 <b>视频BV号</b> (点击切换)";
+                                    label.innerHTML = "默认展示 <b>视频BV号</b> (点击切换)";
 
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `此功能仅对<b>可切换视频编号和高级复制</b>功能起效。`;
+                            div.innerHTML = `仅对<b>可切换视频编号和高级复制</b>功能起效。<br>
+                            可切换视频编号和高级复制组件可以使用右键临时切换显示内容。<br>
+                            高级复制和快速复制默认读取对应组件显示内容，因此此处设置也会影响可切换视频编号组件的默认复制内容。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
-                    list.style.lineHeight = "2em";
-                    [
-                        await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
-                            label.id = "showav_foldvidwarn_tip";
-                            label.setAttribute('for', "showav_foldvidwarn");
-                            if (config.foldedWarningTip)
-                                label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
-                            else
-                                label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
-                        }),
-                        await CKTools.makeDom("input", input => {
-                            input.type = "checkbox";
-                            input.id = "showav_foldvidwarn";
-                            input.name = "showav_foldvidwarn";
-                            input.style.display = "none";
-                            input.checked = config.foldedWarningTip;
-                            input.addEventListener('change', e => {
-                                const label = document.querySelector("#showav_foldvidwarn_tip");
-                                if (!label) return;
-                                if (input.checked)
-                                    label.innerHTML = "显示优化: 默认 <b>折叠</b> 视频警告文字(点击切换)";
-                                else
-                                    label.innerHTML = "显示优化: 默认 <b>展示</b> 视频警告文字(点击切换)";
-                            })
-                        }),
-                        await CKTools.makeDom("div", div => {
-                            div.style.paddingLeft = "20px";
-                            div.style.color = "#919191";
-                            div.innerHTML = `此功能可将视频警告(如 含有危险行为)折叠为图标，防止占用信息栏空间。`;
-                        })
-                    ].forEach(e => list.appendChild(e));
+                await CKTools.makeDom("li", sectiontitle=>{
+                    sectiontitle.innerText = "组件: 显示视频投稿时间";
+                    sectiontitle.className = "showav_settings_sectiontitle";
                 }),
                 await CKTools.makeDom("li", async list => {
                     list.style.lineHeight = "2em";
@@ -1027,9 +1275,9 @@
                             label.id = "showav_hidetime_tip";
                             label.setAttribute('for', "showav_hidetime");
                             if (config.hideTime)
-                                label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
+                                label.innerHTML = "<b>隐藏</b>原版发布时间 (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
+                                label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -1041,15 +1289,16 @@
                                 const label = document.querySelector("#showav_hidetime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: <b>隐藏</b>原版发布时间 (点击切换)";
+                                    label.innerHTML = "<b>隐藏</b>原版发布时间 (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: <b>显示</b>原版发布时间 (点击切换)";
+                                    label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `此功能仅在开启<b>视频投稿时间</b>功能时起效，视频投稿时间可以显示两种时间格式，并且可排序。`;
+                            div.innerHTML = `仅在开启<b>视频投稿时间</b>功能时起效。<br>
+                            插件添加的视频投稿时间可以选择显示两种时间格式，并且可排序。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
@@ -1061,9 +1310,9 @@
                             label.id = "showav_deftxttime_tip";
                             label.setAttribute('for', "showav_deftxttime");
                             if (config.defaultTextTime)
-                                label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
+                                label.innerHTML = "显示<b>相对时间</b> (点击切换)";
                             else
-                                label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
+                                label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                         }),
                         await CKTools.makeDom("input", input => {
                             input.type = "checkbox";
@@ -1075,33 +1324,66 @@
                                 const label = document.querySelector("#showav_deftxttime_tip");
                                 if (!label) return;
                                 if (input.checked)
-                                    label.innerHTML = "投稿时间: 显示<b>相对时间</b> (点击切换)";
+                                    label.innerHTML = "显示<b>相对时间</b> (点击切换)";
                                 else
-                                    label.innerHTML = "投稿时间: 显示<b>完整时间戳</b> (点击切换)";
+                                    label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                             })
                         }),
                         await CKTools.makeDom("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>此功能仅对<b>视频投稿时间</b>功能起效。`;
+                            div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>仅对<b>视频投稿时间</b>功能起效。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
-                    list.style.lineHeight = "2em";
-                    [
-                        await CKTools.makeDom("label", label => {
-                            label.style.paddingLeft = "3px";
-                            label.innerHTML = "高级复制: <b>自定义复制格式</b>";
-                            label.addEventListener("click", () => GUISettings_advcopy())
-                        }),
-                        await CKTools.makeDom("div", div => {
-                            div.style.paddingLeft = "20px";
-                            div.style.color = "#919191";
-                            div.innerHTML = `进入自定义复制格式设置界面。此功能仅在<b>高级复制</b>功能启用时生效。<br><b>请注意未保存的修改将会丢失</b>。`;
-                        })
-                    ].forEach(e => list.appendChild(e));
-                }),
+                await CKTools.makeDom("div", async btns => {
+                    btns.style.display = "flex";
+                    btns.style.alignItems = "flex-end";
+                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                        btn.className = "CKTOOLS-toolbar-btns";
+                        btn.innerHTML = "保存并返回";
+                        btn.onclick = e => {
+                            config.defaultAv = document.querySelector("#showav_defaultav").checked;
+                            config.forceGap = document.querySelector("#showav_forcegap").checked;
+                            config.hideTime = document.querySelector("#showav_hidetime").checked;
+                            config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
+                            config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
+                            config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
+                            config.showInNewLine = document.querySelector("#showav_newline").checked;
+                            saveAllConfig();
+                            CKTools.addStyle(``, "showav_lengthpreviewcss", "update");
+                            CKTools.modal.hideModal();
+                            let old = document.querySelector("#bilibiliShowInfos")
+                            if (old) old.remove();
+                            initScript(true);
+                            wait(300).then(()=>GUISettings());
+                        }
+                    }))
+                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                        btn.className = "CKTOOLS-toolbar-btns";
+                        btn.innerHTML = "返回";
+                        btn.style.background = "#ececec";
+                        btn.style.color = "black";
+                        btn.onclick = e => {
+                            CKTools.addStyle(``, "showav_lengthpreviewcss", "update");
+                            CKTools.modal.hideModal();
+                            wait(300).then(()=>GUISettings());
+                        }
+                    }))
+                })
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
+    async function GUISettings_components() {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 组件", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
                 await CKTools.makeDom("li", async list => {
                     const makeDragable = async id => {
@@ -1109,8 +1391,15 @@
                             draggable.className = "showav_dragableitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
-                            draggable.innerHTML = txtCn[id];
-                            draggable.innerHTML += `<div>${descCn[id]}</div>`;
+                            if (id.split("_")[0] === "custom") {
+                                draggable.innerHTML = config.customComponents[id].title;
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(config.customComponents[id].content));
+                                draggable.appendChild(node);
+                            } else {
+                                draggable.innerHTML = txtCn[id];
+                                draggable.innerHTML += `<div>${descCn[id]}</div>`;
+                            }
                             let expanded = false;
                             draggable.addEventListener('dragstart', e => {
                                 if (expanded) draggable.classList.remove('showav_expand');
@@ -1121,7 +1410,6 @@
                                 if (expanded) draggable.classList.add('showav_expand');
                                 draggable.classList.remove('showav_dragging');
                                 [...document.querySelectorAll('.showav_child_dragging')].forEach(e => e.classList.remove('showav_child_dragging'))
-                                refreshRecommendShield();
                             })
                             draggable.addEventListener('click', e => {
                                 expanded = draggable.classList.toggle('showav_expand');
@@ -1172,6 +1460,22 @@
                         }),
                         await CKTools.makeDom("div", async div => {
                             div.style.lineHeight = "2em";
+                            div.style.cursor = "pointer";
+                            div.style.color = "#1976d2";
+                            div.style.fontWeight = "bold";
+                            div.innerHTML = `功能设置`;
+                            div.onclick = e => GUISettings_options();
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.style.lineHeight = "2em";
+                            div.style.cursor = "pointer";
+                            div.style.color = "#1976d2";
+                            div.style.fontWeight = "bold";
+                            div.innerHTML = `管理自定义组件`;
+                            div.onclick = e => GUISettings_customcomponents();
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.style.lineHeight = "2em";
                             div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
                         }),
                         await CKTools.makeDom("div", async div => {
@@ -1179,7 +1483,7 @@
                                 btns.style.display = "flex";
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
-                                    btn.innerHTML = "保存并关闭";
+                                    btn.innerHTML = "保存并返回";
                                     btn.onclick = e => {
                                         const enableddiv = document.querySelector(".showav_enableddiv");
                                         const elements = enableddiv.querySelectorAll(".showav_dragableitem");
@@ -1188,37 +1492,22 @@
                                             enabledArray.push(element.getAttribute('data-id'));
                                         }
                                         config.orders = enabledArray;
-                                        config.defaultAv = document.querySelector("#showav_defaultav").checked;
-                                        config.hideTime = document.querySelector("#showav_hidetime").checked;
-                                        config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
-                                        config.foldedWarningTip = document.querySelector("#showav_foldvidwarn").checked;
-                                        config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
-                                        config.showInNewLine = document.querySelector("#showav_newline").checked;
                                         saveAllConfig();
                                         CKTools.modal.hideModal();
-                                        if (config.foldedWarningTip) {
-                                            CKTools.addStyle(`
-                                                .video-data>span.argue{
-                                                    width: 0.5rem;
-                                                    margin-left: 0!important;
-                                                    margin-right: 16px;
-                                                }
-                                            `, 'showav_hidevidwarn', 'update');
-                                        } else {
-                                            CKTools.addStyle('', 'showav_hidevidwarn', 'update');
-                                        }
                                         let old = document.querySelector("#bilibiliShowInfos")
                                         if (old) old.remove();
                                         initScript(true);
+                                        wait(310).then(()=>GUISettings());
                                     }
                                 }))
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
-                                    btn.innerHTML = "关闭";
+                                    btn.innerHTML = "返回";
                                     btn.style.background = "#ececec";
                                     btn.style.color = "black";
                                     btn.onclick = e => {
                                         CKTools.modal.hideModal();
+                                        wait(310).then(()=>GUISettings());
                                     }
                                 }))
                             }))
@@ -1226,11 +1515,10 @@
                     ].forEach(e => list.appendChild(e));
                 })
             ].forEach(e => container.appendChild(e));
-            setTimeout(refreshRecommendShield, 500);
         }));
     }
 
-    async function GUISettings_advcopy() {
+    async function GUISettings_advcopy(back=null) {
         if (CKTools.modal.isModalShowing()) {
             CKTools.modal.hideModal();
             await wait(300);
@@ -1246,7 +1534,7 @@
                             draggable.className = "showav_dragableitem copyitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
-                            if (id.split(":")[0] === "custom") {
+                            if (id.split("_")[0] === "custom") {
                                 draggable.innerHTML = config.customcopyitems[id].title;
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(config.customcopyitems[id].content));
@@ -1345,11 +1633,11 @@
                                 };
                                 node.onclick = async e => {
                                     if(node.classList.contains("preremove")){
-                                        if (config.all.includes(copyitemid)) {
-                                            config.all.splice(config.all.indexOf(copyitemid), 1);
+                                        if (config.copyitems.includes(copyitemid)) {
+                                            config.copyitems.splice(config.copyitems.indexOf(copyitemid), 1);
                                         }
-                                        if (config.orders.includes(copyitemid)) {
-                                            config.orders.splice(config.orders.indexOf(copyitemid), 1);
+                                        if (config.copyitemsAll.includes(copyitemid)) {
+                                            config.copyitemsAll.splice(config.copyitemsAll.indexOf(copyitemid), 1);
                                         }
                                         delete config.customcopyitems[copyitemid];
                                         saveAllConfig();
@@ -1412,6 +1700,7 @@
                                             <li>%bv% => BV号</li>
                                             <li>%cid% => CID号</li>
                                             <li>%p% => 分P</li>
+                                            <li>%pname% => 分P名</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
@@ -1420,7 +1709,7 @@
                                             div.onclick = e => {
                                                 expanded = !expanded;
                                                 if (expanded) {
-                                                    div.style.maxHeight = "20rem";
+                                                    div.style.maxHeight = "30rem";
                                                 } else {
                                                     div.style.maxHeight = '2rem';
                                                 }
@@ -1432,7 +1721,7 @@
                                             btn.style.background = "#ececec";
                                             btn.style.color = "black";
                                             btn.onclick = async e => {
-                                                const ccid = "custom:" + Math.random().toString(36).replace('.', '');
+                                                const ccid = "custom_" + Math.random().toString(36).replace('.', '');
                                                 const title = document.querySelector("#showav_customcopytitle").value;
                                                 const content = document.querySelector("#showav_customcopycontent").value;
                                                 if (title.trim().length < 1 || content.trim().length < 1) {
@@ -1440,7 +1729,7 @@
                                                     return;
                                                 }
                                                 config.customcopyitems[ccid] = { title, content };
-                                                if (!config.all.includes(ccid)) config.all.push(ccid);
+                                                if (!config.copyitemsAll.includes(ccid)) config.copyitemsAll.push(ccid);
                                                 saveAllConfig();
                                                 const disablediv = document.querySelector(".showav_disableddiv");
                                                 disablediv && disablediv.appendChild(await makeDragable(ccid));
@@ -1472,6 +1761,8 @@
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "保存并关闭";
+                                    if(back!=null)
+                                        btn.innerHTML = "保存并返回";
                                     btn.onclick = e => {
                                         const enableddiv = document.querySelector(".showav_enableddiv");
                                         const elements = enableddiv.querySelectorAll(".showav_dragableitem");
@@ -1481,14 +1772,266 @@
                                         }
                                         config.copyitems = enabledArray;
                                         saveAllConfig();
-                                        CKTools.modal.hideModal();
                                         initScript(true);
+                                        if(back!=null) back();
+                                        else CKTools.modal.hideModal();
+                                    }
+                                }))
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "关闭";
+                                    if(back!=null)
+                                        btn.innerHTML = "返回";
+                                    btn.onclick = e => {
+                                        if(back!=null) back();
+                                        else CKTools.modal.hideModal();
+                                    }
+                                }))
+                            }))
+                        }),
+                    ].forEach(e => list.appendChild(e));
+                })
+            ].forEach(e => container.appendChild(e));
+        }));
+    }
+
+    async function GUISettings_customcomponents(back=GUISettings_components) {
+        if (CKTools.modal.isModalShowing()) {
+            CKTools.modal.hideModal();
+            await wait(300);
+        }
+        CKTools.modal.openModal("ShowAV / 设置 / 组件 / 自定义组件", await CKTools.makeDom("div", async container => {
+            container.style.alignItems = "stretch";
+            [
+                closeButton(),
+                // dragable code from ytb v=jfYWwQrtzzY
+                await CKTools.makeDom("li", async list => {
+                    [
+                        await CKTools.makeDom("li", async list => {
+                            const makeItem = (customitemid,focus=false) => {
+                                const item = config.customComponents[customitemid];
+                                const node = document.createElement("li");
+                                node.className = "copyitem";
+                                if(focus){
+                                    node.classList.add("actionpending");
+                                    setTimeout(() => {
+                                        node.classList.remove("actionpending");
+                                        node.scrollIntoView();
+                                    },20);
+                                }
+                                node.setAttribute("data-id", customitemid);
+                                node.innerHTML = `${item.title}<br>`;
+                                node.style.borderRadius = "3px";
+                                node.style.border = "solid 2px grey";
+                                node.style.padding = "3px";
+                                node.style.margin = "1px";
+                                const smallp = document.createElement("p");
+                                smallp.style.fontSize = "small";
+                                smallp.style.color = "grey";
+                                smallp.style.overflow = "hidden";
+                                smallp.style.wordWrap = "nowarp";
+                                smallp.appendChild(document.createTextNode(item.content));
+                                node.appendChild(smallp);
+                                node.removeItem = ()=>{
+                                    node.classList.add("actionpending");
+                                    setTimeout(()=>node.remove(),350);
+                                };
+                                node.onclick = async e => {
+                                    if(node.classList.contains("preremove")){
+                                        if (config.orders.includes(customitemid)) {
+                                            config.orders.splice(config.orders.indexOf(customitemid), 1);
+                                        }
+                                        if (config.all.includes(customitemid)) {
+                                            config.all.splice(config.all.indexOf(customitemid), 1);
+                                        }
+                                        delete config.customComponents[customitemid];
+                                        saveAllConfig();
+                                        [...document.querySelectorAll(`.copyitem[data-id="${customitemid}"]`)].forEach(e => e.removeItem());
+                                    }else{
+                                        [...document.querySelectorAll("li.copyitem.preremove")].forEach(e=>{
+                                            e.classList.remove("preremove");
+                                            try{if(e.clearTimer){
+                                                clearTimeout(e.clearTimer);
+                                            }}catch(e){};
+                                        });
+                                        node.classList.add("preremove");
+                                        node.clearTimer = setTimeout(() => {
+                                            node.classList.remove("preremove");
+                                            node.clearTimer = null;
+                                        },5000);
+                                    }
+                                }
+                                return node;
+                            };
+                            [
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "添加组件";
+                                }),
+                                await CKTools.makeDom("div", async div => {
+                                    div.style.paddingLeft = "20px";
+                                    [
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopntitle";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.setAttribute("placeholder", "自定义显示文本");
+                                            input.addEventListener("keydown",e=>{
+                                                const contentel = document.querySelector("#showav_customcopncontent");
+                                                if(!contentel) return;
+                                                if(contentel.getAttribute("data-sync")!=="1") return;
+                                                setTimeout(()=>contentel.value = input.value,10);
+                                            })
+                                        }),
+                                        await CKTools.makeDom("input", async input => {
+                                            input.id = "showav_customcopncontent";
+                                            input.setAttribute("type", "text");
+                                            input.style.width = "60%";
+                                            input.style.margin = "6px 0 0 0";
+                                            input.style.padding = "6px";
+                                            input.style.borderRadius = "6px";
+                                            input.style.border = "solid 2px grey";
+                                            input.title = `默认与自定义显示文本同步\n使用"js:"开头时将在点击时执行脚本`;
+                                            input.setAttribute("data-sync","1");
+                                            input.setAttribute("placeholder", "自定义复制内容或脚本");
+                                            input.addEventListener("keydown",e=>input.setAttribute("data-sync","0"));
+                                            input.addEventListener("keydown",async e=>{
+                                                await wait(1);
+                                                if(input.value.startsWith("js:")){
+                                                    if(config.jssafetyWarning){
+                                                        config.jssafetyWarning = !confirm(`安全性警告：\n\n"js:"开头的内容将作为JS脚本执行。\n\nJS脚本拥有您在当前页面的所有权限，请勿复制和执行未知来源的脚本！\n请仅在了解你输入的内容情况下使用此功能！\n\n如果不点击确定，则每次输入"js:"时都会弹出此消息。\n\n继续输入吗？`);
+                                                        if(config.jssafetyWarning){
+                                                            saveAllConfig();
+                                                        }else{
+                                                            input.value = input.value.replace("js:","");
+                                                        }
+                                                    }else{
+                                                        document.querySelector("#showav_custom_txttip").style.display = "none";
+                                                        document.querySelector("#showav_custom_jstip").style.display = "block";
+                                                    }
+                                                }else{
+                                                    document.querySelector("#showav_custom_jstip").style.display = "none";
+                                                    document.querySelector("#showav_custom_txttip").style.display = "block";
+                                                }
+                                            })
+                                        }),
+                                        await CKTools.makeDom("div", div => {
+                                            div.style.paddingLeft = "20px";
+                                            div.id = "showav_custom_txttip";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `变量提示<br><ul>
+                                            <li>%timeurl% => 包含时间的完整地址</li>
+                                            <li>%vidurl% => 视频纯净地址</li>
+                                            <li>%shorturl% => 短地址</li>
+                                            <li>%seek% => 当前视频播放秒数</li>
+                                            <li>%title% => 视频标题</li>
+                                            <li>%av% => av号</li>
+                                            <li>%bv% => BV号</li>
+                                            <li>%cid% => CID号</li>
+                                            <li>%p% => 分P</li>
+                                            <li>%pname% => 分P名</li>
+                                            </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e => {
+                                                expanded = !expanded;
+                                                if (expanded) {
+                                                    div.style.maxHeight = "30rem";
+                                                } else {
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
+                                        }),
+                                        await CKTools.makeDom("div", div => {
+                                            div.style.paddingLeft = "20px";
+                                            div.id = "showav_custom_jstip";
+                                            div.style.display = "none";
+                                            div.style.color = "#919191";
+                                            div.innerHTML = `脚本提示<br><ul>
+                                            <li>变量 infos => 视频信息</li>
+                                            <li>方法 parseTxt("string") => 解析文本</li>
+                                            <li>方法 copy("string") => 复制文字</li>
+                                            </ul>`;
+                                            div.style.maxHeight = '2rem';
+                                            div.style.overflow = 'hidden';
+                                            div.style.transition = 'all .3s';
+                                            let expanded = false;
+                                            div.onclick = e => {
+                                                expanded = !expanded;
+                                                if (expanded) {
+                                                    div.style.maxHeight = "30rem";
+                                                } else {
+                                                    div.style.maxHeight = '2rem';
+                                                }
+                                            }
+                                        }),
+                                        await CKTools.makeDom("button", btn => {
+                                            btn.className = "CKTOOLS-toolbar-btns";
+                                            btn.innerHTML = "添加";
+                                            btn.style.background = "#ececec";
+                                            btn.style.color = "black";
+                                            btn.onclick = async e => {
+                                                const ccid = "custom_" + Math.random().toString(36).replace('.', '');
+                                                const title = document.querySelector("#showav_customcopntitle").value;
+                                                const content = document.querySelector("#showav_customcopncontent").value;
+                                                if (title.trim().length < 1 || content.trim().length < 1) {
+                                                    popNotify.warn("无法添加自定义组件", "标题或内容为空");
+                                                    return;
+                                                }
+                                                config.customComponents[ccid] = { title, content };
+                                                if (!config.all.includes(ccid)) config.all.push(ccid);
+                                                saveAllConfig();
+                                                const customlist = document.querySelector("#showav_customitems");
+                                                customlist && customlist.appendChild(makeItem(ccid,true));
+                                                document.querySelector("#showav_customcopntitle").value = "";
+                                                document.querySelector("#showav_customcopncontent").value = "";
+                                            }
+                                        })
+                                    ].forEach(e => div.appendChild(e));
+                                }),
+                                await CKTools.makeDom("label", label => {
+                                    label.style.paddingLeft = "3px";
+                                    label.style.fontWeight = "bold";
+                                    label.innerHTML = "已有自定义组件 <small>(点击移除)</small>";
+                                }),
+                                await CKTools.makeDom("ul", ul => {
+                                    ul.style.paddingLeft = "3px";
+                                    ul.id = "showav_customitems";
+                                    for (let itemid of Object.keys(config.customComponents)) {
+                                        ul.appendChild(makeItem(itemid));
+                                    }
+                                }),
+                            ].forEach(e => list.appendChild(e));
+                        }),
+                        await CKTools.makeDom("label", label => {
+                            label.style.width = "100%";
+                            label.style.display = "block";
+                            label.style.textAlign = "center";
+                            label.innerHTML = "此页面内容自动保存";
+                        }),
+                        await CKTools.makeDom("div", async div => {
+                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                                btns.style.display = "flex";
+                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                    btn.className = "CKTOOLS-toolbar-btns";
+                                    btn.innerHTML = "返回";
+                                    btn.onclick = e => {
+                                        saveAllConfig();
+                                        back();
                                     }
                                 }))
                                 btns.appendChild(await CKTools.makeDom("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "关闭";
                                     btn.onclick = e => {
+                                        saveAllConfig();
                                         CKTools.modal.hideModal();
                                     }
                                 }))
@@ -1519,16 +2062,40 @@
     }
 
     unsafeWindow.showav_guisettings = GUISettings;
-
-    unsafeWindow.showav_guisettings_shoy = GUISettings_advcopy;
+    unsafeWindow.showav_guisettings_advcopy = GUISettings_advcopy;
+    unsafeWindow.showav_guisettings_customcomponents = GUISettings_customcomponents;
 
     CKTools.modal.initModal();
     CKTools.modal.hideModal();
     const blockwin = CKTools.get("#CKTOOLS-blockWindow");
     blockwin&&(blockwin.onclick = CKTools.modal.hideModal);
     CKTools.addStyle(`
+    #CKTOOLS-modal{
+        width: fit-content!important;
+        max-width: 80%!important;
+    }
+    .CKTOOLS-modal-content li label b {
+        color: #1976d2!important;
+    }
+    .showav_menuitem{
+        line-height: 2em;
+        width: 100%;
+        transition: all .3s;
+        cursor: pointer;
+    }
+    .showav_menuitem:hover{
+        transform: translateX(6px);
+    }
+    .showav_menuitem>label{
+        color: #1976d2;
+        font-weight: bold;
+        font-size: large;
+        display: block;
+    }
     .showav_dragablediv {
-        width: 300px;
+        width: 400px;
+        max-width: 80%;
+        max-width: 400px;
         min-height: 60px;
         border: dotted;
         border-radius: 8px;
@@ -1599,6 +2166,17 @@
     .showav_disableddiv{
         background: #ffcdd2;
     }
+    .showav_settings_sectiontitle{
+        display: block;
+        width: 100%;
+        font-weight: bold;
+        color: #1976d2;
+        border-bottom: 2px solid #1976d2;
+        margin: 18px 0 3px 0;
+    }
+    .showav_settings_sectiontitle:first-of-type{
+        margin-top: 0!important;
+    }
     #showav_newlinetip{
         font-size: small;
         display: inline-block;
@@ -1665,6 +2243,10 @@
         line-height: 2rem!important;
         opacity: 1;
     }
+    #bilibiliShowInfos {
+        display: inline-flex;
+        column-gap: 12px;
+      }
     `, 'showav_dragablecss', "unique", document.head);
 
     initScript(false);

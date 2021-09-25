@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKEventEmitter
 // @namespace    eventemitter.ckylin.site
-// @version      0.1
+// @version      0.2
 // @author       CKylinMC
 // @grant        unsafeWindow
 // @license      GPLv3 License
@@ -26,6 +26,14 @@ class EventEmitter {
                     i--;
                 }
             }
+        }
+    }
+
+    clean(name=null){
+        if(name===null) {
+            this.handlers = {};
+        }else if (name in this.handlers) {
+            this.handlers[name] = [];
         }
     }
 
