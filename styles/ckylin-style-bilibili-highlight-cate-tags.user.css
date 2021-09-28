@@ -1,0 +1,17 @@
+/* ==UserStyle==
+@name           bilibili-highlight-cate-tags
+@name:zh-CN           哔哩哔哩-高亮视频分区标签
+@namespace      ckylin-style-bilibili-highlight-cate-tags
+@version        1.0.0
+@description    Hightlight bilibili tags which is a category.
+@description:zh-CN    高亮哔哩哔哩视频标签中代表视频分区的标签
+@author         CKylinMC
+@license        WTFPL
+==/UserStyle== */
+ 
+@-moz-document domain("bilibili.com") {
+    ul.tag-area>li.tag>a.tag-link[href^="//www.bilibili.com/v/"]{
+        font-weight: bold;
+        color: #00a1d6!important;
+    }
+}

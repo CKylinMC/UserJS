@@ -135,7 +135,7 @@
 
 在播放页面中点击油猴脚本管理图标，然后可以看到多项预设。修改后自动记忆，下次打开页面自动设置。
 
-**脚本主页**: [Greasyfork]()
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/404623)
 
 **安装链接**:
 
@@ -146,6 +146,46 @@
 **仓库文件:**
 
 [ckylin-bilibili-resize-miniplayer.user.js](scripts/ckylin-bilibili-resize-miniplayer.user.js)
+
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 动态页面默认选择投稿视频
+**简单介绍**:
+让哔哩哔哩动态页面默认显示投稿视频.
+
+支持两种方式：自动点击投稿视频按钮，或自动跳转到投稿视频页面。
+
+注意此脚本仅在直接进入动态页面时有效，如果已经点击过任意按钮(地址栏包含参数tab)则不会生效。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/433045)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/zh-CN/scripts/433045)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-dynamix-default-tab.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-dynamix-default-tab.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-dynamix-default-tab.user.js](scripts/ckylin-script-bilibili-dynamix-default-tab.user.js)
+
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 创作中心顺滑回顶
+**简单介绍**:
+让哔哩哔哩的创作中心翻页回顶部时更顺滑一些。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/430337)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/zh-CN/scripts/430337)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-upload-smooth-totop.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-upload-smooth-totop.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-upload-smooth-totop.user.js](scripts/ckylin-script-bilibili-upload-smooth-totop.user.js)
 
 ------
 
@@ -332,6 +372,23 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 **仓库文件:**
 
 [ckylin-style-hidehighiconfromdanmaku.user.css](styles/ckylin-style-hidehighiconfromdanmaku.user.css)
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 高亮视频分区标签
+**简单介绍**:
+高亮视频页面下方标签中的分区标签
+
+**样式主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/431798)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/zh-CN/scripts/431798)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/styles/ckylin-style-bilibili-highlight-cate-tags.user.css)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/styles/ckylin-style-bilibili-highlight-cate-tags.user.css)
+
+**仓库文件:**
+
+[ckylin-style-bilibili-highlight-cate-tags.user.css](styles/ckylin-style-bilibili-highlight-cate-tags.user.css)
 
 
 ## 开源协议
