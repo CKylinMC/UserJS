@@ -119,6 +119,11 @@
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
     const getLatestVidURL = uid => `https://api.bilibili.com/x/space/arc/search?mid=${uid}&ps=1&pn=1`
     const getSubInfoURL = uid => `https://api.bilibili.com/x/relation/stat?vmid=${uid}`;
+    const getCreateGroupURL = ()=> `http://api.bilibili.com/x/relation/tag/create`;
+    const getRenameGroupURL = ()=> `http://api.bilibili.com/x/relation/tag/update`;
+    const getRemoveGroupURL = ()=> `http://api.bilibili.com/x/relation/tag/del`;
+    const getMoveToGroupURL = ()=> `http://api.bilibili.com/x/relation/tags/addUsers`;
+    const getCopyToGroupURL = ()=> `http://api.bilibili.com/x/relation/tags/copyUsers`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -148,6 +153,131 @@
             return false;
         }
     };
+    const createGroup = async (tagname) => {
+        setInfoBar(`正在创建新的分组"${tagname}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getCreateGroupURL(),
+                new URLSearchParams({
+                    tag: tagname,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const renameGroup = async (tagid, tagname) => {
+        setInfoBar(`正在修改分组为"${tagname}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getRenameGroupURL(),
+                new URLSearchParams({
+                    tagid,
+                    name: tagname,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const removeGroup = async (tagid) => {
+        setInfoBar(`正在移除分组"${tagid}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getRemoveGroupURL(),
+                new URLSearchParams({
+                    tagid,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const moveUserToDefaultGroup = uids => moveUserToGroup(uids, [0]);
+    const moveUserToGroup = async (uids, tagids) => {
+        setInfoBar(`正在移动用户分组...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getMoveToGroupURL(),
+                new URLSearchParams({
+                    fids: uids.join(','),
+                    tagids: tagids.join(','),
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) {
+                for (let uid of uids) {
+                    const u = parseInt(uid);
+                    let targetUser;
+                    if (datas.mappings.includes(u)) {
+                        targetUser = datas.mappings[u];
+                    } else if (datas.mappings.includes(uid)) {
+                        targetUser = datas.mappings[uid];
+                    } else {
+                        //TODO: need reload
+                    }
+                    targetUser.tag = tagids.map(i=>parseInt(i))
+                }
+                return true;
+            }
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        }
+    }
+    const copyUserToGroup = async (uids, tagids) => {
+        setInfoBar(`正在添加用户分组...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getCopyToGroupURL(),
+                new URLSearchParams({
+                    fids: uids.join(','),
+                    tagids: tagids.join(','),
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) {
+                for (let uid of uids) {
+                    const u = parseInt(uid);
+                    let targetUser;
+                    if (datas.mappings.includes(u)) {
+                        targetUser = datas.mappings[u];
+                    } else if (datas.mappings.includes(uid)) {
+                        targetUser = datas.mappings[uid];
+                    } else {
+                        //TODO: need reload
+                    }
+                    targetUser.tag = (function () {
+                        const tag = [];
+                        for (const tid of [...targetUser.tag, ...tagids]) {
+                            const ntid = parseInt(tid);
+                            if(!tag.includes(ntid)) tag.push(ntid)
+                        }
+                        return tag;
+                    })()
+                }
+                return true;
+            }
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        }
+    }
     const getCurrSubStat = async uid => {
         try {
             const jsonData = await (await fetch(getRequest(getSubInfoURL(uid)))).json();
