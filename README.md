@@ -29,7 +29,6 @@
     - [* 移除评论区](#-%E7%A7%BB%E9%99%A4%E8%AF%84%E8%AE%BA%E5%8C%BA-1)
     - [* 移除评分](#-%E7%A7%BB%E9%99%A4%E8%AF%84%E5%88%86)
     - [* 移除高能弹幕图标](#-%E7%A7%BB%E9%99%A4%E9%AB%98%E8%83%BD%E5%BC%B9%E5%B9%95%E5%9B%BE%E6%A0%87)
-- [ckylin-style-hidehighiconfromdanmaku.user.css](#ckylin-style-hidehighiconfromdanmakuusercss)
     - [* 高亮视频分区标签](#-%E9%AB%98%E4%BA%AE%E8%A7%86%E9%A2%91%E5%88%86%E5%8C%BA%E6%A0%87%E7%AD%BE)
 - [开源协议](#%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE)
 
