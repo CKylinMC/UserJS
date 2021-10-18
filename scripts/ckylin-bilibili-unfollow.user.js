@@ -1033,6 +1033,50 @@
             item.setAttribute("title", title);
         });
     }
+    const taginfoline = async (data,clickCallback=()=>{},selected = false) => {
+        return await makeDom("li", async item => {
+            item.className = "CKUNFOLLOW-data-inforow";
+            item.onclick = e => clickCallback(e,data);
+            item.setAttribute("data-id", data.tagid);
+            item.setAttribute("data-name", data.name);
+            item.setAttribute("data-count", data.count);
+            item.setAttribute("data-tip", data.tip);
+            item.appendChild(await makeDom("input", toggle => {
+                toggle.className = "CKUNFOLLOW-data-inforow-toggle";
+                toggle.type = "checkbox";
+                toggle.checked = selected;
+                item.setAttribute("data-tagid", data.tagid);
+            }));
+            item.appendChild(await makeDom("span", name => {
+                name.className = "CKUNFOLLOW-data-inforow-name";
+                switch(data.tagid){
+                    case 0:
+                    case '0':
+                        name.innerText = `[系统] 默认分类`;
+                        item.setAttribute("title", "默认的关注分类，包含全部未分组的关注项目。\n不可删除");
+                        break;
+                    case -10:
+                    case '-10':
+                        name.innerText = `[系统] 特别关注`;
+                        item.setAttribute("title", "默认的特别关注分类，包含全部特别关注的关注项目。\n不可删除");
+                        break;
+                    default:
+                        name.innerText = `[${data.tagid}] ${data.name}`;
+                        item.setAttribute("title", `用户创建的分组 "${data.name}"\n删除后用户将被移动到默认分类`);
+                }
+                name.style.flex = "1";
+            }));
+            item.appendChild(await makeDom("span", subtime => {
+                subtime.style.flex = "1";
+                subtime.innerHTML = `包含 ${data.count} 个内容`;
+            }));
+            item.appendChild(await makeDom("span", tagsdom => {
+                tagsdom.style.flex = "1";
+                tagsdom.innerHTML = `${data.tip}`;
+            }));
+            log(info, title);
+        });
+    }
     const doUnfollowChecked = async () => {
         const checked = datas.checked;
         if (!checked || checked.length === 0) return alertModal("无法操作", "实际选中数量为0，没有任何人被选中取关。", "");
@@ -1291,6 +1335,65 @@
             await addBtn(info,btns);
             container.appendChild(btns);
         }));
+    }
+    const createGroupInfoModal = async () => {
+        hideModal();
+        await wait(300);
+        openModal("分组管理", await makeDom("div", async container=>{
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
+            }))
+            container.appendChild(divider());
+            const taglistdom = document.createElement('div');
+            taglistdom.className = "CKUNFOLLOW-scroll-list";
+            taglistdom.style.width = "100%";
+            taglistdom.style.maxHeight = "calc(50vh - 100px)";
+            const refreshList = async ()=>renderTagListTo(taglistdom,[],(e,data)=>{
+                let dom = e.target;
+                if(!dom) return log('no target');
+                if(dom.hasAttribute('data-del-pending')){
+                    await removeGroup(data.tagid);
+                    if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                    refreshList();
+                }else{
+                    dom.setAttribute('data-del-pending','waiting');
+                    let namedom = dom.querySelector('.CKUNFOLLOW-data-inforow-name');
+                    if(!namedom) return;
+                    let text = namedom.innerHTML;
+                    namedom.innerHTML = '再次点击以移除'.fontcolor('red');
+                    dom.removePendingTimer = setTimeout(()=>{
+                        if(dom.hasAttribute('data-del-pending')) dom.removeAttribute('data-del-pending');
+                        if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                        dom.innerHTML = text;
+                    },5000);
+                }
+            });
+            container.appendChild(taglistdom);
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "添加分组";
+                        btn.onclick = () => {
+                            const tagname = prompt("请输入新分组的标题");
+                            if(!tagname) return;
+                            await createGroup(tagname);
+                            refreshList();
+                        };
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "关闭";
+                        btn.onclick = () => hideModal();
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+        }))
+    }
+    const createGroupChangeModal = async (uid,mode='copy'/*move*/) => {
+        //TODO
     }
     const createExtendedInfoModal = async () => {
         hideModal();
@@ -2577,6 +2680,15 @@
         dom.innerHTML = '';
         for (let it of datalist) {
             dom.appendChild(await upinfoline(it));
+        }
+        resetInfoBar();
+    }
+    const renderTagListTo = async (dom,selectedId=[],cb = ()=>{}) => {
+        setInfoBar("正在渲染列表...");
+        await wait(1);
+        dom.innerHTML = '';
+        for (let it of datas.tags) {
+            dom.appendChild(await taginfoline(it,cb,selectedId.includes(it.tagid)));
         }
         resetInfoBar();
     }
