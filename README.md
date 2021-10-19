@@ -2,6 +2,8 @@
 
 这是我的用户脚本和用户样式仓库，所有脚本和样式可以在Greasyfork中找到。
 
+由于这些脚本暂时没有成完整项目一样的编写，所以可能会有很多问题，部分脚本会在日后开独立的repo并加入框架/打包工具等进行更新，这里只更新这些纯手敲的脚本。
+
 [![查看我的脚本](https://shields.io/badge/%E7%82%B9%E5%87%BB%E6%9F%A5%E7%9C%8B-%E6%88%91%E7%9A%84Bilibili%E8%84%9A%E6%9C%AC%E5%90%88%E9%9B%86-%23670000?logo=tampermonkey&style=for-the-badge)](https://greasyfork.org/zh-CN/scripts?language=all&set=403506)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
