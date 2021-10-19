@@ -218,7 +218,7 @@
                     fids: uids.join(','),
                     tagids: tagids.join(','),
                     csrf: getCSRFToken()
-            }))));
+            }))).json());
             if (jsonData.code === 0) {
                 for (let uid of uids) {
                     const u = parseInt(uid);
@@ -249,7 +249,7 @@
                     fids: uids.join(','),
                     tagids: tagids.join(','),
                     csrf: getCSRFToken()
-            }))));
+            }))).json());
             log(jsonData,jsonData.code,jsonData.code===0);//TODO:BUG
             if (jsonData.code == 0) {
                 for (let uid of uids) {
