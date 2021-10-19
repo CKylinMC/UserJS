@@ -250,7 +250,8 @@
                     tagids: tagids.join(','),
                     csrf: getCSRFToken()
             }))));
-            if (jsonData.code === 0) {
+            log(jsonData,jsonData.code,jsonData.code===0);//TODO:BUG
+            if (jsonData.code == 0) {
                 for (let uid of uids) {
                     const u = parseInt(uid);
                     let targetUser;
@@ -476,7 +477,7 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_Bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
         setTitle();
         let needreload = true;
         const currInfo = await getCurrSubStat(uid);
@@ -1045,7 +1046,7 @@
                 toggle.className = "CKUNFOLLOW-data-inforow-toggle";
                 toggle.type = "checkbox";
                 toggle.checked = selected;
-                item.setAttribute("data-tagid", data.tagid);
+                toggle.setAttribute("data-tagid", data.tagid);
             }));
             item.appendChild(await makeDom("span", name => {
                 name.className = "CKUNFOLLOW-data-inforow-name";
@@ -1392,8 +1393,75 @@
             refreshList();
         }))
     }
-    const createGroupChangeModal = async (uid,mode='copy'/*move*/) => {
-        //TODO
+    const createGroupChangeModal = async (mode='copy'/*move*/) => {
+        hideModal();
+        await wait(300);
+        refreshChecked();
+        let uids = datas.checked;
+        let users = [];
+        let groups = [];
+        let act = mode==='copy'?'复制':'移动';
+        for(let uid of uids){
+            users.push(datas.mappings[uid]);
+            let tags = datas.mappings[uid].tag;
+            tags && tags.forEach(t=>groups.includes(t)||groups.push(t))
+        }
+        log(users,groups);
+        openModal("分组修改:"+act, await makeDom("div", async container=>{
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
+            }))
+            container.appendChild(divider());
+            const taglistdom = document.createElement('div');
+            taglistdom.className = "CKUNFOLLOW-scroll-list";
+            taglistdom.style.width = "100%";
+            taglistdom.style.maxHeight = "calc(50vh - 100px)";
+            const refreshList = async ()=>renderTagListTo(taglistdom,mode==='copy'?[]:groups,async (e,data)=>{
+            });
+            container.appendChild(taglistdom);
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "管理分组";
+                        btn.onclick = async () => createGroupInfoModal();
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "取消";
+                        btn.onclick = () => hideModal();
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "确定";
+                        btn.onclick = async () => {
+                            const allOptions = [...document.querySelectorAll('.CKUNFOLLOW-data-inforow-toggle[data-tagid]')]
+                            const selections = allOptions.map((option)=>{
+                                return {tagid:parseInt(option.getAttribute('data-tagid')),checked:option.checked}
+                            })
+                            const checked = selections.filter((selection) => selection.checked)
+                            await alertModal("正在处理...", `正在${act}成员到新分组，请稍候`);
+                            if(checked.length===0) checked.push({tagid:0,checked:true});
+                            switch(mode){
+                                case 'copy':
+                                    copyUserToGroup(uids,checked.map(c=>c.tagid));
+                                    break;
+                                case 'move':
+                                    moveUserToGroup(uids,checked.map(c=>c.tagid));
+                                    break;
+                                // default:
+                                //     moveUserToDefaultGroup(uids);
+                            }
+                            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                            hideModal();
+                        }
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+            refreshList();
+        }))
     }
     const createExtendedInfoModal = async () => {
         hideModal();
@@ -1737,6 +1805,26 @@
                                                     btn.style.margin = "4px 0";
                                                     btn.innerHTML = '取关选中';
                                                     btn.onclick = () => createUnfollowModal();
+                                                })
+                                            } else return null;
+                                        }),
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '复制到分组';
+                                                    btn.onclick = () => createGroupChangeModal('copy');
+                                                })
+                                            } else return null;
+                                        }),
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '修改分组';
+                                                    btn.onclick = () => createGroupChangeModal('move');
                                                 })
                                             } else return null;
                                         }),
