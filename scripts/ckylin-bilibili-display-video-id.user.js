@@ -79,7 +79,7 @@
         vduration: 0,
         running: {}
     };
-    const ignoredConfigKeys = ["vduration", "firstTimeLoad", "running"];
+    const ignoredConfigKeys = ["all", "vduration", "firstTimeLoad", "running"];
     const menuId = {
         defaultAv: -1,
         foldedWarningTip: -1,
