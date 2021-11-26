@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.15
+// @version      0.2.0
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -36,10 +36,11 @@
             whisper: -1,
         },
         preventUserCard: false,
-        autoExtendInfo: true
+        autoExtendInfo: true,
+        batchOperationDelay: .5
     };
     const cfg = {
-        debug: false,
+        debug: true,
         retrial: 3,
         VERSION: "0.1.15 Preview",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
@@ -48,6 +49,7 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
+    const batchDelay = () => wait(datas.batchOperationDelay);
     const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
@@ -119,6 +121,11 @@
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
     const getLatestVidURL = uid => `https://api.bilibili.com/x/space/arc/search?mid=${uid}&ps=1&pn=1`
     const getSubInfoURL = uid => `https://api.bilibili.com/x/relation/stat?vmid=${uid}`;
+    const getCreateGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/create`;
+    const getRenameGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/update`;
+    const getRemoveGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/del`;
+    const getMoveToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/addUsers`;
+    const getCopyToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/copyUsers`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -135,6 +142,7 @@
         try {
             const jsonData = await (await fetch(getRequest(getGroupURL()))).json();
             if (jsonData && jsonData.code === 0) {
+                datas.tags = [];
                 for (let tag of jsonData.data) {
                     datas.tags[tag.tagid] = tag;
                 }
@@ -148,6 +156,132 @@
             return false;
         }
     };
+    const createGroup = async (tagname) => {
+        setInfoBar(`正在创建新的分组"${tagname}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getCreateGroupURL(),
+                new URLSearchParams({
+                    tag: tagname,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const renameGroup = async (tagid, tagname) => {
+        setInfoBar(`正在修改分组为"${tagname}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getRenameGroupURL(),
+                new URLSearchParams({
+                    tagid,
+                    name: tagname,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const removeGroup = async (tagid) => {
+        setInfoBar(`正在移除分组"${tagid}"...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getRemoveGroupURL(),
+                new URLSearchParams({
+                    tagid,
+                    csrf: getCSRFToken()
+            }))));
+            if (jsonData.code === 0) return true;
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        } finally {
+            await cacheGroupList();
+        }
+    }
+    const moveUserToDefaultGroup = uids => moveUserToGroup(uids, [0]);
+    const moveUserToGroup = async (uids, tagids) => {
+        setInfoBar(`正在移动用户分组...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getMoveToGroupURL(),
+                new URLSearchParams({
+                    fids: uids.join(','),
+                    tagids: tagids.join(','),
+                    csrf: getCSRFToken()
+            }))).json());
+            if (jsonData.code === 0) {
+                for (let uid of uids) {
+                    const u = parseInt(uid);
+                    let targetUser;
+                    if (datas.mappings.includes(u)) {
+                        targetUser = datas.mappings[u];
+                    } else if (datas.mappings.includes(uid)) {
+                        targetUser = datas.mappings[uid];
+                    } else {
+                        //TODO: need reload
+                    }
+                    targetUser.tag = tagids.map(i=>parseInt(i))
+                }
+                return true;
+            }
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        }
+    }
+    const copyUserToGroup = async (uids, tagids) => {
+        setInfoBar(`正在添加用户分组...`);
+        try {
+            const jsonData = await (await fetch(
+                getPostRequest(getCopyToGroupURL(),
+                new URLSearchParams({
+                    fids: uids.join(','),
+                    tagids: tagids.join(','),
+                    csrf: getCSRFToken()
+            }))).json());
+            log(jsonData,jsonData.code,jsonData.code===0);//TODO:BUG
+            if (jsonData.code == 0) {
+                for (let uid of uids) {
+                    const u = parseInt(uid);
+                    let targetUser;
+                    if (datas.mappings.includes(u)) {
+                        targetUser = datas.mappings[u];
+                    } else if (datas.mappings.includes(uid)) {
+                        targetUser = datas.mappings[uid];
+                    } else {
+                        //TODO: need reload
+                    }
+                    targetUser.tag = (function () {
+                        const tag = [];
+                        for (const tid of [...targetUser.tag, ...tagids]) {
+                            const ntid = parseInt(tid);
+                            if(!tag.includes(ntid)) tag.push(ntid)
+                        }
+                        return tag;
+                    })()
+                }
+                return true;
+            }
+            else throw new Error(jsonData.message);
+        }catch(err){
+            log(err);
+            return false;
+        }
+    }
     const getCurrSubStat = async uid => {
         try {
             const jsonData = await (await fetch(getRequest(getSubInfoURL(uid)))).json();
@@ -288,6 +422,7 @@
             } else {
                 errgroup.push(uid);
             }
+            batchDelay();
         }
         setInfoBar(`取关完成`)
         return {
@@ -346,7 +481,7 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_Bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
         setTitle();
         let needreload = true;
         const currInfo = await getCurrSubStat(uid);
@@ -903,6 +1038,49 @@
             item.setAttribute("title", title);
         });
     }
+    const taginfoline = (data,clickCallback=()=>{},selected = false) => {
+        return makeDom("li", async item => {
+            item.className = "CKUNFOLLOW-data-inforow";
+            item.onclick = e => clickCallback(e,data);
+            item.setAttribute("data-id", data.tagid);
+            item.setAttribute("data-name", data.name);
+            item.setAttribute("data-count", data.count);
+            item.setAttribute("data-tip", data.tip);
+            item.appendChild(await makeDom("input", toggle => {
+                toggle.className = "CKUNFOLLOW-data-inforow-toggle";
+                toggle.type = "checkbox";
+                toggle.checked = selected;
+                toggle.setAttribute("data-tagid", data.tagid);
+            }));
+            item.appendChild(await makeDom("span", name => {
+                name.className = "CKUNFOLLOW-data-inforow-name";
+                switch(data.tagid){
+                    case 0:
+                    case '0':
+                        name.innerHTML = `默认分类`.italics();
+                        item.setAttribute("title", "默认的关注分类，包含全部未分组的关注项目。\n不可删除");
+                        break;
+                    case -10:
+                    case '-10':
+                        name.innerHTML = `特别关注`.italics();
+                        item.setAttribute("title", "默认的特别关注分类，包含全部特别关注的关注项目。\n不可删除");
+                        break;
+                    default:
+                        name.innerText = `${data.name}`;
+                        item.setAttribute("title", `用户创建的分组 "${data.name}"\n删除后用户将被移动到默认分类`);
+                }
+                name.style.flex = "1";
+            }));
+            item.appendChild(await makeDom("span", subtime => {
+                subtime.style.flex = "1";
+                subtime.innerHTML = `${data.tagid}`;
+            }));
+            item.appendChild(await makeDom("span", subtime => {
+                subtime.style.flex = "1";
+                subtime.innerHTML = `包含 ${data.count} 个内容`;
+            }));
+        });
+    }
     const doUnfollowChecked = async () => {
         const checked = datas.checked;
         if (!checked || checked.length === 0) return alertModal("无法操作", "实际选中数量为0，没有任何人被选中取关。", "");
@@ -1162,6 +1340,137 @@
             container.appendChild(btns);
         }));
     }
+    const createGroupInfoModal = async () => {
+        hideModal();
+        await wait(300);
+        openModal("分组管理", await makeDom("div", async container=>{
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
+            }))
+            container.appendChild(divider());
+            const taglistdom = document.createElement('div');
+            taglistdom.className = "CKUNFOLLOW-scroll-list";
+            taglistdom.style.width = "100%";
+            taglistdom.style.maxHeight = "calc(50vh - 100px)";
+            const refreshList = async ()=>renderTagListTo(taglistdom,[],async (e,data)=>{
+                if(e.target.tagName==="INPUT") return;
+                if(['0','-10'].includes(data.tagid+'')) return;
+                let dom = e.path.filter(it=>it['classList']&&it.classList.contains('CKUNFOLLOW-data-inforow'))[0];
+                if(!dom) return log('no target');
+                if(dom.hasAttribute('data-del-pending')){
+                    if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                    removeGroup(data.tagid).then(()=>refreshList());
+                    cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    resetInfoBar();
+                }else{
+                    dom.setAttribute('data-del-pending','waiting');
+                    let namedom = dom.querySelector('.CKUNFOLLOW-data-inforow-name');
+                    if(!namedom) return;
+                    let text = namedom.innerHTML;
+                    namedom.innerHTML = '再次点击以移除'.fontcolor('red');
+                    dom.removePendingTimer = setTimeout(()=>{
+                        if(dom.hasAttribute('data-del-pending')) dom.removeAttribute('data-del-pending');
+                        if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                        namedom.innerHTML = text;
+                    },5000);
+                }
+            });
+            container.appendChild(taglistdom);
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "添加分组";
+                        btn.onclick = async () => {
+                            const tagname = prompt("请输入新分组的标题");
+                            if(!tagname) return;
+                            createGroup(tagname).then(()=>refreshList());
+                        };
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "关闭";
+                        btn.onclick = () => hideModal();
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+            refreshList();
+        }))
+    }
+    const createGroupChangeModal = async (mode='copy'/*move*/) => {
+        hideModal();
+        await wait(300);
+        refreshChecked();
+        let uids = datas.checked;
+        let users = [];
+        let groups = [];
+        let act = mode==='copy'?'复制':'移动';
+        for(let uid of uids){
+            users.push(datas.mappings[uid]);
+            let tags = datas.mappings[uid].tag;
+            tags && tags.forEach(t=>groups.includes(t)||groups.push(t))
+        }
+        log(users,groups);
+        openModal("分组修改:"+act, await makeDom("div", async container=>{
+            container.appendChild(await makeDom("div", tip => {
+                tip.style.fontWeight = "bold";
+                tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
+            }))
+            container.appendChild(divider());
+            const taglistdom = document.createElement('div');
+            taglistdom.className = "CKUNFOLLOW-scroll-list";
+            taglistdom.style.width = "100%";
+            taglistdom.style.maxHeight = "calc(50vh - 100px)";
+            const refreshList = async ()=>renderTagListTo(taglistdom,mode==='copy'?[]:groups,async (e,data)=>{
+            });
+            container.appendChild(taglistdom);
+            container.appendChild(await makeDom("div", async btns => {
+                btns.style.display = "flex";
+                [
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "管理分组 (Beta)";
+                        btn.onclick = async () => createGroupInfoModal();
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "取消";
+                        btn.onclick = () => hideModal();
+                    }),
+                    await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.innerHTML = "确定";
+                        btn.onclick = async () => {
+                            const allOptions = [...document.querySelectorAll('.CKUNFOLLOW-data-inforow-toggle[data-tagid]')]
+                            const selections = allOptions.map((option)=>{
+                                return {tagid:parseInt(option.getAttribute('data-tagid')),checked:option.checked}
+                            })
+                            const checked = selections.filter((selection) => selection.checked)
+                            await alertModal("正在处理...", `正在${act}成员到新分组，请稍候`);
+                            if(checked.length===0) checked.push({tagid:0,checked:true});
+                            switch(mode){
+                                case 'copy':
+                                    copyUserToGroup(uids,checked.map(c=>c.tagid));
+                                    break;
+                                case 'move':
+                                    moveUserToGroup(uids,checked.map(c=>c.tagid));
+                                    break;
+                                // default:
+                                //     moveUserToDefaultGroup(uids);
+                            }
+                            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                            hideModal();
+                            cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                            resetInfoBar();
+                        }
+                    }),
+                ].forEach(el => btns.appendChild(el));
+            }))
+            refreshList();
+        }))
+    }
     const createExtendedInfoModal = async () => {
         hideModal();
         await wait(300);
@@ -1314,6 +1623,11 @@
                 tip.style.fontWeight = "bold";
                 tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
             }))
+            container.appendChild(await makeDom("div", delaySettings => {
+                delaySettings.style.color = "blue";
+                delaySettings.style.fontWeight = "bold";
+                delaySettings.innerHTML = `操作间隔：<input id="ckunfollow-form-delay" type="number" step="0.01" value="${datas.batchOperationDelay}" />`;
+            }))
             container.appendChild(divider());
             container.appendChild(await makeDom("div", async unfolistdom => {
                 unfolistdom.className = "CKUNFOLLOW-scroll-list";
@@ -1333,6 +1647,13 @@
                         btn.className = "CKUNFOLLOW-toolbar-btns red";
                         btn.innerHTML = "确认";
                         btn.onclick = e => {
+                            const delayDom = get("#ckunfollow-form-delay");
+                            if(delayDom) {
+                                try{
+                                    let delay = parseFloat(delayDom.value);
+                                    datas.batchOperationDelay = Math.max(delay,0);
+                                }catch{}
+                            }
                             doUnfollowChecked()
                         }
                     }),
@@ -1504,6 +1825,26 @@
                                                     btn.style.margin = "4px 0";
                                                     btn.innerHTML = '取关选中';
                                                     btn.onclick = () => createUnfollowModal();
+                                                })
+                                            } else return null;
+                                        }),
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '复制到分组';
+                                                    btn.onclick = () => createGroupChangeModal('copy');
+                                                })
+                                            } else return null;
+                                        }),
+                                        await _(() => {
+                                            if (datas.isSelf) {
+                                                return makeDom("button", async btn => {
+                                                    btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                    btn.style.margin = "4px 0";
+                                                    btn.innerHTML = '修改分组';
+                                                    btn.onclick = () => createGroupChangeModal('move');
                                                 })
                                             } else return null;
                                         }),
@@ -2234,6 +2575,18 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
+                                            btn.innerHTML = "管理分组 (增加/删除) (Beta)";
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else btn.onclick = e => createGroupInfoModal();
+                                        }),
+                                        divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
                                             refreshChecked();
                                             if (datas.checked.length > 0)
                                                 btn.innerHTML = "导出所有选中的UID列表..."
@@ -2447,6 +2800,16 @@
         dom.innerHTML = '';
         for (let it of datalist) {
             dom.appendChild(await upinfoline(it));
+        }
+        resetInfoBar();
+    }
+    const renderTagListTo = async (dom,selectedId=[],cb = ()=>{}) => {
+        setInfoBar("正在渲染列表...");
+        await wait(100);
+        dom.innerHTML = '';
+        for (let it of Object.values(datas.tags)) {
+            log(it);
+            dom.appendChild(await taginfoline(it,cb,selectedId.includes(it.tagid)));
         }
         resetInfoBar();
     }
