@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.16.4
+// @version      1.16.6
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -269,15 +269,21 @@
         } else return seconds;
     }
 
+    function getHEVC(){
+        return document.querySelector(".bilibili-player-video bwp-video")
+    }
+
     async function registerVideoChangeHandler() {
         const video = await waitForDom(".bilibili-player-video video");
-        if (!video) return;
+        const HEVCplayer = getHEVC();// must behind video loaded(no more waitfordom)
+        let target = HEVCplayer || video;
+        if(!target) return;
         const observer = new MutationObserver(async e => {
             if (e[0].target.src) {
                 tryInject(true);
             }
         });
-        observer.observe(video, { attribute: true, attributes: true, childList: false });
+        observer.observe(target, { attribute: true, attributes: true, childList: false });
     }
 
     function getPageFromCid(cid, infos) {
@@ -965,6 +971,19 @@
             }
             titleobj.setAttribute("data-copy-action-registered",true);
         }
+
+        setupWarningAutoFolding();
+    }
+
+    function setupWarningAutoFolding(){
+        if(config.foldedWarningTip)
+            CKTools.addStyle(
+                "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 6px !important;text-overflow: clip !important;}",
+                "showav_foldWarningTip","update");
+        else
+        CKTools.addStyle(
+            "span.argue{margin-right: 10px !important;margin-left: 0 !important;}",
+            "showav_foldWarningTip","update");
     }
 
     function closeButton(){
