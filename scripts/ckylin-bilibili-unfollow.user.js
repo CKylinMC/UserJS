@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.0
+// @version      0.2.1
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -42,14 +42,14 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.0 Beta",
+        VERSION: "0.2.1 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const batchDelay = () => wait(datas.batchOperationDelay);
+    const batchDelay = () => wait(datas.batchOperationDelay*1000);
     const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
