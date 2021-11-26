@@ -2,6 +2,8 @@
 
 这是我的用户脚本和用户样式仓库，所有脚本和样式可以在Greasyfork中找到。
 
+由于这些脚本暂时没有成完整项目一样的编写，所以可能会有很多问题，部分脚本会在日后开独立的repo并加入框架/打包工具等进行更新，这里只更新这些纯手敲的脚本。
+
 [![查看我的脚本](https://shields.io/badge/%E7%82%B9%E5%87%BB%E6%9F%A5%E7%9C%8B-%E6%88%91%E7%9A%84Bilibili%E8%84%9A%E6%9C%AC%E5%90%88%E9%9B%86-%23670000?logo=tampermonkey&style=for-the-badge)](https://greasyfork.org/zh-CN/scripts?language=all&set=403506)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -29,7 +31,6 @@
     - [* 移除评论区](#-%E7%A7%BB%E9%99%A4%E8%AF%84%E8%AE%BA%E5%8C%BA-1)
     - [* 移除评分](#-%E7%A7%BB%E9%99%A4%E8%AF%84%E5%88%86)
     - [* 移除高能弹幕图标](#-%E7%A7%BB%E9%99%A4%E9%AB%98%E8%83%BD%E5%BC%B9%E5%B9%95%E5%9B%BE%E6%A0%87)
-- [ckylin-style-hidehighiconfromdanmaku.user.css](#ckylin-style-hidehighiconfromdanmakuusercss)
     - [* 高亮视频分区标签](#-%E9%AB%98%E4%BA%AE%E8%A7%86%E9%A2%91%E5%88%86%E5%8C%BA%E6%A0%87%E7%AD%BE)
 - [开源协议](#%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE)
 
@@ -376,6 +377,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 **仓库文件:**
 
 [ckylin-style-hidehighiconfromdanmaku.user.css](styles/ckylin-style-hidehighiconfromdanmaku.user.css)
+
 ------
 
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 高亮视频分区标签
