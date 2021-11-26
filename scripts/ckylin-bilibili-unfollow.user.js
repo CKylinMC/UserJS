@@ -36,7 +36,8 @@
             whisper: -1,
         },
         preventUserCard: false,
-        autoExtendInfo: true
+        autoExtendInfo: true,
+        batchOperationDelay: .5
     };
     const cfg = {
         debug: true,
@@ -48,6 +49,7 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
+    const batchDelay = () => wait(datas.batchOperationDelay);
     const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
@@ -419,6 +421,7 @@
             } else {
                 errgroup.push(uid);
             }
+            batchDelay();
         }
         setInfoBar(`取关完成`)
         return {
@@ -1615,6 +1618,11 @@
                 tip.style.fontWeight = "bold";
                 tip.innerHTML = `请注意，一旦你确认这个操作，没有任何方法可以撤销！<br>就算你重新关注，也算是新粉丝的哦！`;
             }))
+            container.appendChild(await makeDom("div", delaySettings => {
+                delaySettings.style.color = "blue";
+                delaySettings.style.fontWeight = "bold";
+                delaySettings.innerHTML = `操作间隔：<input id="ckunfollow-form-delay" type="number" step="0.01" value="${datas.batchOperationDelay}" />`;
+            }))
             container.appendChild(divider());
             container.appendChild(await makeDom("div", async unfolistdom => {
                 unfolistdom.className = "CKUNFOLLOW-scroll-list";
@@ -1634,6 +1642,13 @@
                         btn.className = "CKUNFOLLOW-toolbar-btns red";
                         btn.innerHTML = "确认";
                         btn.onclick = e => {
+                            const delayDom = get("#ckunfollow-form-delay");
+                            if(delayDom) {
+                                try{
+                                    let delay = parseFloat(delayDom.value);
+                                    datas.batchOperationDelay = Math.max(delay,0);
+                                }catch{}
+                            }
                             doUnfollowChecked()
                         }
                     }),
