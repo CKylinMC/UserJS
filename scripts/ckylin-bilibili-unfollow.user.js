@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.1.15
+// @version      0.2.0
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -142,6 +142,7 @@
         try {
             const jsonData = await (await fetch(getRequest(getGroupURL()))).json();
             if (jsonData && jsonData.code === 0) {
+                datas.tags = [];
                 for (let tag of jsonData.data) {
                     datas.tags[tag.tagid] = tag;
                 }
@@ -1360,6 +1361,8 @@
                 if(dom.hasAttribute('data-del-pending')){
                     if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
                     removeGroup(data.tagid).then(()=>refreshList());
+                    cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    resetInfoBar();
                 }else{
                     dom.setAttribute('data-del-pending','waiting');
                     let namedom = dom.querySelector('.CKUNFOLLOW-data-inforow-name');
@@ -1428,7 +1431,7 @@
                 [
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
-                        btn.innerHTML = "管理分组";
+                        btn.innerHTML = "管理分组 (Beta)";
                         btn.onclick = async () => createGroupInfoModal();
                     }),
                     await makeDom("button", btn => {
@@ -1459,6 +1462,8 @@
                             }
                             await renderListTo(get(".CKUNFOLLOW-scroll-list"));
                             hideModal();
+                            cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                            resetInfoBar();
                         }
                     }),
                 ].forEach(el => btns.appendChild(el));
@@ -2570,7 +2575,7 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
-                                            btn.innerHTML = "管理分组 (增加/删除)";
+                                            btn.innerHTML = "管理分组 (增加/删除) (Beta)";
                                             if (!datas.isSelf) {
                                                 btn.classList.add("grey");
                                                 btn.disabled = true;
