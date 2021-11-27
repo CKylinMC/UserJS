@@ -191,6 +191,8 @@
             return false;
         } finally {
             await cacheGroupList();
+            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+            resetInfoBar();
         }
     }
     const removeGroup = async (tagid) => {
@@ -209,6 +211,8 @@
             return false;
         } finally {
             await cacheGroupList();
+            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+            resetInfoBar();
         }
     }
     const moveUserToDefaultGroup = uids => moveUserToGroup(uids, [0]);
@@ -1038,7 +1042,7 @@
             item.setAttribute("title", title);
         });
     }
-    const taginfoline = (data,clickCallback=()=>{},selected = false) => {
+    const taginfoline = (data,clickCallback=()=>{},selected = false,showRename = true) => {
         return makeDom("li", async item => {
             item.className = "CKUNFOLLOW-data-inforow";
             item.onclick = e => clickCallback(e,data);
@@ -1057,11 +1061,13 @@
                 switch(data.tagid){
                     case 0:
                     case '0':
+                        showRename = false;
                         name.innerHTML = `默认分类`.italics();
                         item.setAttribute("title", "默认的关注分类，包含全部未分组的关注项目。\n不可删除");
                         break;
                     case -10:
                     case '-10':
+                        showRename = false;
                         name.innerHTML = `特别关注`.italics();
                         item.setAttribute("title", "默认的特别关注分类，包含全部特别关注的关注项目。\n不可删除");
                         break;
@@ -1078,6 +1084,25 @@
             item.appendChild(await makeDom("span", subtime => {
                 subtime.style.flex = "1";
                 subtime.innerHTML = `包含 ${data.count} 个内容`;
+            }));
+            item.appendChild(await makeDom("button", renamebtn => {
+                renamebtn.style.flex = ".4";
+                renamebtn.innerHTML = `更名`;
+                if(showRename)renamebtn.setAttribute("disabled",true);
+                renamebtn.classList.add("CKUNFOLLOW-toolbar-btns");
+                renamebtn.onclick = async ()=>{
+                    let newname = prompt("请输入新的分类名字",data.name).trim();
+                    if(newname.length!==0){
+                        if(newname!=data.name){
+                            const result = await renameGroup(data.tagid,newname);
+                            if(result){
+                                await alertModal("分组重命名","分组重命名成功，重新打开窗口以显示修改后的数据。","确定");
+                            }else{
+                                await alertModal("分组重命名","分组重命名完成，但是不能确定结果。请刷新页面，然后查看是否生效。","确定");
+                            }
+                        }
+                    }
+                };
             }));
         });
     }
@@ -1361,7 +1386,8 @@
                 if(dom.hasAttribute('data-del-pending')){
                     if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
                     removeGroup(data.tagid).then(()=>refreshList());
-                    cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    //cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    await renderListTo(get(".CKUNFOLLOW-scroll-list"));
                     resetInfoBar();
                 }else{
                     dom.setAttribute('data-del-pending','waiting');
@@ -1462,7 +1488,7 @@
                             }
                             await renderListTo(get(".CKUNFOLLOW-scroll-list"));
                             hideModal();
-                            cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                            cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
                             resetInfoBar();
                         }
                     }),
@@ -2693,6 +2719,25 @@
                                                 }
                                         }),
                                         divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "重新载入列表";
+                                            btn.onclick = async e => {
+                                                await alertModal("重新载入列表", "即将重新载入列表。此重载不会重新获取数据。", "确定");
+                                                await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                                                resetInfoBar();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "重新载入数据";
+                                            btn.onclick = async e => {
+                                                await alertModal("重新载入数据", "即将重新载入数据和列表。将会重新获取所有数据。", "确定");
+                                                createMainWindow(true);
+                                            }
+                                        }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
