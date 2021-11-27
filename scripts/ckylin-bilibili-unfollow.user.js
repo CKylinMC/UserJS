@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.1
+// @version      0.2.2
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -13,6 +13,8 @@
 // @grant        GM_getResourceText
 // @grant        unsafeWindow
 // @license      GPL-3.0-only
+// @compatible   chrome 80+
+// @compatible   firefox 74+
 // ==/UserScript==
 (function () {
     'use strict';
@@ -27,6 +29,7 @@
         tags: {},
         self: 0,
         isSelf: false,
+        currUid: 0,
         fetchstat: "OK",
         currInfo: {
             black: -1,
@@ -42,14 +45,14 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.1 Beta",
+        VERSION: "0.2.2 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const batchDelay = () => wait(datas.batchOperationDelay*1000);
+    const batchDelay = async () => await wait(datas.batchOperationDelay*1000);
     const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
@@ -172,6 +175,7 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
         }
     }
     const renameGroup = async (tagid, tagname) => {
@@ -191,6 +195,9 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
+            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+            resetInfoBar();
         }
     }
     const removeGroup = async (tagid) => {
@@ -209,6 +216,9 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
+            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+            resetInfoBar();
         }
     }
     const moveUserToDefaultGroup = uids => moveUserToGroup(uids, [0]);
@@ -422,7 +432,7 @@
             } else {
                 errgroup.push(uid);
             }
-            batchDelay();
+            await batchDelay();
         }
         setInfoBar(`取关完成`)
         return {
@@ -468,6 +478,7 @@
         let currentPageNum = 1;
         const uid = await getCurrentUid();
         const self = await getSelfId();
+        datas.currUid = uid;
         datas.self = self;
         if (self === -1) {
             alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
@@ -481,14 +492,17 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
         setTitle();
-        let needreload = true;
+        let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
         if (datas.currInfo.following !== -1 && currInfo !== null) {
             if (force === false && datas.currInfo.following === currInfo.following) {
                 if (datas.fetched > 0)
                     needreload = false;
+            } else if(!needreload && datas.currInfo.following !== currInfo.following){
+                alertModal("自动重新加载","检测到数据变化，已经自动重新加载。","确定");
+                needreload = true;
             }
         }
         datas.currInfo = currInfo;
@@ -516,6 +530,7 @@
                 });
                 setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
             }
+            CacheManager.save();
         }else{
             log("Using last result.");
             cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注(缓存,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`
@@ -523,6 +538,100 @@
         }
         datas.status = 2;
         log("fetch completed.");
+    }
+    const CacheProvider = {
+        storage: window.localStorage,
+        prefix: "Unfollow_",
+        expire: 1000*60*60*2,
+        getKey:(key)=>CacheProvider.prefix+key,
+        valueWrapper: (value='',no=false)=>{
+            log(JSON.stringify({
+                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                vl: value
+            }));
+            return JSON.stringify({
+                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                vl: value
+            });
+        },
+        getValue: (value="{}")=>{
+            try{
+                let itemArc = JSON.parse(value);
+                if(itemArc.hasOwnProperty('et')&&itemArc.et>=(new Date()).getTime()){
+                    return itemArc.vl;
+                }
+                return null;
+            }catch{return null}
+        },
+        has: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            return CacheProvider.storage.getItem(key)===null;
+        },
+        valid: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            if(CacheProvider.has(key,true)){
+                const value = CacheProvider.storage.getItem(key);
+                return CacheProvider.getValue(value)!==null;
+            }else return false;
+        },
+        set: (key,val,noexpire=false,noprefix = false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            CacheProvider.storage.setItem(key,CacheProvider.valueWrapper(val,noexpire));
+        },
+        get: (key,fallback=null,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            const result = CacheProvider.storage.getItem(key);
+            log('Cache-get-with-key',key,result);
+            if(result===null) return fallback;
+            log('Cache-get-parsed-value',key,CacheProvider.getValue(result));
+            return CacheProvider.getValue(result);
+        },
+        del: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            CacheProvider.set(key,null,true);
+        }
+    }
+    const CacheManager = {
+        save:(uid=datas.currUid)=>{
+            const {total,fetched,pages,followings,mappings,tags,currInfo} = datas;
+            const tagclone = {};
+            for(let tn of Object.keys(tags)){
+                tagclone[tn+''] = tags[tn];
+            }
+            log({
+                total,fetched,pages,followings,mappings,tagclone,currInfo
+            });
+            CacheProvider.set(`cache_${uid}`,{
+                total,fetched,pages,followings,mappings,tagclone,currInfo
+            });
+        },
+        load:(uid=datas.currUid)=>{
+            if(!datas.isSelf) return false;
+            const cached = CacheProvider.get(`cache_${uid}`);
+            if(cached===null) return false;
+            else{
+                const {total,fetched,pages,followings,mappings,tagclone,currInfo} = cached;
+                const tags = {};
+                for(let tn of Object.keys(tagclone)){
+                    tags[parseInt(tn)] = tagclone[tn];
+                }
+                const cdata = {total,fetched,pages,followings,mappings,tags,currInfo};
+                for(let n of Object.keys(cdata)){
+                    datas[n] = cdata[n];
+                }
+                return true;
+            }
+        }
     }
     const clearStyles = (className = "CKUNFOLLOW") => {
         let dom = document.querySelectorAll("style." + className);
@@ -659,6 +768,10 @@
             background: #878787!important;
             color: grey!important;
         }
+        #CKUNFOLLOW-sortbtns-container>button{
+            flex: 1 0 40% !important;
+            margin: 4px 4px;
+        }
         #CKUNFOLLOW .mdi-close:hover{
             color: #ff5722;
         }
@@ -788,6 +901,28 @@
             align-content: space-around;
             justify-content: space-between;
             align-items: stretch;
+        }
+        .CKUNFOLLOW-modal-content button, 
+        .CKUNFOLLOW-modal-content input, 
+        .CKUNFOLLOW-modal-content keygen, 
+        .CKUNFOLLOW-modal-content optgroup, 
+        .CKUNFOLLOW-modal-content select, 
+        .CKUNFOLLOW-modal-content textarea
+        {
+            border-width: 2px;
+            border-color: transparent;
+            margin: 2px;
+            border-radius: 3px;
+            transition: all .3s;
+        }
+        .CKUNFOLLOW-modal-content button:hover, 
+        .CKUNFOLLOW-modal-content input:hover, 
+        .CKUNFOLLOW-modal-content keygen:hover, 
+        .CKUNFOLLOW-modal-content optgroup:hover, 
+        .CKUNFOLLOW-modal-content select:hover, 
+        .CKUNFOLLOW-modal-content textarea:hover
+        {
+            border-color: grey;
         }
         `, "CKUNFOLLOW-modal-css", "unique");
         const modal = document.createElement("div");
@@ -1038,15 +1173,22 @@
             item.setAttribute("title", title);
         });
     }
-    const taginfoline = (data,clickCallback=()=>{},selected = false) => {
+    const taginfoline = (data,clickCallback=()=>{},selected = false,showExtras = true,hideOptions = false) => {
         return makeDom("li", async item => {
+            let couldRename = true;
             item.className = "CKUNFOLLOW-data-inforow";
-            item.onclick = e => clickCallback(e,data);
+            item.onclick = e => {
+                if(e.path.filter(el=>el.tagName==="BUTTON"||el.tagName==="INPUT").length){
+                    return;
+                }else{
+                    clickCallback(e,data);
+                }
+            }
             item.setAttribute("data-id", data.tagid);
             item.setAttribute("data-name", data.name);
             item.setAttribute("data-count", data.count);
             item.setAttribute("data-tip", data.tip);
-            item.appendChild(await makeDom("input", toggle => {
+            if(!hideOptions)item.appendChild(await makeDom("input", toggle => {
                 toggle.className = "CKUNFOLLOW-data-inforow-toggle";
                 toggle.type = "checkbox";
                 toggle.checked = selected;
@@ -1057,11 +1199,13 @@
                 switch(data.tagid){
                     case 0:
                     case '0':
+                        couldRename = false;
                         name.innerHTML = `默认分类`.italics();
                         item.setAttribute("title", "默认的关注分类，包含全部未分组的关注项目。\n不可删除");
                         break;
                     case -10:
                     case '-10':
+                        couldRename = false;
                         name.innerHTML = `特别关注`.italics();
                         item.setAttribute("title", "默认的特别关注分类，包含全部特别关注的关注项目。\n不可删除");
                         break;
@@ -1078,6 +1222,31 @@
             item.appendChild(await makeDom("span", subtime => {
                 subtime.style.flex = "1";
                 subtime.innerHTML = `包含 ${data.count} 个内容`;
+            }));
+            if(showExtras)item.appendChild(await makeDom("button", renamebtn => {
+                renamebtn.style.flex = ".4";
+                renamebtn.innerHTML = `更名`;
+                renamebtn.style.height = "23px";
+                renamebtn.style.margin = "0";
+                renamebtn.style.padding = "2px";
+                renamebtn.classList.add("CKUNFOLLOW-toolbar-btns");
+                if(!couldRename){
+                    renamebtn.setAttribute("disabled",true);
+                    renamebtn.classList.add("grey");
+                }
+                renamebtn.onclick = async ()=>{
+                    let newname = prompt("请输入新的分类名字",data.name).trim();
+                    if(newname.length!==0){
+                        if(newname!=data.name){
+                            const result = await renameGroup(data.tagid,newname);
+                            if(result){
+                                await alertModal("分组重命名","分组重命名成功，重新打开窗口以显示修改后的数据。","确定");
+                            }else{
+                                await alertModal("分组重命名","分组重命名完成，但是不能确定结果。请刷新页面，然后查看是否生效。","确定");
+                            }
+                        }
+                    }
+                };
             }));
         });
     }
@@ -1361,7 +1530,8 @@
                 if(dom.hasAttribute('data-del-pending')){
                     if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
                     removeGroup(data.tagid).then(()=>refreshList());
-                    cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    //cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                    await renderListTo(get(".CKUNFOLLOW-scroll-list"));
                     resetInfoBar();
                 }else{
                     dom.setAttribute('data-del-pending','waiting');
@@ -1375,7 +1545,7 @@
                         namedom.innerHTML = text;
                     },5000);
                 }
-            });
+            },true);
             container.appendChild(taglistdom);
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
@@ -1383,6 +1553,7 @@
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
                         btn.innerHTML = "添加分组";
+                        btn.style.height = "30px";
                         btn.onclick = async () => {
                             const tagname = prompt("请输入新分组的标题");
                             if(!tagname) return;
@@ -1391,6 +1562,7 @@
                     }),
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.style.height = "30px";
                         btn.innerHTML = "关闭";
                         btn.onclick = () => hideModal();
                     }),
@@ -1424,23 +1596,31 @@
             taglistdom.style.width = "100%";
             taglistdom.style.maxHeight = "calc(50vh - 100px)";
             const refreshList = async ()=>renderTagListTo(taglistdom,mode==='copy'?[]:groups,async (e,data)=>{
-            });
+                const row = e.path.filter(el=>el.classList?.contains('CKUNFOLLOW-data-inforow'));
+                if(row.length){
+                    const cb = row[0].querySelector("input[type='checkbox']");
+                    if(cb) cb.checked = !cb.checked
+                }
+            },false);
             container.appendChild(taglistdom);
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
                 [
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.style.height = "30px";
                         btn.innerHTML = "管理分组 (Beta)";
                         btn.onclick = async () => createGroupInfoModal();
                     }),
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.style.height = "30px";
                         btn.innerHTML = "取消";
                         btn.onclick = () => hideModal();
                     }),
                     await makeDom("button", btn => {
                         btn.className = "CKUNFOLLOW-toolbar-btns";
+                        btn.style.height = "30px";
                         btn.innerHTML = "确定";
                         btn.onclick = async () => {
                             const allOptions = [...document.querySelectorAll('.CKUNFOLLOW-data-inforow-toggle[data-tagid]')]
@@ -1462,81 +1642,13 @@
                             }
                             await renderListTo(get(".CKUNFOLLOW-scroll-list"));
                             hideModal();
-                            cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                            cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
                             resetInfoBar();
                         }
                     }),
                 ].forEach(el => btns.appendChild(el));
             }))
             refreshList();
-        }))
-    }
-    const createExtendedInfoModal = async () => {
-        hideModal();
-        await wait(300);
-        openModal("获取更多信息: 谨慎操作!", await makeDom("div", async container => {
-            [
-                await makeDom("div", tip => {
-                    tip.innerHTML = `你正在尝试为选中的关注用户获取更多信息。<br><br><b>由于B站官方限制，不推荐一次性获取大量用户的更多信息。强行获取大量用户的更多信息，可能会导致你的IP地址被封禁，在一段时间内不能访问B站甚至更严重后果，由于具体限制和惩罚尚不明确，因此请谨慎使用此功能。</b><br><br>一般来说，扩展信息仅在不了解部分用户或想要快速获得多个关注用户的状态时使用，<b>因此请尽量减少选中数量然后再使用此功能</b>。`
-                }),
-                await makeDom("button", btn => {
-                    btn.className = "CKUNFOLLOW-toolbar-btns orange";
-                    btn.style.margin = "4px 0";
-                    btn.innerHTML = "知道了，继续"
-                    btn.onclick = async () => {
-                        hideModal();
-                        await wait(300);
-                        refreshChecked();
-                        openModal("获取更多信息", await makeDom("div", async container => {
-                            container.appendChild(await makeDom("div", tip => {
-                                tip.style.color = "red";
-                                tip.style.fontWeight = "bold";
-                                tip.innerHTML = `确认要获取信息的用户列表。<br>请尽量减少一次性选中的数量。`;
-                            }))
-                            container.appendChild(divider());
-                            container.appendChild(await makeDom("div", async checkedlistdom => {
-                                checkedlistdom.className = "CKUNFOLLOW-scroll-list";
-                                checkedlistdom.style.width = "100%";
-                                checkedlistdom.style.maxHeight = "calc(50vh - 100px)";
-                                const checkedList = [];
-                                for (let uid of datas.checked) {
-                                    if (uid in datas.mappings)
-                                        checkedList.push(datas.mappings[uid])
-                                }
-                                await renderListTo(checkedlistdom, checkedList);
-                            }))
-                            container.appendChild(await makeDom("div", async btns => {
-                                btns.style.display = "flex";
-                                [
-                                    await makeDom("button", btn => {
-                                        btn.className = "CKUNFOLLOW-toolbar-btns red";
-                                        btn.innerHTML = "确认";
-                                        btn.onclick = async e => {
-                                            await alertModal("正在获取信息...", `正在为${datas.checked.length}个用户获取信息，请耐心等候~`);
-                                            for (let uid of datas.checked) {
-                                                await fillUserStatus(uid)
-                                            }
-                                            await renderListTo(get(".CKUNFOLLOW-scroll-list"));
-                                            hideModal();
-                                        }
-                                    }),
-                                    await makeDom("button", btn => {
-                                        btn.className = "CKUNFOLLOW-toolbar-btns";
-                                        btn.innerHTML = "取消";
-                                        btn.onclick = e => hideModal();
-                                    }),
-                                ].forEach(el => btns.appendChild(el));
-                            }))
-                        }))
-                    }
-                }),
-                await makeDom("button", btn => {
-                    btn.className = "CKUNFOLLOW-toolbar-btns";
-                    btn.style.margin = "4px 0";
-                    btn.innerHTML = "我再考虑下";
-                    btn.onclick = () => hideModal();
-                }),
-            ].forEach(el => container.appendChild(el));
         }))
     }
     const createBlockOrFollowModal = async (isBlock = true) => {
@@ -1847,12 +1959,6 @@
                                                     btn.onclick = () => createGroupChangeModal('move');
                                                 })
                                             } else return null;
-                                        }),
-                                        await makeDom("button", async btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
-                                            btn.innerHTML = '扩展信息';
-                                            btn.onclick = () => createExtendedInfoModal();
                                         }),
                                         await _(() => {
                                             if (datas.isSelf) {
@@ -2217,10 +2323,11 @@
                             btn.onclick = async e => {
                                 openModal("选择排序方式", await makeDom("div", async select => {
                                     select.style.alignContent = "stretch";
+                                    select.style.flexDirection = "row";
+                                    select.id = "CKUNFOLLOW-sortbtns-container";
                                     [
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "已选中优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按已选中优先排序...");
@@ -2236,8 +2343,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "按最新关注";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按最新关注排序...");
@@ -2249,8 +2355,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "按最早关注";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按最早关注排序...");
@@ -2262,8 +2367,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "大会员优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按大会员优先排序...");
@@ -2275,8 +2379,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "无会员优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按无会员优先排序...");
@@ -2288,8 +2391,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "认证优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按认证优先排序...");
@@ -2301,8 +2403,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "无认证优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按无认证优先排序...");
@@ -2314,8 +2415,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "已注销优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按已注销优先排序...");
@@ -2331,8 +2431,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "特别关注优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按特别关注优先排序...");
@@ -2344,8 +2443,7 @@
                                             }
                                         }),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
                                             btn.innerHTML = "互相关注优先";
                                             btn.onclick = async e => {
                                                 setInfoBar("正在按互相关注优先排序...");
@@ -2356,11 +2454,10 @@
                                                 hideModal();
                                             }
                                         }),
-                                        divider(),
+                                        //divider(),
                                         await makeDom("button", btn => {
-                                            btn.className = "CKUNFOLLOW-toolbar-btns";
-                                            btn.style.margin = "4px 0";
-                                            btn.innerHTML = "不修改|取消";
+                                            btn.className = "CKUNFOLLOW-toolbar-btns CKUNFOLLOW-sortbtns";
+                                            btn.innerHTML = "不修改 | 取消";
                                             btn.onclick = e => hideModal();
                                         })
                                     ].forEach(el => select.appendChild(el));
@@ -2564,7 +2661,7 @@
                                                         await makeDom("button", btn => {
                                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                                             btn.style.margin = "4px 0";
-                                                            btn.innerHTML = "不修改|取消";
+                                                            btn.innerHTML = "不修改 | 取消";
                                                             btn.onclick = e => hideModal();
                                                         })
                                                     ].forEach(el => select.appendChild(el));
@@ -2696,6 +2793,25 @@
                                         await makeDom("button", btn => {
                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                             btn.style.margin = "4px 0";
+                                            btn.innerHTML = "重新载入列表";
+                                            btn.onclick = async e => {
+                                                await alertModal("重新载入列表", "即将重新载入列表。此重载不会重新获取数据。", "确定");
+                                                await renderListTo(get(".CKUNFOLLOW-scroll-list"));
+                                                resetInfoBar();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "重新载入数据";
+                                            btn.onclick = async e => {
+                                                await alertModal("重新载入数据", "即将重新载入数据和列表。将会重新获取所有数据。", "确定");
+                                                createMainWindow(true);
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
                                             btn.innerHTML = "关于和反馈";
                                             btn.onclick = async e => {
                                                 await alertModal("关于 “关注管理器”", (await makeDom("div", async div => {
@@ -2803,13 +2919,13 @@
         }
         resetInfoBar();
     }
-    const renderTagListTo = async (dom,selectedId=[],cb = ()=>{}) => {
+    const renderTagListTo = async (dom,selectedId=[],cb = ()=>{},inManager = true) => {
         setInfoBar("正在渲染列表...");
         await wait(100);
         dom.innerHTML = '';
         for (let it of Object.values(datas.tags)) {
             log(it);
-            dom.appendChild(await taginfoline(it,cb,selectedId.includes(it.tagid)));
+            dom.appendChild(await taginfoline(it,cb,selectedId.includes(it.tagid),inManager,inManager));
         }
         resetInfoBar();
     }
