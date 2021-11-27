@@ -475,8 +475,8 @@
         datas.checked = [];
         let currentPageNum = 1;
         const uid = await getCurrentUid();
-        datas.currUid = uid;
         const self = await getSelfId();
+        datas.currUid = uid;
         datas.self = self;
         if (self === -1) {
             alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
@@ -490,7 +490,7 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.uid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
         setTitle();
         let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
