@@ -43,7 +43,7 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: false,
+        debug: true,
         retrial: 3,
         VERSION: "0.2.2 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
