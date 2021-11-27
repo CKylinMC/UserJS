@@ -49,7 +49,7 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const batchDelay = () => wait(datas.batchOperationDelay*1000);
+    const batchDelay = async () => await wait(datas.batchOperationDelay*1000);
     const log = (...m) => cfg.debug && console.log('[Unfollow]', ...m);
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
@@ -422,7 +422,7 @@
             } else {
                 errgroup.push(uid);
             }
-            batchDelay();
+            await batchDelay();
         }
         setInfoBar(`取关完成`)
         return {
