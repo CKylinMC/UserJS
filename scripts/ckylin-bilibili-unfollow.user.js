@@ -27,6 +27,7 @@
         tags: {},
         self: 0,
         isSelf: false,
+        currUid: 0,
         fetchstat: "OK",
         currInfo: {
             black: -1,
@@ -40,7 +41,7 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: false,
+        debug: true,
         retrial: 3,
         VERSION: "0.2.2 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
@@ -172,6 +173,7 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
         }
     }
     const renameGroup = async (tagid, tagname) => {
@@ -191,6 +193,7 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
             await renderListTo(get(".CKUNFOLLOW-scroll-list"));
             resetInfoBar();
         }
@@ -211,6 +214,7 @@
             return false;
         } finally {
             await cacheGroupList();
+            CacheManager.save();
             await renderListTo(get(".CKUNFOLLOW-scroll-list"));
             resetInfoBar();
         }
@@ -471,6 +475,7 @@
         datas.checked = [];
         let currentPageNum = 1;
         const uid = await getCurrentUid();
+        datas.currUid = uid;
         const self = await getSelfId();
         datas.self = self;
         if (self === -1) {
@@ -485,9 +490,9 @@
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.self} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.uid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`}</span></small></h1>`
         setTitle();
-        let needreload = true;
+        let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
         if (datas.currInfo.following !== -1 && currInfo !== null) {
             if (force === false && datas.currInfo.following === currInfo.following) {
@@ -520,6 +525,7 @@
                 });
                 setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
             }
+            CacheManager.save();
         }else{
             log("Using last result.");
             cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注(缓存,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`
@@ -527,6 +533,100 @@
         }
         datas.status = 2;
         log("fetch completed.");
+    }
+    const CacheProvider = {
+        storage: window.localStorage,
+        prefix: "Unfollow_",
+        expire: 1000*60*60*2,
+        getKey:(key)=>CacheProvider.prefix+key,
+        valueWrapper: (value='',no=false)=>{
+            log(JSON.stringify({
+                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                vl: value
+            }));
+            return JSON.stringify({
+                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                vl: value
+            });
+        },
+        getValue: (value="{}")=>{
+            try{
+                let itemArc = JSON.parse(value);
+                if(itemArc.hasOwnProperty('et')&&itemArc.et>=(new Date()).getTime()){
+                    return itemArc.vl;
+                }
+                return null;
+            }catch{return null}
+        },
+        has: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            return CacheProvider.storage.getItem(key)===null;
+        },
+        valid: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            if(CacheProvider.has(key,true)){
+                const value = CacheProvider.storage.getItem(key);
+                return CacheProvider.getValue(value)!==null;
+            }else return false;
+        },
+        set: (key,val,noexpire=false,noprefix = false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            CacheProvider.storage.setItem(key,CacheProvider.valueWrapper(val,noexpire));
+        },
+        get: (key,fallback=null,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            const result = CacheProvider.storage.getItem(key);
+            log('Cache-get-with-key',key,result);
+            if(result===null) return fallback;
+            log('Cache-get-parsed-value',key,CacheProvider.getValue(result));
+            return CacheProvider.getValue(result);
+        },
+        del: (key,noprefix=false)=>{
+            if(!noprefix){
+                key = CacheProvider.getKey(key);
+            }
+            CacheProvider.set(key,null,true);
+        }
+    }
+    const CacheManager = {
+        save:(uid=datas.currUid)=>{
+            const {total,fetched,pages,followings,mappings,tags,currInfo} = datas;
+            const tagclone = {};
+            for(let tn of Object.keys(tags)){
+                tagclone[tn+''] = tags[tn];
+            }
+            log({
+                total,fetched,pages,followings,mappings,tagclone,currInfo
+            });
+            CacheProvider.set(`cache_${uid}`,{
+                total,fetched,pages,followings,mappings,tagclone,currInfo
+            });
+        },
+        load:(uid=datas.currUid)=>{
+            if(!datas.isSelf) return false;
+            const cached = CacheProvider.get(`cache_${uid}`);
+            if(cached===null) return false;
+            else{
+                const {total,fetched,pages,followings,mappings,tagclone,currInfo} = cached;
+                const tags = {};
+                for(let tn of Object.keys(tagclone)){
+                    tags[parseInt(tn)] = tagclone[tn];
+                }
+                const cdata = {total,fetched,pages,followings,mappings,tags,currInfo};
+                for(let n of Object.keys(cdata)){
+                    datas[n] = cdata[n];
+                }
+                return true;
+            }
+        }
     }
     const clearStyles = (className = "CKUNFOLLOW") => {
         let dom = document.querySelectorAll("style." + className);
