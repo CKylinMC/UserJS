@@ -498,6 +498,8 @@
             if (force === false && datas.currInfo.following === currInfo.following) {
                 if (datas.fetched > 0)
                     needreload = false;
+            } else if(force || datas.currInfo.following !== currInfo.following){
+                needreload = true;
             }
         }
         datas.currInfo = currInfo;
