@@ -41,7 +41,7 @@
 ### 用户脚本
 
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频页面常驻显示AV/BV号
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频页面常驻显示AV/BV号 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
 始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
 
@@ -59,7 +59,7 @@
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注管理器
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注管理器 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
 快速整理你的关注列表，一键取关。
 
@@ -77,7 +77,25 @@
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频旋转和缩放
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) AB循环 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
+**简单介绍**:
+AB循环，在某两个进度之间循环！进阶版洗脑循环！
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/422365)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/422365-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9ab%E5%BE%AA%E7%8E%AF/code/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9AB%E5%BE%AA%E7%8E%AF.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-abloop.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-abloop.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-abloop.user.js](scripts/ckylin-script-bilibili-abloop.user.js)
+
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频旋转和缩放 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
 旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 
@@ -248,24 +266,6 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 **仓库文件:**
 
 [ckylin-script-bilibili-wide-screen-no-scroll.user.js](scripts/ckylin-script-bilibili-wide-screen-no-scroll.user.js)
-
-------
-
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) AB循环
-**简单介绍**:
-AB循环，在某两个进度之间循环！进阶版洗脑循环！
-
-**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/422365)
-
-**安装链接**:
-
-* [Greasyfork](https://greasyfork.org/scripts/422365-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9ab%E5%BE%AA%E7%8E%AF/code/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9AB%E5%BE%AA%E7%8E%AF.user.js)
-* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-abloop.user.js)
-* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-abloop.user.js)
-
-**仓库文件:**
-
-[ckylin-script-bilibili-abloop.user.js](scripts/ckylin-script-bilibili-abloop.user.js)
 
 ------
 
