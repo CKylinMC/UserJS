@@ -16,6 +16,7 @@
     - [* 关注管理器 *](#-%E5%85%B3%E6%B3%A8%E7%AE%A1%E7%90%86%E5%99%A8-)
     - [* AB循环 *](#-ab%E5%BE%AA%E7%8E%AF-)
     - [* 视频旋转和缩放 *](#-%E8%A7%86%E9%A2%91%E6%97%8B%E8%BD%AC%E5%92%8C%E7%BC%A9%E6%94%BE-)
+    - [* 不要Sentry服务](#-%E4%B8%8D%E8%A6%81sentry%E6%9C%8D%E5%8A%A1)
     - [* 站内私信一键已读](#-%E7%AB%99%E5%86%85%E7%A7%81%E4%BF%A1%E4%B8%80%E9%94%AE%E5%B7%B2%E8%AF%BB)
     - [* 站内链接信息显示 BilibiliLinksInfos](#-%E7%AB%99%E5%86%85%E9%93%BE%E6%8E%A5%E4%BF%A1%E6%81%AF%E6%98%BE%E7%A4%BA-bilibililinksinfos)
     - [* 修改迷你播放器大小位置](#-%E4%BF%AE%E6%94%B9%E8%BF%B7%E4%BD%A0%E6%92%AD%E6%94%BE%E5%99%A8%E5%A4%A7%E5%B0%8F%E4%BD%8D%E7%BD%AE)
