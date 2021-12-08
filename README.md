@@ -113,6 +113,24 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 不要Sentry服务
+**简单介绍**:
+禁止Bilibili视频播放页面自动加载Sentry脚本。Sentry是一个问题跟踪反馈服务，但是会替换页面所有的事件和钩子并监听所有操作，可能造成页面卡顿以及部分脚本异常。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/436744)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/436744-bilibili-%E4%B8%8D%E8%A6%81sentry/code/%5BBilibili%5D%20%E4%B8%8D%E8%A6%81Sentry!.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-bilibili-no-sentry.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-no-sentry.user.js)
+
+**仓库文件:**
+
+[ckylin-bilibili-no-sentry.user.js](scripts/ckylin-bilibili-no-sentry.user.js)
+
+------
+
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内私信一键已读
 **简单介绍**:
 快速设置站内私信为已读状态
