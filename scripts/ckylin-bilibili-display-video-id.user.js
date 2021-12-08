@@ -419,7 +419,7 @@
                 if (Object.keys(config.customcopyitems).includes(copyitem)) {
                     let ccopyitem = config.customcopyitems[copyitem];
                     let pat = ccopyitem.content ? ccopyitem.content : "无效内容";
-                    pat = pat.mapReplace({
+                    pat = apiBasedVariablesReplacement(pat.mapReplace({
                         "%timeurl%": url,
                         "%vidurl%": vidurl,
                         "%shorturl%": shorturl,
@@ -431,7 +431,7 @@
                         "%p%": part,
                         "%pname%": partinfo.part,
                         "'": "\'"
-                    });
+                    }));
                     return {
                         title: `(自定义) ${ccopyitem.title}`,
                         content: pat,
@@ -440,6 +440,32 @@
                 }else return null;
         }
     };
+
+    function apiBasedVariablesReplacement(txt='',infos=globalinfos){
+        log("apiBasedVariablesReplacement",infos);
+        const vars = [...txt.matchAll(/\%[a-zA-Z.]+\%/g)].map(k=>k[0]);
+        if(vars.length==0) return txt;
+        const map = {};
+        for(let replaceVar of vars){
+            const varName = replaceVar.substring(1,replaceVar.length-1);
+            const apiResult = recursiveApiResolver(varName,infos);
+            if(!apiResult) continue;
+            map[replaceVar] = apiResult;
+        }
+        return txt.mapReplace(map);
+    }
+
+    function recursiveApiResolver(name,infos=globalinfos){
+        const pargs = name.split(".").filter(arr=>arr.length);
+        if([pargs[0],pargs[pargs.length-1]].includes("")) return null;
+        let target = infos;
+        for(let parg of pargs){
+            if(target.hasOwnProperty(parg)){
+                target = target[parg];
+            }else return null;
+        }
+        return target.toString();
+    }
 
     async function feat_showAv(force = false, mode = 'av'/* 'bv' */) {
         const { av_root, infos } = this;
@@ -824,7 +850,7 @@
         that.window = unsafeWindow;
         const custom_span = getOrNew("bilibili_"+itemid, av_root);
         const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos);
-        const parseTxt = txt=>txt.mapReplace({
+        const parseTxt = txt=>apiBasedVariablesReplacement(txt.mapReplace({
             "%timeurl%": url,
             "%vidurl%": vidurl,
             "%shorturl%": shorturl,
@@ -836,7 +862,7 @@
             "%p%": part,
             "%pname%": partinfo.part,
             "'": "\'"
-        });
+        }));
         if(Object.keys(config.customComponents).includes(itemid)){
             const item = config.customComponents[itemid];
             let content = item.content;
@@ -1720,6 +1746,7 @@
                                             <li>%cid% => CID号</li>
                                             <li>%p% => 分P</li>
                                             <li>%pname% => 分P名</li>
+                                            <li>%tname% => 分区名</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
@@ -1954,6 +1981,7 @@
                                             <li>%cid% => CID号</li>
                                             <li>%p% => 分P</li>
                                             <li>%pname% => 分P名</li>
+                                            <li>%tname% => 分区名</li>
                                             </ul>`;
                                             div.style.maxHeight = '2rem';
                                             div.style.overflow = 'hidden';
