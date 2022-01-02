@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩-修改迷你播放器大小位置
 // @namespace    ckylin-bilibili-resize-miniplayer
-// @version      0.7
+// @version      0.8
 // @description  手动设置哔哩哔哩迷你播放器大小和位置并记住
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -86,7 +86,7 @@ GM_registerMenuCommand("重置全部", () => {
         }
         var ckbtn = document.createElement("div");
         ckbtn.title = "点击设置播放器大小";
-        ckbtn.className = "item mini";
+        ckbtn.className = "nav-btn-item mini";
         ckbtn.innerHTML = "<span>设置</span><span>大小</span>"
         ckbtn.id = "ck_setminiplayersize"
         ckbtn.onclick = function () {
@@ -168,11 +168,28 @@ GM_registerMenuCommand("重置全部", () => {
         s.classList.add("CK_PlayerMods_Styles");
         document.body.appendChild(s);
     }
-
+    const wait = t => new Promise(r => setTimeout(r, t));
+    const get = q => document.querySelector(q);
+    async function waitForDom(q) {
+        let i = 50;
+        let dom;
+        while (--i >= 0) {
+            if (dom = get(q)) break;
+            await wait(100);
+        }
+        return dom;
+    }
+    window.CK_setWHAttr = async function(w, h){
+        var player = await waitForDom("#bilibili-player.mini-player .player");
+        player&&player.setAttribute("style","width: " + w + "!important;height: " + h + "!important")
+        var mnplayer = await waitForDom("#bilibili-player.mini-player")
+        mnplayer&&mnplayer.setAttribute("style","width: " + w + "!important;height: " + h + "!important")
+    }
     window.CK_setWH = function (w, h) {
         window.CK_addStyle("#bilibili-player.mini-player .player{width: " + w + "!important;height: " + h + "!important;}")
         window.CK_addStyle("#bilibili-player.mini-player:before{width: " + w + "!important;height: " + h + "!important;}")
         window.CK_addStyle("#bilibili-player.mini-player{width: " + w + "!important;height: " + h + "!important;}")
+        window.CK_setWHAttr(w, h)
         //window.CK_addStyle("#bilibili-player{width: " + w + "!important;height: " + h + "!important;}")
     }
 
@@ -231,7 +248,7 @@ div#bilibili-player.mini-player .bilibili-player-video-control-wrap,
 div#bilibili-player.mini-player .bilibili-player-video-bottom-area{
 display:none!important;
 }
- 
+
 div#bilibili-player.mini-player .bilibili-player-drag-mask-progress{
 display:block;
 }
