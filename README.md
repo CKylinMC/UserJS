@@ -171,7 +171,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 修改迷你播放器大小位置
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 修改迷你播放器大小位置 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 快速修改bilibili网页版迷你播放器窗口大小。
 
