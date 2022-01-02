@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.8
+// @version      0.9
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -594,10 +594,10 @@
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
         initAnimCss();
-        cfg.video = await waitForDom(".bilibili-player-video video");
+        cfg.video = await waitForDom(".bilibili-player-video video,.bilibili-player-video bwp-video");
         //d('video', get(".bilibili-player-video video"));
         //d('total', await getTotalTime());
-        cfg.video = get(".bilibili-player-video video");
+        cfg.video = get(".bilibili-player-video video,.bilibili-player-video bwp-video");
         cfg.b = (await getTotalTime())-0.1;
         triggerAnimTipStatus(false,true);
         setAPointMenu(true);
