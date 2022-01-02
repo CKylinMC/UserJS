@@ -150,7 +150,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内链接信息显示 BilibiliLinksInfos
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内链接信息显示 BilibiliLinksInfos ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 替换bilibili页面的视频链接为视频名，专栏链接为专栏文章名,音频链接为音频名
 
@@ -191,7 +191,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 动态页面默认选择投稿视频
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 动态页面默认选择投稿视频 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 让哔哩哔哩动态页面默认显示投稿视频.
 
@@ -213,7 +213,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 创作中心顺滑回顶
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 创作中心顺滑回顶 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 让哔哩哔哩的创作中心翻页回顶部时更顺滑一些。
 
@@ -231,7 +231,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 评论过滤
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 评论过滤 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 在哔哩哔哩全站范围内屏蔽指定的用户（UID）或包含指定关键字的评论。
 
@@ -381,7 +381,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除高能弹幕图标
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除高能弹幕图标 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 删除高能弹幕前的小图标
 
