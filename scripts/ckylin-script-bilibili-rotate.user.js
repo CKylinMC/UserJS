@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.12
+// @version      0.14
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -321,7 +321,7 @@
     }
 
     function applyEffects() {
-        let style = ".bilibili-player-video video { transform: ";
+        let style = ".bilibili-player-video video,.bilibili-player-video bwp-video { transform: ";
         effects.forEach(e => {
             let key = e.name;
             let value = e.value + "";
@@ -440,7 +440,7 @@
     }
 
     function smartLR() {
-        let dom = document.querySelector(".bilibili-player-video video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -452,7 +452,7 @@
     }
 
     function smartRR() {
-        let dom = document.querySelector(".bilibili-player-video video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -552,7 +552,7 @@
 
     async function videoDetect() {
         if (!(await playerReady())) return;
-        let dom = document.querySelector(".bilibili-player-video video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -624,6 +624,11 @@
 
     GM_registerMenuCommand("注入播放器", () => {
         if(confirm(`注入播放器功能(实验性)
+    * 当前状态：${injectToVideo?"开":"关"}
+    * 点击"确认"修改为 ${injectToVideo?"关":"开"} ，点击取消不做修改。
+    * 
+    * 说明
+    * 
     * 此开关决定将面板注入到页面外围还是播放器中。
     *
     * 如果设置为 开 脚本会注入到播放器中，那么你可以在全屏时使用面板，但是由于b站
@@ -631,10 +636,7 @@
     * 此功能可能会导致页面卡顿或其他问题(欢迎反馈遇到的问题)。
     *
     * 如果设置为 关 脚本会注入到页面外围，此时脚本注入完成后不会影响页面功能，
-    * 但是如果你进入全屏模式将无法看到侧功能栏，脚本将只能通过快捷键来操作视频旋转缩放。
-    *
-    * 当前状态：${injectToVideo?"开":"关"}
-    * 点击"确认"修改为 ${injectToVideo?"关":"开"} ，点击取消不做修改。`)){
+    * 但是如果你进入全屏模式将无法看到侧功能栏，脚本将只能通过快捷键来操作视频旋转缩放。`)){
             loadInjectOption(!injectToVideo);
             alert(`已修改为 ${injectToVideo?"开":"关"} 刷新页面生效`);
         }
@@ -1027,7 +1029,7 @@
     }
 
     function enableAnim() {
-        addStyle(".bilibili-player-video video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
+        addStyle(".bilibili-player-video video,.bilibili-player-video bwp-video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
     }
 
     function disableAnim() {
