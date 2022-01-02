@@ -19,7 +19,7 @@
     - [* 不要Sentry服务](#-%E4%B8%8D%E8%A6%81sentry%E6%9C%8D%E5%8A%A1)
     - [* 站内私信一键已读](#-%E7%AB%99%E5%86%85%E7%A7%81%E4%BF%A1%E4%B8%80%E9%94%AE%E5%B7%B2%E8%AF%BB)
     - [* 站内链接信息显示 BilibiliLinksInfos *](#-%E7%AB%99%E5%86%85%E9%93%BE%E6%8E%A5%E4%BF%A1%E6%81%AF%E6%98%BE%E7%A4%BA-bilibililinksinfos-)
-    - [* 修改迷你播放器大小位置](#-%E4%BF%AE%E6%94%B9%E8%BF%B7%E4%BD%A0%E6%92%AD%E6%94%BE%E5%99%A8%E5%A4%A7%E5%B0%8F%E4%BD%8D%E7%BD%AE)
+    - [* 修改迷你播放器大小位置 *](#-%E4%BF%AE%E6%94%B9%E8%BF%B7%E4%BD%A0%E6%92%AD%E6%94%BE%E5%99%A8%E5%A4%A7%E5%B0%8F%E4%BD%8D%E7%BD%AE-)
     - [* 动态页面默认选择投稿视频 *](#-%E5%8A%A8%E6%80%81%E9%A1%B5%E9%9D%A2%E9%BB%98%E8%AE%A4%E9%80%89%E6%8B%A9%E6%8A%95%E7%A8%BF%E8%A7%86%E9%A2%91-)
     - [* 创作中心顺滑回顶 *](#-%E5%88%9B%E4%BD%9C%E4%B8%AD%E5%BF%83%E9%A1%BA%E6%BB%91%E5%9B%9E%E9%A1%B6-)
     - [* 评论过滤 *](#-%E8%AF%84%E8%AE%BA%E8%BF%87%E6%BB%A4-)
