@@ -43,7 +43,7 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: true,
+        debug: false,
         retrial: 3,
         VERSION: "0.2.3 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
@@ -2773,6 +2773,92 @@
                                                                                     return createMainWindow(true);
                                                                                 } else {
                                                                                     await alertModal("导入失败", `尝试导入了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
+                                                                                    return createMainWindow(true);
+                                                                                }
+                                                                            }
+                                                                        };
+                                                                    }),
+                                                                    await makeDom("button", btn => {
+                                                                        btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                                        btn.innerHTML = "取消操作";
+                                                                        btn.onclick = e => hideModal();
+                                                                    })
+                                                                ].forEach(el => btns.appendChild(el));
+                                                            })
+                                                        ].forEach(el => modaldiv.appendChild(el));
+                                                    }));
+                                                }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "基于UID列表批量取关...";
+                                            if (!datas.isSelf) {
+                                                btn.classList.add("grey");
+                                                btn.disabled = true;
+                                                btn.title = "非个人空间，无法操作。";
+                                                btn.onclick = () => createOtherSpaceAlert();
+                                            } else
+                                                btn.onclick = async e => {
+                                                    hideModal();
+                                                    await wait(300);
+                                                    openModal("取关UID", await makeDom("div", async modaldiv => {
+                                                        [
+                                                            await makeDom("tip", tip => tip.innerHTML = "请输入取关的UID列表，用英文半角逗号','分割"),
+                                                            await makeDom("textarea", input => {
+                                                                input.id = "CKUNFOLLOW-import-textarea";
+                                                                input.placeholder = "1111111,2222222,3333333..."
+                                                            }),
+                                                            divider(),
+                                                            await makeDom("div", async btns => {
+                                                                btns.style.display = "flex";
+                                                                [
+                                                                    await makeDom("button", btn => {
+                                                                        btn.className = "CKUNFOLLOW-toolbar-btns orange";
+                                                                        btn.innerHTML = "批量取关";
+                                                                        btn.onclick = async e => {
+                                                                            const value = get("#CKUNFOLLOW-import-textarea").value;
+                                                                            if (value.length === 0) {
+                                                                                await alertModal("无法取关", "空白数据", "确定");
+                                                                                return;
+                                                                            }
+                                                                            setInfoBar("正在验证数据");
+                                                                            await alertModal("正在取关", "正在处理刚刚输入的列表，请稍等...");
+                                                                            const parts = value.split(',');
+                                                                            const finalList = [];
+                                                                            const followed = Object.keys(datas.mappings);
+                                                                            for (let part of parts) {
+                                                                                if (part.trim().length === 0) {
+                                                                                    log(part, "is empty, skipped");
+                                                                                } else if (part.trim().match(/[^0-9]/) === null) {
+                                                                                    const int = parseInt(part.trim());
+                                                                                    if (followed.includes(int) || followed.includes(int + "")) {
+                                                                                        log(part, "has already followed, skipped");
+                                                                                    } else if (int <= 0) {
+                                                                                        log(part, "smaller than zero, skipped");
+                                                                                    } else {
+                                                                                        finalList.push(int);
+                                                                                    }
+                                                                                } else {
+                                                                                    log(part, "is not a number, skipped");
+                                                                                }
+                                                                            }
+                                                                            await alertModal("正在取关", `正在取消${finalList.length}个关注...`);
+                                                                            const result = await unfollowUsers(finalList);
+                                                                            if (result.ok) {
+                                                                                await alertModal("批量取关完成", `${finalList.length}个关注全部取关成功！`, "确定");
+                                                                                return createMainWindow(true);
+                                                                            } else {
+                                                                                if ("data" in result) {
+                                                                                    if (result.data !== null && "failed_fids" in result.data)
+                                                                                        await alertModal("批量取关完成，但部分失败", `尝试移除了${finalList.length}个关注，但是有${result.data.failed_fids.length}个移除失败：
+                                                                                <br>
+                                                                                <textarea readonly onclick="this.select()">${result.data.failed_fids.join(',')}</textarea>`, "确定");
+                                                                                    else
+                                                                                        await alertModal("批量取关失败", `尝试移除了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
+                                                                                    return createMainWindow(true);
+                                                                                } else {
+                                                                                    await alertModal("批量取关失败", `尝试移除了${finalList.length}个关注但失败了，原因：<br><pre>${result.res}</pre>`, "确定");
                                                                                     return createMainWindow(true);
                                                                                 }
                                                                             }
