@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.3
+// @version      0.2.4
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -45,7 +45,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.3 Beta",
+        VERSION: "0.2.4 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -2832,8 +2832,8 @@
                                                                                     log(part, "is empty, skipped");
                                                                                 } else if (part.trim().match(/[^0-9]/) === null) {
                                                                                     const int = parseInt(part.trim());
-                                                                                    if (followed.includes(int) || followed.includes(int + "")) {
-                                                                                        log(part, "has already followed, skipped");
+                                                                                    if (!followed.includes(int) && !followed.includes(int + "")) {
+                                                                                        log(part, "has not been followed, skipped");
                                                                                     } else if (int <= 0) {
                                                                                         log(part, "smaller than zero, skipped");
                                                                                     } else {
