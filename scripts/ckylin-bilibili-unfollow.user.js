@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.5
+// @version      0.2.6
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -44,9 +44,9 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: true,
+        debug: false,
         retrial: 3,
-        VERSION: "0.2.5 Beta",
+        VERSION: "0.2.6 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -1918,9 +1918,9 @@
             dom.innerHTML = `<h2><i class="mdi mdi-account-search-outline" style="color:cornflowerblue"></i><br>正在获取数据</h2>请稍等片刻，不要关闭窗口。`;
         }));
         if (!(await cacheGroupList())) alertModal("警告", "分组数据获取失败。", "确定");
-        getFollowings(forceRefetch)
+        return getFollowings(forceRefetch)
             .then(async () => {
-                createScreen(await makeDom("div", async screen => {
+                return createScreen(await makeDom("div", async screen => {
                     const toolbar = await makeDom("div", async toolbar => {
                         toolbar.style.display = "flex";
                         toolbar.appendChild(await makeDom("button", btn => {
@@ -2882,9 +2882,11 @@
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "重新载入列表";
                                             btn.onclick = async e => {
-                                                await alertModal("重新载入列表", "即将重新载入列表。此重载不会重新获取数据。", "确定");
+                                                await alertModal("重新载入列表", "正在重新载入列表。此重载不会重新获取数据。");
+                                                datas.dommappings = {};
                                                 await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,false);
                                                 resetInfoBar();
+                                                hideModal();
                                             }
                                         }),
                                         await makeDom("button", btn => {
@@ -2892,8 +2894,10 @@
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "重新载入数据";
                                             btn.onclick = async e => {
-                                                await alertModal("重新载入数据", "即将重新载入数据和列表。将会重新获取所有数据。", "确定");
-                                                createMainWindow(true);
+                                                await alertModal("重新载入数据", "正在重新载入数据和列表。将会重新获取所有数据。");
+                                                datas.dommappings = {};
+                                                await createMainWindow(true);
+                                                hideModal();
                                             }
                                         }),
                                         await makeDom("button", btn => {
@@ -2948,7 +2952,7 @@
                     const list = await makeDom("div", async list => {
                         list.className = "CKUNFOLLOW-scroll-list";
                         list.id = "CKUNFOLLOW-MAINLIST";
-                        await renderListTo(list,datas.followings,true);
+                        await renderListTo(list,datas.followings,!forceRefetch);
                     })
                     screen.appendChild(toolbar);
                     screen.appendChild(list);
@@ -2998,13 +3002,13 @@
         }
         resetInfoBar();
     }
-    const renderListTo = async (dom, datalist = datas.followings, cacheAnsReuse = false) => {
+    const renderListTo = async (dom, datalist = datas.followings, cacheAndreuse = false) => {
         setInfoBar("正在渲染列表...");
         await wait(1);
-        const isMainList = cacheAnsReuse||datalist===datas.followings;
+        const isMainList = cacheAndreuse||datalist===datas.followings;
         dom.innerHTML = '';
         const getDomForData = async it=>{
-            if(datas.dommappings[it.mid+""]&& datas.dommappings[it.mid+""] instanceof HTMLElement) return datas.dommappings[it.mid+""];
+            if(cacheAndreuse&&(datas.dommappings[it.mid+""]&& datas.dommappings[it.mid+""] instanceof HTMLElement)) return datas.dommappings[it.mid+""];
             return upinfoline(it);
         }
         for (let it of datalist) {
