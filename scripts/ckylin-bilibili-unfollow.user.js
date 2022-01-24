@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.4
+// @version      0.2.5
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -25,6 +25,7 @@
         pages: 0,
         followings: [],
         mappings: {},
+        dommappings: {},
         checked: [],
         tags: {},
         self: 0,
@@ -43,9 +44,9 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: false,
+        debug: true,
         retrial: 3,
-        VERSION: "0.2.4 Beta",
+        VERSION: "0.2.5 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -196,7 +197,7 @@
         } finally {
             await cacheGroupList();
             CacheManager.save();
-            await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+            await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
             resetInfoBar();
         }
     }
@@ -217,7 +218,7 @@
         } finally {
             await cacheGroupList();
             CacheManager.save();
-            await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+            await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
             resetInfoBar();
         }
     }
@@ -1531,7 +1532,7 @@
                     if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
                     removeGroup(data.tagid).then(()=>refreshList());
                     //cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
-                    await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                    await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                     resetInfoBar();
                 }else{
                     dom.setAttribute('data-del-pending','waiting');
@@ -1640,7 +1641,7 @@
                                 // default:
                                 //     moveUserToDefaultGroup(uids);
                             }
-                            await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                            await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                             hideModal();
                             cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
                             resetInfoBar();
@@ -1679,7 +1680,7 @@
                     if (uid in datas.mappings)
                         checkedList.push(datas.mappings[uid])
                 }
-                await renderListTo(checkedlistdom, checkedList);
+                await renderListTo(checkedlistdom, checkedList, false);
             }))
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
@@ -1750,7 +1751,7 @@
                     if (unfoid in datas.mappings)
                         unfolist.push(datas.mappings[unfoid])
                 }
-                await renderListTo(unfolistdom, unfolist);
+                await renderListTo(unfolistdom, unfolist, false);
             }))
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
@@ -1896,7 +1897,7 @@
                 const yint = (datas.checked.includes(y.mid + "") || datas.checked.includes(parseInt(y.mid))) ? 1 : 0;
                 return yint - xint;
             })
-            await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+            await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
             hideModal();
         } catch (e) {
             alertModal("抱歉", "筛选时出现错误，未能完成筛选。");
@@ -2338,7 +2339,7 @@
                                                     const yint = (datas.checked.includes(y.mid + "") || datas.checked.includes(parseInt(y.mid))) ? 1 : 0;
                                                     return yint - xint;
                                                 })
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2350,7 +2351,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.mtime) - parseInt(x.mtime))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2374,7 +2375,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.vip.vipType) - parseInt(x.vip.vipType))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2386,7 +2387,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(x.vip.vipType) - parseInt(y.vip.vipType))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2398,7 +2399,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.official_verify.type) - parseInt(x.official_verify.type))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2410,7 +2411,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(x.official_verify.type) - parseInt(y.official_verify.type))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2426,7 +2427,7 @@
                                                     const yint = isInvalid(y) ? 1 : 0;
                                                     return yint - xint;
                                                 })
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2438,7 +2439,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.special) - parseInt(x.special))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2450,7 +2451,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.attribute) - parseInt(x.attribute))
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,true);
                                                 hideModal();
                                             }
                                         }),
@@ -2882,7 +2883,7 @@
                                             btn.innerHTML = "重新载入列表";
                                             btn.onclick = async e => {
                                                 await alertModal("重新载入列表", "即将重新载入列表。此重载不会重新获取数据。", "确定");
-                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"));
+                                                await renderListTo(get("#CKUNFOLLOW-MAINLIST"),datas.followings,false);
                                                 resetInfoBar();
                                             }
                                         }),
@@ -2947,7 +2948,7 @@
                     const list = await makeDom("div", async list => {
                         list.className = "CKUNFOLLOW-scroll-list";
                         list.id = "CKUNFOLLOW-MAINLIST";
-                        await renderListTo(list);
+                        await renderListTo(list,datas.followings,true);
                     })
                     screen.appendChild(toolbar);
                     screen.appendChild(list);
@@ -2997,12 +2998,19 @@
         }
         resetInfoBar();
     }
-    const renderListTo = async (dom, datalist = datas.followings) => {
+    const renderListTo = async (dom, datalist = datas.followings, cacheAnsReuse = false) => {
         setInfoBar("正在渲染列表...");
         await wait(1);
+        const isMainList = cacheAnsReuse||datalist===datas.followings;
         dom.innerHTML = '';
+        const getDomForData = async it=>{
+            if(datas.dommappings[it.mid+""]&& datas.dommappings[it.mid+""] instanceof HTMLElement) return datas.dommappings[it.mid+""];
+            return upinfoline(it);
+        }
         for (let it of datalist) {
-            dom.appendChild(await upinfoline(it));
+            const upinfolinedom = await getDomForData(it);
+            dom.appendChild(upinfolinedom);
+            if(isMainList) datas.dommappings[it.mid+""] = upinfolinedom;
         }
         resetInfoBar();
     }
