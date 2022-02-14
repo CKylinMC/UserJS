@@ -23,8 +23,11 @@
                 namespace: null,
                 syncOnChange: true,
                 pathByDots: true
-            }, options)
-            return new CKWebDavStorage(url, username, password);
+            }, options);
+            if (Object.values(option).includes(null)) {
+                return false;
+            }
+            return new CKWebDAVStorage(...Object.values(option));
         }
         constructor(url, username, password, namespace, syncOnChange = true, pathByDots = true) {
             this.client = new window.WebDAV.createClient(url, {
