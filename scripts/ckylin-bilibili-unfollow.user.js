@@ -2675,6 +2675,22 @@
                                                         await makeDom("button", btn => {
                                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                                             btn.style.margin = "4px 0";
+                                                            btn.innerHTML = "加选: 悄悄关注用户";
+                                                            btn.onclick = async e => {
+                                                                setInfoBar("正在处理加选");
+                                                                await alertModal("正在处理...", "请稍等...");
+                                                                for (let d of datas.followings) {
+                                                                    if (d.attribute===1||d.isWhisper) {
+                                                                        toggleSwitch(d.mid, true);
+                                                                    }
+                                                                }
+                                                                resetInfoBar();
+                                                                hideModal();
+                                                            }
+                                                        }),
+                                                        await makeDom("button", btn => {
+                                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                            btn.style.margin = "4px 0";
                                                             btn.innerHTML = "加选: 所有已注销用户";
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理加选");
@@ -2724,13 +2740,29 @@
                                                         await makeDom("button", btn => {
                                                             btn.className = "CKUNFOLLOW-toolbar-btns";
                                                             btn.style.margin = "4px 0";
+                                                            btn.innerHTML = "减选: 悄悄关注";
+                                                            btn.onclick = async e => {
+                                                                setInfoBar("正在处理减选");
+                                                                await alertModal("正在处理...", "请稍等...");
+                                                                for (let d of datas.followings) {
+                                                                    if (d.attribute===1||d.isWhisper) {
+                                                                        toggleSwitch(d.mid, false);
+                                                                    }
+                                                                }
+                                                                resetInfoBar();
+                                                                hideModal();
+                                                            }
+                                                        }),
+                                                        await makeDom("button", btn => {
+                                                            btn.className = "CKUNFOLLOW-toolbar-btns";
+                                                            btn.style.margin = "4px 0";
                                                             btn.innerHTML = "减选: 所有两年前的关注";
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (!isLongAgo(d)) {
-                                                                        toggleSwitch(d.mid, true);
+                                                                    if (isLongAgo(d)) {
+                                                                        toggleSwitch(d.mid, false);
                                                                     }
                                                                 }
                                                                 resetInfoBar();
@@ -2745,8 +2777,8 @@
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (!isNearly(d)) {
-                                                                        toggleSwitch(d.mid, true);
+                                                                    if (isNearly(d)) {
+                                                                        toggleSwitch(d.mid, false);
                                                                     }
                                                                 }
                                                                 resetInfoBar();
