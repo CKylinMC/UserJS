@@ -1579,7 +1579,7 @@
                             }else{
                                 datas.mappings[info.mid].attribute = 1;
                                 btn.remove();
-                                addBtn(info,container);
+                                addBtn(datas.mappings[info.mid],container);
                             }
                         }
                     }))
@@ -1600,7 +1600,7 @@
                             }else{
                                 datas.mappings[info.mid].attribute = 1;
                                 btn.remove();
-                                addBtn(info,container);
+                                addBtn(datas.mappings[info.mid],container);
                             }
                         }
                     }))
@@ -1622,7 +1622,7 @@
                             }else{
                                 datas.mappings[info.mid].attribute = 0;
                                 btn.remove();
-                                addBtn(info,container);
+                                addBtn(datas.mappings[info.mid],container);
                             }
                         }
                     }))
@@ -1646,9 +1646,9 @@
                                     datas.mappings[info.mid].isWhisper = false;
                                     btn.remove();
                                     if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
-                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(info));
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
                                     }
-                                    addBtn(info,container);
+                                    addBtn(datas.mappings[info.mid],container);
                                 }
                             }
                         }))
@@ -1672,9 +1672,9 @@
                                     datas.mappings[info.mid].isWhisper = true;
                                     btn.remove();
                                     if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
-                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(info));
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
                                     }
-                                    addBtn(info,container);
+                                    addBtn(datas.mappings[info.mid],container);
                                 }
                             }
                         }))
