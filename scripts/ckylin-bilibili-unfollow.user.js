@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.6
+// @version      0.2.7
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -46,7 +46,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.6 Beta",
+        VERSION: "0.2.7 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -120,6 +120,7 @@
     };
     const getUInfoURL = uid => `https://api.bilibili.com/x/space/acc/info?mid=${uid}`;
     const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
+    const getWhispersURL = (pn,ps=50) => `https://api.bilibili.com/x/relation/whispers?pn=${pn}&ps=${ps}&order=desc&order_type=attention`;
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
@@ -401,9 +402,26 @@
         }
         resetInfoBar();
     }
-    const batchOperateUser = async (uids = [], isBlock = false) => {
+    const RELE_ACTION = {
+        FOLLOW:1,
+        UNFOLLOW:2,
+        WHISPER:3,
+        UNWHISPER:4,
+        BLOCK:5,
+        UNBLOCK:6,
+        KICKFANS:7
+    }
+    const batchOperateUser = async (uids = [], actCode) => {
         if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
-        const act = isBlock ? 5 : 1;
+        if(!Object.values(RELE_ACTION).includes(actCode)){
+            if(Object.keys(RELE_ACTION).includes(actCode)){
+                actCode = RELE_ACTION[actCode];
+            }else{
+                return {ok: false, res: "Unknown action code"};
+            }
+        }
+        const act = actCode;
+        log("Batch Operating with Action Code",act);
         try {
             const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
             if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
@@ -412,11 +430,50 @@
             return {ok: false, uids, res: e.message};
         }
     }
-    const unfollowUser = async uid => {
+    const convertToWhisper = async (uids)=>{
+        log("Unfollowing",uids);
+        let unfo = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNFOLLOW):await batchOperateUser(uids,RELE_ACTION.UNFOLLOW);
+        log("Unfollowed:",unfo);
+        if(!unfo.ok) return unfo;
+        log("Whispering",uids);
+        let whis = uids.length===1?await operateUser(uids[0],RELE_ACTION.WHISPER):await batchOperateUser(uids,RELE_ACTION.WHISPER);
+        log("Whispered:",whis);
+        return whis;
+    }
+    const convertToFollow = async (uids)=>{
+        log("Unwhispering",uids);
+        let unwh = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNWHISPER):await batchOperateUser(uids,RELE_ACTION.UNWHISPER);
+        log("Unwhispered:",unwh);
+        if(!unwh.ok) return unwh;
+        log("Following",uids);
+        let foll = uids.length===1?await operateUser(uids[0],RELE_ACTION.FOLLOW):await batchOperateUser(uids,RELE_ACTION.FOLLOW);
+        log("Followed:",foll);
+        return foll;
+    }
+    const operateUser = async (uid, actCode) => {
+        if(!Object.values(RELE_ACTION).includes(actCode)){
+            if(Object.keys(RELE_ACTION).includes(actCode)){
+                actCode = RELE_ACTION[actCode];
+            }else{
+                return {ok: false, res: "Unknown action code"};
+            }
+        }
+        const act = actCode;
+        log("Operating with Action Code",act);
         try {
-            const jsonData = await (await fetch(getPostRequest(getUnfolURL(), new URLSearchParams(`fid=${uid}&act=2&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
+            const jsonData = await (await fetch(getPostRequest(getUnfolURL(), new URLSearchParams(`fid=${uid}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
             if (jsonData && jsonData.code === 0) return {ok: true, uid, res: ""};
             return {ok: false, uid, res: jsonData.message};
+        } catch (e) {
+            return {ok: false, uid, res: e.message};
+        }
+    }
+    const unfollowUser = async (uid,iswhisper=false) => {
+        try {
+            if(datas.isSelf){
+                iswhisper = datas.mappings[uid].attribute===1 || datas.mappings[uid].isWhisper;
+            }
+            return operateUser(uid,iswhisper?RELE_ACTION.UNWHISPER:RELE_ACTION.UNFOLLOW);
         } catch (e) {
             return {ok: false, uid, res: e.message};
         }
@@ -467,6 +524,38 @@
         }
         return null;
     }
+    const fetchWhisperFollowings = async (uid, page = 1) => {
+        if(!datas.isSelf) return null;
+        let retry = cfg.retrial;
+        while (retry-- > 0) {
+            try {
+                const jsonData = await (await fetch(getRequest(getWhispersURL(page)))).json();
+                if (jsonData) {
+                    if (jsonData.code === 0) {
+                        for(let item of jsonData.data.list){
+                            item.isWhisper = true;
+                        }
+                        return jsonData;
+                    }
+                    if (jsonData.code === 22007) {
+                        retry = -1;
+                        datas.fetchstat = "GUEST-LIMIT";
+                        throw "Not the owner of uid " + uid;
+                    }
+                    if(jsonData.code === 22115) {
+                        retry = -1;
+                        datas.fetchstat = "PERMS-DENIED";
+                        throw "Permission denied.";
+                    }
+                }
+                log("Unexcept fetch result", "retry:", retry, "uid:", uid, "p:", page, "data", jsonData)
+            } catch (e) {
+                if(datas.fetchstat==="OK")datas.fetchstat = "ERRORED";
+                log("Errored while fetching followings", "retry:", retry, "uid:", uid, "p:", page, "e:", e);
+            }
+        }
+        return null;
+    }
     const getFollowings = async (force = false) => {
         if (datas.status === 1) {
             log("Task canceled due to busy");
@@ -498,10 +587,10 @@
         let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
         if (datas.currInfo.following !== -1 && currInfo !== null) {
-            if (force === false && datas.currInfo.following === currInfo.following) {
+            if (force === false && datas.currInfo.following === currInfo.following && datas.currInfo.whisper === currInfo.whisper) {
                 if (datas.fetched > 0)
                     needreload = false;
-            } else if(!needreload && datas.currInfo.following !== currInfo.following){
+            } else if(!needreload && (datas.currInfo.following !== currInfo.following || datas.currInfo.whisper !== currInfo.whisper)){
                 alertModal("自动重新加载","检测到数据变化，已经自动重新加载。","确定");
                 needreload = true;
             }
@@ -530,6 +619,24 @@
                     datas.mappings[parseInt(it.mid)] = it;
                 });
                 setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
+            }
+            log("isSelf? ",datas.isSelf);
+            if(datas.isSelf){
+                setInfoBar(`正在查询悄悄关注数据`);
+                let whisperPageNum =1;
+                let fetched = 0;
+                const whisperPages = Math.floor(datas.currInfo.whisper / 50) + (datas.currInfo.whisper % 50 ? 1 : 0);
+                for(; whisperPageNum<=whisperPages;whisperPageNum++){
+                    const currentData = await fetchWhisperFollowings(whisperPageNum);
+                    log(currentData);
+                    if (!currentData) break;
+                    datas.followings = datas.followings.concat(currentData.data.list);
+                    fetched += currentData.data.list.length;
+                    currentData.data.list.forEach(it => {
+                        datas.mappings[parseInt(it.mid)] = it;
+                    });
+                    setInfoBar(`正在查询悄悄关注数据：已获取 ${fetched} 条数据`);
+                }
             }
             CacheManager.save();
         }else{
@@ -1084,12 +1191,16 @@
                     name.style.textDecoration = "line-through 3px red";
                 } else {
                     name.style.fontWeight = "bold";
+                    if (data.isWhisper === true || data.attribute=== 1) {
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-eye-off" style="vertical-align: middle;color:gray!important" title="悄悄关注"></i>` + name.innerHTML;
+                        title += " | 悄悄关注";
+                    }
                     if (data.special === 1) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="color:orangered!important" title="特别关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="vertical-align: middle;color:orangered!important" title="特别关注"></i>` + name.innerHTML;
                         title += " | 特别关注";
                     }
                     if (data.attribute === 6) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="color:orangered!important" title="互相关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="vertical-align: middle;color:orangered!important" title="互相关注"></i>` + name.innerHTML;
                         title += " | 互相关注";
                     }
                     if (data.vip.vipType !== 0) {
@@ -1102,19 +1213,19 @@
                     }
                     if (info.banned) {
                         name.style.color = "grey";
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-cancel" style="color:red!important" title="账号已封禁"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-cancel" style="vertical-align: middle;color:red!important" title="账号已封禁"></i>` + name.innerHTML;
                         title += " | 账号已封禁";
                     }
                     if (info.RIP) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-candle" style="color:black!important" title="纪念账号"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-candle" style="vertical-align: middle;color:black!important" title="纪念账号"></i>` + name.innerHTML;
                         title += " | 纪念账号";
                     }
                     if (info.disputed) {
-                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-frequently-asked-questions" style="color:orangered!important" title="账号有争议"></i>`;
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-frequently-asked-questions" style="vertical-align: middle;color:orangered!important" title="账号有争议"></i>`;
                         title += " | 账号有争议";
                     }
                     if (info.notice && info.notice.content && !info.banned && !info.RIP && !info.disputed) {
-                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-information" style="color:grey!important" title="${info.notice.toString()}"></i>`;
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-information" style="vertical-align: middle;color:grey!important" title="${info.notice.toString()}"></i>`;
                         title += " | " + (info.notice.content ? info.notice.content : "账号状态未知");
                     }
                 }
@@ -1356,6 +1467,9 @@
                         if(info.attribute===6){
                             subinfo+= `<span style="color:indianred;margin-right:6px;">互相关注</span>`;
                         }
+                        if(info.isWhisper === true || info.attribute=== 1){
+                            subinfo+= `<span style="color:yellowgreen;margin-right:6px;">悄悄关注</span>`;
+                        }
                         if(subinfo.length){
                             upinfo.innerHTML+= `<div>${subinfo}</div>`
                         }
@@ -1456,7 +1570,7 @@
                             btn.innerHTML = "正在关注...";
                             btn.setAttribute("disabled",true)
                             btn.classList.add("grey");
-                            const res = await batchOperateUser([info.mid],false);
+                            const res = await batchOperateUser([info.mid],RELE_ACTION.FOLLOW);
                             if(!res.ok){
                                 log(res)
                                 btn.innerHTML = "关注失败";
@@ -1465,7 +1579,28 @@
                             }else{
                                 datas.mappings[info.mid].attribute = 1;
                                 btn.remove();
-                                addBtn(info,container);
+                                addBtn(datas.mappings[info.mid],container);
+                            }
+                        }
+                    }))
+                    container.appendChild(await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                        btn.style.margin = "4px 0";
+                        btn.innerHTML = "悄悄关注";
+                        btn.onclick = async e => {
+                            btn.innerHTML = "正在关注...";
+                            btn.setAttribute("disabled",true)
+                            btn.classList.add("grey");
+                            const res = await batchOperateUser([info.mid],RELE_ACTION.WHISPER);
+                            if(!res.ok){
+                                log(res)
+                                btn.innerHTML = "关注失败";
+                                btn.removeAttribute("disabled")
+                                btn.classList.remove("grey");
+                            }else{
+                                datas.mappings[info.mid].attribute = 1;
+                                btn.remove();
+                                addBtn(datas.mappings[info.mid],container);
                             }
                         }
                     }))
@@ -1487,10 +1622,65 @@
                             }else{
                                 datas.mappings[info.mid].attribute = 0;
                                 btn.remove();
-                                addBtn(info,container);
+                                addBtn(datas.mappings[info.mid],container);
                             }
                         }
                     }))
+                    if(info.attribute!==2){
+                        container.appendChild(await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                            btn.style.margin = "4px 0";
+                            btn.innerHTML = "转为普通关注(不保留关注时间)";
+                            btn.onclick = async e => {
+                                btn.innerHTML = "正在转换...";
+                                btn.setAttribute("disabled",true)
+                                btn.classList.add("grey");
+                                const res = await convertToFollow([info.mid]);
+                                if(!res.ok){
+                                    log(res)
+                                    btn.innerHTML = "关注失败";
+                                    btn.removeAttribute("disabled")
+                                    btn.classList.remove("grey");
+                                }else{
+                                    datas.mappings[info.mid].attribute = 1;
+                                    datas.mappings[info.mid].isWhisper = false;
+                                    btn.remove();
+                                    if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
+                                    }
+                                    //addBtn(datas.mappings[info.mid],container);
+                                    hideModal();
+                                }
+                            }
+                        }))
+                    }else{
+                        container.appendChild(await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                            btn.style.margin = "4px 0";
+                            btn.innerHTML = "转为悄悄关注(不保留关注时间)";
+                            btn.onclick = async e => {
+                                btn.innerHTML = "正在悄悄关注...";
+                                btn.setAttribute("disabled",true)
+                                btn.classList.add("grey");
+                                const res = await convertToWhisper([info.mid]);
+                                if(!res.ok){
+                                    log(res)
+                                    btn.innerHTML = "关注失败";
+                                    btn.removeAttribute("disabled")
+                                    btn.classList.remove("grey");
+                                }else{
+                                    datas.mappings[info.mid].attribute = 2;
+                                    datas.mappings[info.mid].isWhisper = true;
+                                    btn.remove();
+                                    if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
+                                    }
+                                    //addBtn(datas.mappings[info.mid],container);
+                                    hideModal();
+                                }
+                            }
+                        }))
+                    }
                 }
                 container.appendChild(await makeDom("button", btn => {
                     btn.className = "CKUNFOLLOW-toolbar-btns";
@@ -1693,7 +1883,7 @@
                                 return alertModal("无需继续", "你没有选中任何项。", "确定");
                             const finalList = datas.checked;
                             await alertModal("正在" + ui.action, `正在${ui.action}${finalList.length}个关注...`);
-                            const result = await batchOperateUser(finalList, isBlock);
+                            const result = await batchOperateUser(finalList, isBlock?RELE_ACTION.BLOCK:RELE_ACTION.FOLLOW);
                             if (result.ok) {
                                 await alertModal(ui.action + "完成", `${finalList.length}个关注全部${ui.action}成功！`, "确定");
                                 return createMainWindow(true);
@@ -2759,7 +2949,7 @@
                                                                                 }
                                                                             }
                                                                             await alertModal("正在导入", `正在导入${finalList.length}个关注...`);
-                                                                            const result = await batchOperateUser(finalList, false);
+                                                                            const result = await batchOperateUser(finalList, RELE_ACTION.FOLLOW);
                                                                             if (result.ok) {
                                                                                 await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
                                                                                 return createMainWindow(true);
