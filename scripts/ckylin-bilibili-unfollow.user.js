@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.6
+// @version      0.2.7
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -44,9 +44,9 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: false,
+        debug: true,
         retrial: 3,
-        VERSION: "0.2.6 Beta",
+        VERSION: "0.2.7 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -120,6 +120,7 @@
     };
     const getUInfoURL = uid => `https://api.bilibili.com/x/space/acc/info?mid=${uid}`;
     const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
+    const getWhispersURL = (pn,ps=50) => `https://api.bilibili.com/x/relation/whispers?pn=${pn}&ps=${ps}&order=desc&order_type=attention`;
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
@@ -467,6 +468,38 @@
         }
         return null;
     }
+    const fetchWhisperFollowings = async (uid, page = 1) => {
+        if(!datas.isSelf) return null;
+        let retry = cfg.retrial;
+        while (retry-- > 0) {
+            try {
+                const jsonData = await (await fetch(getRequest(getWhispersURL(page)))).json();
+                if (jsonData) {
+                    if (jsonData.code === 0) {
+                        for(let item of jsonData.data.list){
+                            item.isWhisper = true;
+                        }
+                        return jsonData;
+                    }
+                    if (jsonData.code === 22007) {
+                        retry = -1;
+                        datas.fetchstat = "GUEST-LIMIT";
+                        throw "Not the owner of uid " + uid;
+                    }
+                    if(jsonData.code === 22115) {
+                        retry = -1;
+                        datas.fetchstat = "PERMS-DENIED";
+                        throw "Permission denied.";
+                    }
+                }
+                log("Unexcept fetch result", "retry:", retry, "uid:", uid, "p:", page, "data", jsonData)
+            } catch (e) {
+                if(datas.fetchstat==="OK")datas.fetchstat = "ERRORED";
+                log("Errored while fetching followings", "retry:", retry, "uid:", uid, "p:", page, "e:", e);
+            }
+        }
+        return null;
+    }
     const getFollowings = async (force = false) => {
         if (datas.status === 1) {
             log("Task canceled due to busy");
@@ -530,6 +563,24 @@
                     datas.mappings[parseInt(it.mid)] = it;
                 });
                 setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
+            }
+            log("isSelf? ",datas.isSelf);
+            if(datas.isSelf){
+                setInfoBar(`正在查询悄悄关注数据`);
+                let whisperPageNum =1;
+                let fetched = 0;
+                const whisperPages = Math.floor(datas.currInfo.whisper / 50) + (datas.currInfo.whisper % 50 ? 1 : 0);
+                for(; whisperPageNum<=whisperPages;whisperPageNum++){
+                    const currentData = await fetchWhisperFollowings(whisperPageNum);
+                    log(currentData);
+                    if (!currentData) break;
+                    datas.followings = datas.followings.concat(currentData.data.list);
+                    fetched += currentData.data.list.length;
+                    currentData.data.list.forEach(it => {
+                        datas.mappings[parseInt(it.mid)] = it;
+                    });
+                    setInfoBar(`正在查询悄悄关注数据：已获取 ${fetched} 条数据`);
+                }
             }
             CacheManager.save();
         }else{
@@ -1084,12 +1135,16 @@
                     name.style.textDecoration = "line-through 3px red";
                 } else {
                     name.style.fontWeight = "bold";
+                    if (data.isWhisper === true || data.attribute=== 1) {
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-eye-off" style="vertical-align: middle;color:gray!important" title="悄悄关注"></i>` + name.innerHTML;
+                        title += " | 悄悄关注";
+                    }
                     if (data.special === 1) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="color:orangered!important" title="特别关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="vertical-align: middle;color:orangered!important" title="特别关注"></i>` + name.innerHTML;
                         title += " | 特别关注";
                     }
                     if (data.attribute === 6) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="color:orangered!important" title="互相关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="vertical-align: middle;color:orangered!important" title="互相关注"></i>` + name.innerHTML;
                         title += " | 互相关注";
                     }
                     if (data.vip.vipType !== 0) {
@@ -1102,19 +1157,19 @@
                     }
                     if (info.banned) {
                         name.style.color = "grey";
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-cancel" style="color:red!important" title="账号已封禁"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-cancel" style="vertical-align: middle;color:red!important" title="账号已封禁"></i>` + name.innerHTML;
                         title += " | 账号已封禁";
                     }
                     if (info.RIP) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-candle" style="color:black!important" title="纪念账号"></i>` + name.innerHTML;
+                        name.innerHTML = `<i class="mdi mdi-18px mdi-candle" style="vertical-align: middle;color:black!important" title="纪念账号"></i>` + name.innerHTML;
                         title += " | 纪念账号";
                     }
                     if (info.disputed) {
-                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-frequently-asked-questions" style="color:orangered!important" title="账号有争议"></i>`;
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-frequently-asked-questions" style="vertical-align: middle;color:orangered!important" title="账号有争议"></i>`;
                         title += " | 账号有争议";
                     }
                     if (info.notice && info.notice.content && !info.banned && !info.RIP && !info.disputed) {
-                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-information" style="color:grey!important" title="${info.notice.toString()}"></i>`;
+                        name.innerHTML = name.innerHTML + `<i class="mdi mdi-18px mdi-information" style="vertical-align: middle;color:grey!important" title="${info.notice.toString()}"></i>`;
                         title += " | " + (info.notice.content ? info.notice.content : "账号状态未知");
                     }
                 }
