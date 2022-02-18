@@ -402,9 +402,26 @@
         }
         resetInfoBar();
     }
-    const batchOperateUser = async (uids = [], isBlock = false) => {
+    const RELE_ACTION = {
+        FOLLOW:1,
+        UNFOLLOW:2,
+        WHISPER:3,
+        UNWHISPER:4,
+        BLOCK:5,
+        UNBLOCK:6,
+        KICKFANS:7
+    }
+    const batchOperateUser = async (uids = [], actCode) => {
         if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
-        const act = isBlock ? 5 : 1;
+        if(!Object.values(RELE_ACTION).includes(actCode)){
+            if(Object.keys(RELE_ACTION).includes(actCode)){
+                actCode = RELE_ACTION[actCode];
+            }else{
+                return {ok: false, res: "Unknown action code"};
+            }
+        }
+        const act = actCode;
+        log("Batch Operating with Action Code",act);
         try {
             const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
             if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
@@ -413,11 +430,50 @@
             return {ok: false, uids, res: e.message};
         }
     }
-    const unfollowUser = async uid => {
+    const convertToWhisper = async (uids)=>{
+        log("Unfollowing",uids);
+        let unfo = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNFOLLOW):await batchOperateUser(uids,RELE_ACTION.UNFOLLOW);
+        log("Unfollowed:",unfo);
+        if(!unfo.ok) return unfo;
+        log("Whispering",uids);
+        let whis = uids.length===1?await operateUser(uids[0],RELE_ACTION.WHISPER):await batchOperateUser(uids,RELE_ACTION.WHISPER);
+        log("Whispered:",whis);
+        return whis;
+    }
+    const convertToFollow = async (uids)=>{
+        log("Unwhispering",uids);
+        let unwh = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNWHISPER):await batchOperateUser(uids,RELE_ACTION.UNWHISPER);
+        log("Unwhispered:",unwh);
+        if(!unwh.ok) return unwh;
+        log("Following",uids);
+        let foll = uids.length===1?await operateUser(uids[0],RELE_ACTION.FOLLOW):await batchOperateUser(uids,RELE_ACTION.FOLLOW);
+        log("Followed:",foll);
+        return foll;
+    }
+    const operateUser = async (uid, actCode) => {
+        if(!Object.values(RELE_ACTION).includes(actCode)){
+            if(Object.keys(RELE_ACTION).includes(actCode)){
+                actCode = RELE_ACTION[actCode];
+            }else{
+                return {ok: false, res: "Unknown action code"};
+            }
+        }
+        const act = actCode;
+        log("Operating with Action Code",act);
         try {
-            const jsonData = await (await fetch(getPostRequest(getUnfolURL(), new URLSearchParams(`fid=${uid}&act=2&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
+            const jsonData = await (await fetch(getPostRequest(getUnfolURL(), new URLSearchParams(`fid=${uid}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
             if (jsonData && jsonData.code === 0) return {ok: true, uid, res: ""};
             return {ok: false, uid, res: jsonData.message};
+        } catch (e) {
+            return {ok: false, uid, res: e.message};
+        }
+    }
+    const unfollowUser = async (uid,iswhisper=false) => {
+        try {
+            if(datas.isSelf){
+                iswhisper = !!(datas.followings[uid]?.attribute===2);
+            }
+            return operateUser(uid,iswhisper?RELE_ACTION.UNWHISPER:RELE_ACTION.UNFOLLOW);
         } catch (e) {
             return {ok: false, uid, res: e.message};
         }
@@ -531,10 +587,10 @@
         let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
         if (datas.currInfo.following !== -1 && currInfo !== null) {
-            if (force === false && datas.currInfo.following === currInfo.following) {
+            if (force === false && datas.currInfo.following === currInfo.following && datas.currInfo.whisper === currInfo.whisper) {
                 if (datas.fetched > 0)
                     needreload = false;
-            } else if(!needreload && datas.currInfo.following !== currInfo.following){
+            } else if(!needreload && (datas.currInfo.following !== currInfo.following || datas.currInfo.whisper !== currInfo.whisper)){
                 alertModal("自动重新加载","检测到数据变化，已经自动重新加载。","确定");
                 needreload = true;
             }
@@ -1411,6 +1467,9 @@
                         if(info.attribute===6){
                             subinfo+= `<span style="color:indianred;margin-right:6px;">互相关注</span>`;
                         }
+                        if(info.isWhisper === true || info.attribute=== 1){
+                            subinfo+= `<span style="color:yellowgreen;margin-right:6px;">悄悄关注</span>`;
+                        }
                         if(subinfo.length){
                             upinfo.innerHTML+= `<div>${subinfo}</div>`
                         }
@@ -1511,7 +1570,28 @@
                             btn.innerHTML = "正在关注...";
                             btn.setAttribute("disabled",true)
                             btn.classList.add("grey");
-                            const res = await batchOperateUser([info.mid],false);
+                            const res = await batchOperateUser([info.mid],RELE_ACTION.FOLLOW);
+                            if(!res.ok){
+                                log(res)
+                                btn.innerHTML = "关注失败";
+                                btn.removeAttribute("disabled")
+                                btn.classList.remove("grey");
+                            }else{
+                                datas.mappings[info.mid].attribute = 1;
+                                btn.remove();
+                                addBtn(info,container);
+                            }
+                        }
+                    }))
+                    container.appendChild(await makeDom("button", btn => {
+                        btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                        btn.style.margin = "4px 0";
+                        btn.innerHTML = "悄悄关注";
+                        btn.onclick = async e => {
+                            btn.innerHTML = "正在关注...";
+                            btn.setAttribute("disabled",true)
+                            btn.classList.add("grey");
+                            const res = await batchOperateUser([info.mid],RELE_ACTION.WHISPER);
                             if(!res.ok){
                                 log(res)
                                 btn.innerHTML = "关注失败";
@@ -1546,6 +1626,59 @@
                             }
                         }
                     }))
+                    if(info.attribute!==2){
+                        container.appendChild(await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                            btn.style.margin = "4px 0";
+                            btn.innerHTML = "转为普通关注(不保留关注时间)";
+                            btn.onclick = async e => {
+                                btn.innerHTML = "正在转换...";
+                                btn.setAttribute("disabled",true)
+                                btn.classList.add("grey");
+                                const res = await convertToFollow([info.mid]);
+                                if(!res.ok){
+                                    log(res)
+                                    btn.innerHTML = "关注失败";
+                                    btn.removeAttribute("disabled")
+                                    btn.classList.remove("grey");
+                                }else{
+                                    datas.mappings[info.mid].attribute = 1;
+                                    datas.mappings[info.mid].isWhisper = false;
+                                    btn.remove();
+                                    if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(info));
+                                    }
+                                    addBtn(info,container);
+                                }
+                            }
+                        }))
+                    }else{
+                        container.appendChild(await makeDom("button", btn => {
+                            btn.className = "CKUNFOLLOW-toolbar-btns blue";
+                            btn.style.margin = "4px 0";
+                            btn.innerHTML = "转为悄悄关注(不保留关注时间)";
+                            btn.onclick = async e => {
+                                btn.innerHTML = "正在悄悄关注...";
+                                btn.setAttribute("disabled",true)
+                                btn.classList.add("grey");
+                                const res = await convertToWhisper([info.mid]);
+                                if(!res.ok){
+                                    log(res)
+                                    btn.innerHTML = "关注失败";
+                                    btn.removeAttribute("disabled")
+                                    btn.classList.remove("grey");
+                                }else{
+                                    datas.mappings[info.mid].attribute = 2;
+                                    datas.mappings[info.mid].isWhisper = true;
+                                    btn.remove();
+                                    if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
+                                        datas.dommappings[info.mid+""].replaceWith(await upinfoline(info));
+                                    }
+                                    addBtn(info,container);
+                                }
+                            }
+                        }))
+                    }
                 }
                 container.appendChild(await makeDom("button", btn => {
                     btn.className = "CKUNFOLLOW-toolbar-btns";
@@ -1748,7 +1881,7 @@
                                 return alertModal("无需继续", "你没有选中任何项。", "确定");
                             const finalList = datas.checked;
                             await alertModal("正在" + ui.action, `正在${ui.action}${finalList.length}个关注...`);
-                            const result = await batchOperateUser(finalList, isBlock);
+                            const result = await batchOperateUser(finalList, isBlock?RELE_ACTION.BLOCK:RELE_ACTION.FOLLOW);
                             if (result.ok) {
                                 await alertModal(ui.action + "完成", `${finalList.length}个关注全部${ui.action}成功！`, "确定");
                                 return createMainWindow(true);
@@ -2814,7 +2947,7 @@
                                                                                 }
                                                                             }
                                                                             await alertModal("正在导入", `正在导入${finalList.length}个关注...`);
-                                                                            const result = await batchOperateUser(finalList, false);
+                                                                            const result = await batchOperateUser(finalList, RELE_ACTION.FOLLOW);
                                                                             if (result.ok) {
                                                                                 await alertModal("导入完成", `${finalList.length}个关注全部导入成功！`, "确定");
                                                                                 return createMainWindow(true);
