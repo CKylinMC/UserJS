@@ -1648,7 +1648,8 @@
                                     if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
                                         datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
                                     }
-                                    addBtn(datas.mappings[info.mid],container);
+                                    //addBtn(datas.mappings[info.mid],container);
+                                    hideModal();
                                 }
                             }
                         }))
@@ -1674,7 +1675,8 @@
                                     if(datas.dommappings[info.mid+""]&& datas.dommappings[info.mid+""] instanceof HTMLElement){
                                         datas.dommappings[info.mid+""].replaceWith(await upinfoline(datas.mappings[info.mid]));
                                     }
-                                    addBtn(datas.mappings[info.mid],container);
+                                    //addBtn(datas.mappings[info.mid],container);
+                                    hideModal();
                                 }
                             }
                         }))
