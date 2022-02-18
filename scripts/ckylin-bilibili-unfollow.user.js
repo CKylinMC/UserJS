@@ -471,7 +471,7 @@
     const unfollowUser = async (uid,iswhisper=false) => {
         try {
             if(datas.isSelf){
-                iswhisper = !!(datas.followings[uid]?.attribute===2);
+                iswhisper = datas.mappings[uid].attribute===1 || datas.mappings[uid].isWhisper;
             }
             return operateUser(uid,iswhisper?RELE_ACTION.UNWHISPER:RELE_ACTION.UNFOLLOW);
         } catch (e) {
