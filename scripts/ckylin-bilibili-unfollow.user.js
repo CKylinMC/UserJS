@@ -1572,10 +1572,10 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
                                         if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey">转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
+                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
@@ -1605,10 +1605,10 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
                                         if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey">转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
+                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
