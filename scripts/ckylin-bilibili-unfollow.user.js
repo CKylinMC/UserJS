@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.7
+// @version      0.2.8
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -46,7 +46,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.7 Beta",
+        VERSION: "0.2.8 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -131,6 +131,7 @@
     const getRemoveGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/del`;
     const getMoveToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/addUsers`;
     const getCopyToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/copyUsers`;
+    const getDynamicURL = (selfid,hostid)=>`https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?visitor_uid=${selfid}&host_uid=${hostid}&offset_dynamic_id=0&need_top=1&platform=web`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -346,6 +347,56 @@
             return {ok: false}
         }
     };
+    const parseDynamic = (d)=>{
+        const dynamic = {
+            id: d.desc.dynamic_id_str,
+            sender:d.desc.user_profile,
+            like: d.desc.like,
+            comment: d.desc.comment,
+            repost: d.desc.repost,
+            status: d.desc.status,
+            timestamp: d.desc.timestamp,
+            type: d.desc.type,
+            content: d.card.item.content||d.card.item.description,
+            publisher: d.card.user,
+            istop: d.extra.is_space_top===1
+        };
+        return dynamic;
+    }
+    const getDynamic = async uid => {
+        try {
+            const jsonData = await (await fetch(getRequest(getDynamicURL(datas.self,uid)))).json();
+            if (jsonData && jsonData.code === 0) {
+                const data = jsonData.data.cards;
+                const dynamics = {
+                    top:null,
+                    next:null,
+                }
+                if(!data || data.length === 0) {
+                    return dynamics;
+                }
+                let d = data.shift();
+                d.card = JSON.parse(d.card);
+                let obj = parseDynamic(d);
+                if(obj.istop){
+                    dynamics.top = obj;
+                    let nd = data.shift();
+                    nd.card = JSON.parse(nd.card);
+                    let nobj = parseDynamic(nd);
+                    dynamics.next = nobj;
+                }else{
+                    dynamics.next = obj;
+                }
+                return dynamics;
+            } else {
+                log("Failed fetch self info: unexpected response", jsonData);
+                return null;
+            }
+        } catch (e) {
+            log("Failed fetch self info: error found", e);
+            return null;
+        }
+    }
     const getUserStats = async uid => {
         try {
             const jsonData = await (await fetch(getRequest(getUInfoURL(uid)))).json();
@@ -1408,6 +1459,7 @@
         if(datas.autoExtendInfo){
             alertModal("请稍后...");
             await fillUserStatus(info.mid).catch(err => log(err));
+            info.dynamics = await getDynamic(info.mid).catch(err => log(err));
         }
         hideModal();
         await wait(300);
@@ -1496,6 +1548,75 @@
                 ].forEach(el=>card.appendChild(el));
             })
             container.appendChild(infocard);
+            if(info.dynamics){
+                if(info.dynamics.top){
+                    let dynamic = info.dynamics.top;
+                    let content = (()=>{
+                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
+                        let short = dynamic.content.substring(0,300);
+                        short = short.split("\n").slice(0,4).join("\n");
+                        if(short!=dynamic.content) short+="...";
+
+                        return short.replaceAll("\n","<br>");
+                    })();
+                    const pushdate = new Date(dynamic.timestamp*1000);
+                    [
+                        divider(),
+                        await makeDom("div",async post=>{
+                            post.innerHTML = "<h3 style='padding: 6px 0;'>置顶动态</h3>";
+                            post.appendChild(await makeDom("div",async vidcard=>{
+                                vidcard.style.display = "flex";
+                                vidcard.style.flexDirection = "row";
+                                vidcard.style.minHeight = "80px";
+                                vidcard.style.minWidth = "400px";
+                                [
+                                    await makeDom("div",async vidinfo=>{
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        if(info.mid!=dynamic.publisher.uid){
+                                            vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
+                                        }
+                                    })
+                                ].forEach(el=>vidcard.appendChild(el));
+                                vidcard.onclick = ()=>open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
+                            }))
+                        })
+                    ].forEach(el=>container.appendChild(el));
+                }
+                if(info.dynamics.next){
+                    let dynamic = info.dynamics.next;
+                    let content = (()=>{
+                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
+                        let short = dynamic.content.substring(0,300);
+                        short = short.split("\n").slice(0,4).join("\n");
+                        if(short!=dynamic.content) short+="...";
+                        return short.replaceAll("\n","<br>");
+                    })();
+                    const pushdate = new Date(dynamic.timestamp*1000);
+                    [
+                        divider(),
+                        await makeDom("div",async post=>{
+                            post.innerHTML = "<h3 style='padding: 6px 0;'>最新动态</h3>";
+                            post.appendChild(await makeDom("div",async vidcard=>{
+                                vidcard.style.display = "flex";
+                                vidcard.style.flexDirection = "row";
+                                vidcard.style.minHeight = "80px";
+                                vidcard.style.minWidth = "400px";
+                                [
+                                    await makeDom("div",async vidinfo=>{
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        if(info.mid!=dynamic.publisher.uid){
+                                            vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
+                                        }
+                                    })
+                                ].forEach(el=>vidcard.appendChild(el));
+                                vidcard.onclick = ()=>open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
+                            }))
+                        })
+                    ].forEach(el=>container.appendChild(el));
+                }
+            }
             if(info.lastUpdate && info.lastUpdateInfo){
                 const pushdate = new Date(info.lastUpdate*1000);
                 [
