@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.8
+// @version      0.2.9
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -46,7 +46,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.8 Beta",
+        VERSION: "0.2.9 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -358,8 +358,9 @@
             timestamp: d.desc.timestamp,
             type: d.desc.type,
             content: d.card.item.content||d.card.item.description,
-            publisher: d.card.user,
-            istop: d.extra.is_space_top===1
+            istop: d.extra.is_space_top===1,
+            isrepost: d.desc.orig_dy_id!==0,
+            publisher: d.desc.orig_dy_id===0?d.card.user:d.card.origin_user.info,
         };
         return dynamic;
     }
@@ -1573,8 +1574,8 @@
                                     await makeDom("div",async vidinfo=>{
                                         vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
                                         vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
-                                        if(info.mid!=dynamic.publisher.uid){
-                                            vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
+                                        if(dynamic.isrepost){
+                                            vidinfo.innerHTML+= `<div style="color:grey">转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
@@ -1606,8 +1607,8 @@
                                     await makeDom("div",async vidinfo=>{
                                         vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
                                         vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
-                                        if(info.mid!=dynamic.publisher.uid){
-                                            vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
+                                        if(dynamic.isrepost){
+                                            vidinfo.innerHTML+= `<div style="color:grey">转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
