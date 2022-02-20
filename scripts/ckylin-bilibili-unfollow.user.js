@@ -1554,9 +1554,11 @@
                     let content = (()=>{
                         if(!dynamic.content || dynamic.content.length===0) return "无内容";
                         let short = dynamic.content.substring(0,300);
+                        short = short.split("\n").slice(0,4).join("\n");
                         if(short!=dynamic.content) short+="...";
+
                         return short.replaceAll("\n","<br>");
-                    });
+                    })();
                     const pushdate = new Date(dynamic.timestamp*1000);
                     [
                         divider(),
@@ -1586,9 +1588,10 @@
                     let content = (()=>{
                         if(!dynamic.content || dynamic.content.length===0) return "无内容";
                         let short = dynamic.content.substring(0,300);
+                        short = short.split("\n").slice(0,4).join("\n");
                         if(short!=dynamic.content) short+="...";
                         return short.replaceAll("\n","<br>");
-                    });
+                    })();
                     const pushdate = new Date(dynamic.timestamp*1000);
                     [
                         divider(),
