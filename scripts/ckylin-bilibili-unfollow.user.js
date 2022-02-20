@@ -1551,6 +1551,12 @@
             if(info.dynamics){
                 if(info.dynamics.top){
                     let dynamic = info.dynamics.top;
+                    let content = (()=>{
+                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
+                        let short = dynamic.content.substring(0,300);
+                        if(short!=dynamic.content) short+="...";
+                        return short.replaceAll("\n","<br>");
+                    });
                     const pushdate = new Date(dynamic.timestamp*1000);
                     [
                         divider(),
@@ -1563,7 +1569,7 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${dynamic.content.replaceAll("\n","<br>")}</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
                                         vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
                                         if(info.mid!=dynamic.publisher.uid){
                                             vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
@@ -1577,6 +1583,12 @@
                 }
                 if(info.dynamics.next){
                     let dynamic = info.dynamics.next;
+                    let content = (()=>{
+                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
+                        let short = dynamic.content.substring(0,300);
+                        if(short!=dynamic.content) short+="...";
+                        return short.replaceAll("\n","<br>");
+                    });
                     const pushdate = new Date(dynamic.timestamp*1000);
                     [
                         divider(),
@@ -1589,7 +1601,7 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${dynamic.content.replaceAll("\n","<br>")}</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#d1d1d1">${content}</div>`;
                                         vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
                                         if(info.mid!=dynamic.publisher.uid){
                                             vidinfo.innerHTML+= `<div style="color:grey">转发自${dynamic.publisher.uname}</div>`;
