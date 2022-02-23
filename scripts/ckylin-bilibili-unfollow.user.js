@@ -2219,6 +2219,9 @@
                     datas.checked.push(uid);
                 }
             }
+            setInfoBar("正在将筛选应用到列表...");
+            await wait(1);
+            datas.followings.forEach(it=>toggleSwitch(it.mid,datas.checked.includes(parseInt(it.mid))));
             setInfoBar("正在按已选中优先排序...");
             await wait(1);
             datas.followings.sort((x, y) => {
