@@ -474,13 +474,30 @@
         }
         const act = actCode;
         log("Batch Operating with Action Code",act);
-        try {
-            const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
-            if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
-            return {ok: false, uids, res: jsonData.message, data: jsonData.data};
-        } catch (e) {
-            return {ok: false, uids, res: e.message};
+        const operate = async(_uids,_act)=>{
+            try {
+                const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${_uids.join(',')}&act=${_act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
+                if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
+                return {ok: false, uids, res: jsonData.message, data: jsonData.data};
+            } catch (e) {
+                return {ok: false, uids, res: e.message};
+            }
         }
+        const list = [...uids];
+        const results = {ok:true,uids,res:"",data:{failed_fids:[],failed_results:[]}};//failed_fids
+        if(list.length>50) log("WARNING: Operating with more than 50 items, it may cause some issues.");
+        while(list.length){
+            const currents = list.splice(0,50);
+            const result = await operate(currents,act);
+            if(!result.ok){
+                results.ok = false;
+                results.res="部分请求出现错误";
+                results.data.failed_fids.concat(result.data.failed_fids);
+                results.data.failed_results.push(result);
+            }
+        }
+        log("Results:",results);
+        return results;
     }
     const convertToWhisper = async (uids)=>{
         log("Unfollowing",uids);
