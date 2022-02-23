@@ -70,6 +70,26 @@
         log("User:", stat.userInfo.mid, stat.userInfo);
         return stat.userInfo.mid;
     };
+    async function copy(txt = '') {
+        try {
+            await navigator.clipboard.writeText(txt);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+    function download(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+      
+        element.style.display = 'none';
+        document.body.appendChild(element);
+      
+        element.click();
+      
+        document.body.removeChild(element);
+      }
     const _ = async (func = () => {
     }, ...args) => await func(...args);
     const makeDom = async (domname, func = () => {
@@ -3060,8 +3080,19 @@
                                                     list = datas.checked.join(',');
                                                 else
                                                     list = Object.keys(datas.mappings).join(',');
+                                                let mtitle = "";
+                                                if(await copy(list)){
+                                                    mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                }else{
+                                                    mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                }
+                                                unsafeWindow.CKFOMAN_EXPORTUIDS = list;
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
+                                                    download("export_uids.txt",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                }
+                                                mtitle+=`，或者：<button class="CKUNFOLLOW-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
                                                 await alertModal("导出UID", `
-                                                UID列表(请手动复制)
+                                                ${mtitle}
                                                 <br>
                                                 <textarea readonly style="width: 400px;" onclick="this.select()" >${list}</textarea>
                                                 `, "确定");
