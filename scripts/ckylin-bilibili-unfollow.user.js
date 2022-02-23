@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-manager
-// @version      0.2.9
+// @version      0.2.10
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -46,7 +46,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.9 Beta",
+        VERSION: "0.2.10 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -70,6 +70,26 @@
         log("User:", stat.userInfo.mid, stat.userInfo);
         return stat.userInfo.mid;
     };
+    async function copy(txt = '') {
+        try {
+            await navigator.clipboard.writeText(txt);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+    function download(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+      
+        element.style.display = 'none';
+        document.body.appendChild(element);
+      
+        element.click();
+      
+        document.body.removeChild(element);
+      }
     const _ = async (func = () => {
     }, ...args) => await func(...args);
     const makeDom = async (domname, func = () => {
@@ -474,13 +494,30 @@
         }
         const act = actCode;
         log("Batch Operating with Action Code",act);
-        try {
-            const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${uids.join(',')}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
-            if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
-            return {ok: false, uids, res: jsonData.message, data: jsonData.data};
-        } catch (e) {
-            return {ok: false, uids, res: e.message};
+        const operate = async(_uids,_act)=>{
+            try {
+                const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${_uids.join(',')}&act=${_act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
+                if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
+                return {ok: false, uids, res: jsonData.message, data: jsonData.data};
+            } catch (e) {
+                return {ok: false, uids, res: e.message};
+            }
         }
+        const list = [...uids];
+        const results = {ok:true,uids,res:"",data:{failed_fids:[],failed_results:[]}};//failed_fids
+        if(list.length>50) log("WARNING: Operating with more than 50 items, it may cause some issues.");
+        while(list.length){
+            const currents = list.splice(0,50);
+            const result = await operate(currents,act);
+            if(!result.ok){
+                results.ok = false;
+                results.res="部分请求出现错误";
+                results.data.failed_fids.concat(result.data.failed_fids);
+                results.data.failed_results.push(result);
+            }
+        }
+        log("Results:",results);
+        return results;
     }
     const convertToWhisper = async (uids)=>{
         log("Unfollowing",uids);
@@ -2202,6 +2239,9 @@
                     datas.checked.push(uid);
                 }
             }
+            setInfoBar("正在将筛选应用到列表...");
+            await wait(1);
+            datas.followings.forEach(it=>toggleSwitch(it.mid,datas.checked.includes(parseInt(it.mid))));
             setInfoBar("正在按已选中优先排序...");
             await wait(1);
             datas.followings.sort((x, y) => {
@@ -3040,8 +3080,19 @@
                                                     list = datas.checked.join(',');
                                                 else
                                                     list = Object.keys(datas.mappings).join(',');
+                                                let mtitle = "";
+                                                if(await copy(list)){
+                                                    mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                }else{
+                                                    mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                }
+                                                unsafeWindow.CKFOMAN_EXPORTUIDS = list;
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
+                                                    download("export_uids.txt",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                }
+                                                mtitle+=`，或者：<button class="CKUNFOLLOW-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
                                                 await alertModal("导出UID", `
-                                                UID列表(请手动复制)
+                                                ${mtitle}
                                                 <br>
                                                 <textarea readonly style="width: 400px;" onclick="this.select()" >${list}</textarea>
                                                 `, "确定");
