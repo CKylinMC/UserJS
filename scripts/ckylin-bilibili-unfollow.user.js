@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
-// @namespace    ckylin-bilibili-manager
+// @namespace    ckylin-bilibili-foman
 // @version      0.2.10
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
@@ -48,7 +48,7 @@
         retrial: 3,
         VERSION: "0.2.10 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
-        titleTemplate: ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
+        titleTemplate: ()=>`<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -3300,7 +3300,7 @@
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "关于和反馈";
                                             btn.onclick = async e => {
-                                                await alertModal("关于 “关注管理器”", (await makeDom("div", async div => {
+                                                await alertModal("关于 “关注管理器 FoMan”", (await makeDom("div", async div => {
                                                     div.style.textAlign = "left";
                                                     div.style.width = "400px";
                                                     [
