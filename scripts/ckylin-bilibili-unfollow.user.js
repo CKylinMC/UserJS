@@ -1080,6 +1080,8 @@
             transform: translate(-50%,-50%);
             transition: all .3s;
             box-shadow: 0 2px 8px grey;
+            max-height: 95vh;
+            overflow-y: auto;
         }
         #CKUNFOLLOW-modal.show{
             opacity: 1;
