@@ -1123,6 +1123,10 @@
         {
             border-color: grey;
         }
+
+        .CKUNFOLLOW-toolbar-btns>i.mdi {
+            float: right;
+        }
         `, "CKUNFOLLOW-modal-css", "unique");
         const modal = document.createElement("div");
         modal.id = "CKUNFOLLOW-modal";
