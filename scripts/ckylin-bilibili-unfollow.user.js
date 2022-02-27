@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.10
+// @version      0.2.11
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -46,7 +46,7 @@
     const cfg = {
         debug: false,
         retrial: 3,
-        VERSION: "0.2.10 Beta",
+        VERSION: "0.2.11 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: ()=>`<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
     }
@@ -1586,6 +1586,31 @@
                 ].forEach(el=>card.appendChild(el));
             })
             container.appendChild(infocard);
+            if(unsafeWindow.FoManPlugins&&unsafeWindow.FoManPlugins.RememberFollows){
+                const followinfo = unsafeWindow.FoManPlugins.RememberFollows.get(+info.mid);
+                if(followinfo){
+                    const fodate = new Date(followinfo.timestamp);
+                    [
+                        divider(),
+                        await makeDom("div",async post=>{
+                            post.innerHTML = "<h3 style='padding: 6px 0;'>关注记录</h3>";
+                            post.appendChild(await makeDom("div",async vidcard=>{
+                                vidcard.style.display = "flex";
+                                vidcard.style.flexDirection = "row";
+                                vidcard.style.minHeight = "80px";
+                                vidcard.style.minWidth = "400px";
+                                [
+                                    await makeDom("div",async vidinfo=>{
+                                        vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${followinfo.videoName}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey">${fodate.getFullYear()}年${fodate.getMonth()+1}月${fodate.getDate()}日 · 当时UP名: <a href="https://space.bilibili.com/${followinfo.mid}">${followinfo.upName}</a></div>`;
+                                    })
+                                ].forEach(el=>vidcard.appendChild(el));
+                                vidcard.onclick = ()=>open(`https://www.bilibili.com/video/${followinfo.videoId}`)
+                            }))
+                        })
+                    ].forEach(el=>container.appendChild(el));
+                }
+            }
             if(info.dynamics){
                 if(info.dynamics.top){
                     let dynamic = info.dynamics.top;
@@ -3544,6 +3569,9 @@
     }
 
     const startInject = () => {
+        if(!unsafeWindow.FoManPlugins){
+            unsafeWindow.FoManPlugins = {}
+        }
         initModal();
         // unsafeWindow.addEventListener("message", event => {
         //     if (!event.data) return;

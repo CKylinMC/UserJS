@@ -16,9 +16,9 @@
     'use strict';
     const wait = ms=>new Promise(r=>setTimeout(r,ms));
     const get = (q,p=document)=>p.querySelector(q);
-    const getAll = (q,p=document)=>[...p.querySelectorAll(q)];
+    // const getAll = (q,p=document)=>[...p.querySelectorAll(q)];
     const getAPI = (bvid) => fetch('https://api.bilibili.com/x/web-interface/view?bvid=' + bvid).then(raw => raw.json());
-    const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
+    // const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
     const waitForDom = async (query,domparent=document,maxRetries=20,gagms=200)=>{
         let i = maxRetries;
         while(--i>0){
@@ -27,25 +27,25 @@
         }
         return false;
     };
-    const waitForAttribute = async (q, attr)=>{
-        let i = 50;
-        let value;
-        while (--i >= 0) {
-            if ((attr in q) &&
-                q[attr] != null) {
-                value = q[attr];
-                break;
-            }
-            await wait(100);
-        }
-        return value;
-    }
+    // const waitForAttribute = async (q, attr)=>{
+    //     let i = 50;
+    //     let value;
+    //     while (--i >= 0) {
+    //         if ((attr in q) &&
+    //             q[attr] != null) {
+    //             value = q[attr];
+    //             break;
+    //         }
+    //         await wait(100);
+    //     }
+    //     return value;
+    // }
     const cfg={
         followbtn:"#v_upinfo .follow-btn.b-gz",
         unfollowbtn: "ul.follow_dropdown"
     };
     /*
-    perists
+    persist
     "mid":[
         [0]: timestamp,
         [1]: string videoName (at that time),
@@ -72,6 +72,10 @@
             if(!res.code===0)return false;
             if(!res.data) return false;
             const mid = res.data.owner.mid||0;
+            this.unfollow(mid);
+        }
+
+        async unfollow(mid){
             GM_setValue(mid,null);
             console.log('FoMan: Removed record for this UP.');
         }
@@ -83,7 +87,7 @@
             return {timestamp,videoName,videoId,upName,mid};
         }
     }
-    const man = unsafeWindow.FollowTrackManager=new FollowTrackManager;
+    const man = new FollowTrackManager;
 
     async function onFollow(){
         console.debug("FoMan: triggered new following callback");
@@ -131,4 +135,8 @@
     if(location.pathname.startsWith("/video/")){
         registerEventsListener();
     }
+    if(!unsafeWindow.FoManPlugins){
+        unsafeWindow.FoManPlugins = {}
+    }
+    unsafeWindow.FoManPlugins.RememberFollows = man
 })();
