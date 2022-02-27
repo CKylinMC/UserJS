@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      1.0
+// @version      1.1
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
 // @license      GPLv3 License
 // ==/UserScript==
 const CKTools = {
-	ver: 0.4,
+	ver: 1.1,
 	get: (q,base=document) => base.querySelector(q),
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
@@ -16,6 +16,54 @@ const CKTools = {
 		const d = document.createElement(domname);
 		await CKTools._(func, d, ...args);
 		return d;
+	},
+	domHelper: (tagName = 'div', options = {}) => {
+		let el;
+		if(options.from){
+			if(options.from instanceof HTMLElement){
+				el = options.from;
+			}else if(typeof(options.from)=="string"){
+				els = CKTools.domHelper(tagName,{html:options.from});
+				if(els.childElementCount===0){
+					el = document.createElement(tagName);
+				}else if(els.childElementCount===1){
+					el = els.firstElementChild;
+				}else{
+					el = els;
+				}
+			}
+		} else el = document.createElement(tagName);
+		if (options.id) el.id = options.id;
+		if (options.html) el.innerHTML = options.html;
+		if (options.text) el.innerText = options.text;
+		if (options.attr) Object.assign(el, options.attr);
+		if (options.style) Object.assign(el.style, options.style);
+		if (options.css) Object.assign(el.style, options.css);
+		if (options.childs) {
+			if(options.childs instanceof Array) options.childs.filter(el=>!!el).forEach(child => {
+				if(child instanceof HTMLElement) el.appendChild(child);
+				else el.appendChild(document.createTextNode(child));
+			});
+			else if(childs instanceof HTMLElement) el.appendChild(childs);
+			else el.appendChild(document.createTextNode(childs));
+		}
+		if(options.classnames) {
+			if(options.classnames instanceof Array) options.classnames.forEach(classname => {
+				el.classList.add(classname);
+			});
+			else el.classList.add(...options.classnames.split(" "));
+		}
+		if(options.listeners) {
+			for(let listenerName of Object.keys(options.listeners)) {
+				el.addEventListener(listenerName, options.listeners[listenerName]);
+			}
+		}
+		if (options.append && options.append instanceof HTMLElement) options.append.appendChild(el);
+		if (options.init && options.init instanceof Function) options.init(el);
+		if (options.initAsync && options.initAsync instanceof Function) {
+			return options.initAsync(el).then(() => el);
+		}
+		return el;
 	},
 	getCookie: (name) => {
 		const value = `; ${document.cookie}`;
