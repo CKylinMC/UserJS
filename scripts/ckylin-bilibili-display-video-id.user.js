@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.16.7
+// @version      1.17.0
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -871,7 +871,15 @@
             }
             else content = parseTxt(item.content);
             custom_span.style.overflow = "hidden";
-            custom_span.innerHTML = parseTxt(item.title);
+            try{
+                if(item.title.startsWith("js:")){
+                    let itemtitle = item.title.substr(3);
+                    custom_span.innerHTML = eval(parseTxt(itemtitle));
+                }else 
+                custom_span.innerHTML = parseTxt(item.title);
+            }catch(e){
+                custom_span.innerHTML = parseTxt(item.title);
+            }
             custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
             if(custom_span.getAttribute("setup")!=globalinfos.cid){
                 custom_span.setAttribute("setup",globalinfos.cid);
