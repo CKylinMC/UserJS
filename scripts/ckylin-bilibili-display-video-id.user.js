@@ -956,7 +956,7 @@
 
         av_root.style.textOverflow = "ellipsis";
         av_root.style.whiteSpace = "nowarp";
-        av_root.style.overflow = "hidden";
+        // av_root.style.overflow = "hidden";
         
         const that = {
             av_root, config, av_infobar, infos : globalinfos, CKTools
@@ -2299,9 +2299,10 @@
         opacity: 1;
     }
     #bilibiliShowInfos {
-        display: inline-flex;
+        display: flex;
         column-gap: 12px;
-      }
+        flex-wrap: wrap;
+    }
     `, 'showav_dragablecss', "unique", document.head);
 
     initScript(false);
