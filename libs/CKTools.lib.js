@@ -9,7 +9,10 @@
 // ==/UserScript==
 try{
 	CKTools = {};
-}catch(e){}
+}catch(e){
+	if(CKTools.ver>1.2) throw new Error("You have newer version CKTools loaded. Aborting loading version "+1.2);
+	else console.warn(`You have older version of CKTools was loaded, and now upgrading to newer version 1.2.`);
+}
 Object.assign(CKTools,{
 	ver: 1.2,
 	get: (q,base=document) => base.querySelector(q),
