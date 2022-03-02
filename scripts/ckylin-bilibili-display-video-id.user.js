@@ -871,7 +871,15 @@
             }
             else content = parseTxt(item.content);
             custom_span.style.overflow = "hidden";
-            custom_span.innerHTML = parseTxt(item.title);
+            try{
+                if(item.title.startsWith("js:")){
+                    let itemtitle = item.title.substr(3);
+                    custom_span.innerHTML = eval(parseTxt(itemtitle));
+                }else 
+                custom_span.innerHTML = parseTxt(item.title);
+            }catch(e){
+                custom_span.innerHTML = parseTxt(item.title);
+            }
             custom_span.title = `自定义组件: ${item.title}\n长按管理自定义组件`;
             if(custom_span.getAttribute("setup")!=globalinfos.cid){
                 custom_span.setAttribute("setup",globalinfos.cid);
