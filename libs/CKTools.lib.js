@@ -1,14 +1,17 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      1.1
+// @version      1.2
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
 // @license      GPLv3 License
 // ==/UserScript==
-const CKTools = {
-	ver: 1.1,
+try{
+	CKTools = {};
+}catch(e){}
+Object.assign(CKTools,{
+	ver: 1.2,
 	get: (q,base=document) => base.querySelector(q),
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
@@ -555,4 +558,4 @@ const CKTools = {
             return CKTools.dragger;
         },
     }
-}
+});
