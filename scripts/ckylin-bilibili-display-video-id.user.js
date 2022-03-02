@@ -6,6 +6,7 @@
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
 // @match        https://www.bilibili.com/medialist/play/*
+// @match        https://www.bilibili.com/festival/*
 // @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1023553
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
@@ -241,6 +242,20 @@
             await wait(100);
         }
         return dom;
+    }
+
+    async function waitForAttribute(q, attr){
+        let i = 50;
+        let value;
+        while (--i >= 0) {
+            if ((attr in q) &&
+                q[attr] != null) {
+                value = q[attr];
+                break;
+            }
+            await wait(100);
+        }
+        return value;
     }
 
     function getUrlParam(key) {
@@ -931,23 +946,28 @@
             let apidata = await getAidAPI(aid);
             globalinfos = apidata.data;
         } else {
-            if (flag)
-            globalinfos = (await getAPI(unsafeWindow.bvid)).data;
+            if (flag||location.pathname.startsWith("/festival"))
+            globalinfos = (await getAPI(await waitForAttribute(unsafeWindow,'bvid'))).data;
             else globalinfos = unsafeWindow.vd;
         }
-        globalinfos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, globalinfos);
+        globalinfos.p = getUrlParam("p") || getPageFromCid(await waitForAttribute(unsafeWindow,'cid'), globalinfos);
 
-        const av_infobar = await waitForDom(".video-data");
+        const av_infobar = await waitForDom(".video-data,.video-desc-wrapper");
         if (!av_infobar) return log('Can not load info-bar in time.');
         let av_root;
-        if (config.showInNewLine) {
+        if (config.showInNewLine&&!location.pathname.startsWith("/festival")) {
             av_root = getOrNew("bilibiliShowInfos", av_infobar.parentElement);
         } else {
             let rootel = document.querySelector("#bilibiliShowInfos");
             if (!rootel) {
                 rootel = document.createElement("span");
                 rootel.id = "bilibiliShowInfos";
-                av_infobar.appendChild(rootel);
+                if(location.pathname.startsWith("/festival")){
+                    CKTools.addStyle(`
+                    .view-count,.dm-count,.pubdate-count,.rank-count,.forbid-tip{display:none}
+                    `,"showav_festpatch","unique");
+                    av_infobar.insertBefore(rootel,CKTools.get(".video-desc",av_infobar));
+                } else av_infobar.appendChild(rootel);
             }
             av_root = rootel;
         }
