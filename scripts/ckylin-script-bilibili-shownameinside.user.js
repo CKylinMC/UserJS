@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频内显工具
 // @namespace    ckylin-script-bilibili-shownameinside
-// @version      1.0
+// @version      1.1
 // @description  视频内显示分P信息(方便全屏时查看)
 // @author       CKylinMC
 // @match        https://*.bilibili.com/*
@@ -122,7 +122,7 @@
 		if(Modules.hasOwnProperty(name)){
 			return Modules[name];
 		}else{
-			return ()=>null;
+			return undefined;
 		}
 	}
 	async function runModulesFromList(wrapper,list,...args){
@@ -152,7 +152,9 @@
 						logger.log(name,"noresult","skipped");
 					}
 				}else{
-					logger.log(name,"nomod","skipped");
+					//logger.log(name,"nomod","skipped");
+					wrapper.appendChild(document.createTextNode(name));
+					logger.log(name,"nameonly",name);
 				}
 			}catch(e){ logger.error(e) };
 		}
@@ -230,7 +232,7 @@
 			}
 		}
 		logger.warn("Observer not registered correctly.");
-
+		
 	}
 	function regIntervalStateChangeListener(){
 		if(running.hrefinterval) clearInterval(running.hrefinterval);
@@ -335,6 +337,40 @@
 						}
 					}
 				}),
+				domHelper('div',{
+					css:{
+						fontWeight: "bold"
+					},
+					text: '自定义文本:'
+				}),
+				domHelper('div',{
+					text: '添加自定义纯文本到显示行。请注意，不要与现有模块重名。'
+				}),
+				domHelper('input',{
+					id: "ck-sni-custom-mods-input",
+					css:{
+						margin: "12px",
+						background: "#3e70ff75",
+						borderRadius: "5px",
+						padding: "6px",
+						border: "2px solid gray"
+					},
+					init: input=>{
+						input.setAttribute('placeholder',"输入自定义纯文本，回车添加");
+						input.onkeyup = e=>{
+							if(e.key=="Enter"||e.code=="Enter"||e.keyCode===13){
+								let val = e.target.value;
+								if(val&&val.trim().length>0){
+									const enabledList = get("#ck-sni-enabled-mods");
+									if(!enabledList) return;
+									enabledList.appendChild(makeBadge(val.trim(),"点击移除",e=>e.target.remove()));
+									e.target.value = '';
+								}
+							}
+						}
+					}
+				}),
+				domHelper('br'),
 				domHelper('button',{
 					classnames: 'CKTOOLS-toolbar-btns',
 					text: "保存",
