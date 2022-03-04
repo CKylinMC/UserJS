@@ -928,16 +928,16 @@
 
     async function runSideloadModule(module){
         try{
+            const { av_root }=this;
             const onloadFn = module.onload.bind(this);
             const onclickFn = module.onclick.bind(this);
             const onholdFn = module.onhold.bind(this);
-            const name = "showav_slm_"+(Math.floor(Math.random()*10000)/10000);
+            const name = "showav_slm_"+(Math.floor(Math.random()*10000));
             const slm_span = getOrNew(name, av_root);
             slm_span.style.textOverflow = "ellipsis";
             slm_span.style.whiteSpace = "nowarp";
             slm_span.style.overflow = "hidden";
             slm_span.title = "模块:" + module.name;
-            slm_span.innerText = "[···]";
             slm_span.appendChild(await onloadFn());
             if (slm_span.getAttribute("setup") != globalinfos.cid) {
                 config.running[name] && config.running[name].uninstall();
@@ -1005,7 +1005,9 @@
         // av_root.style.overflow = "hidden";
         
         const that = {
-            av_root, config, av_infobar, infos : globalinfos, CKTools
+            av_root, config, av_infobar, infos : globalinfos, CKTools, popNotify, tools:{
+                copy, wait, waitForPageVisible, log, getPlayerSeeks, getHEVC, waitForDom, getOrNew, playerReady, variablesReplace:apiBasedVariablesReplacement
+            },
         };
 
         const functions = {
@@ -1030,7 +1032,7 @@
 
         config.orders.forEach(async k => {
             if(Object.keys(functions).includes(k)) await functions[k]();
-            else if(Object.keys(sideloads).includes(k)) await runSideloadModule(sideloads[k]);
+            else if(Object.keys(sideloads).includes(k)) await runSideloadModule.bind(that)(sideloads[k]);
             else{
                 try{
                     await functions.customDriver(k);
@@ -1498,7 +1500,7 @@
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(config.customComponents[id].content));
                                 draggable.appendChild(node);
-                            }else if (id.split("_")[0] === "sideload") {
+                            }else if (id.split("_")[0] == "sideload") {
                                 let ids = id.split("_");
                                 ids.shift();
                                 const modname = ids.join('_');
