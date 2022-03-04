@@ -917,6 +917,15 @@
         return mods;
     }
 
+    function mappedSideloadModules(){
+        const sideloads = getSideloadModules();
+        const mods = {};
+        for(const modName of Object.keys(sideloads)){
+            mods['sideload_'+modName] = sideloads[modName];
+        }
+        return mods;
+    }
+
     async function runSideloadModule(module){
         try{
             const onloadFn = module.onload.bind(this);
@@ -1017,7 +1026,7 @@
             customDriver: feat_custom.bind(that)
         }
 
-        const sideloads = getSideloadModules();
+        const sideloads = mappedSideloadModules();
 
         config.orders.forEach(async k => {
             if(Object.keys(functions).includes(k)) await functions[k]();
@@ -1494,7 +1503,6 @@
                                 ids.shift();
                                 const modname = ids.join('_');
                                 draggable.innerHTML = getSideloadModules()[modname].name;
-                                draggable.setAttribute("data-id", modname);
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(getSideloadModules()[modname].description??'外挂组件'));
                                 draggable.appendChild(node);
