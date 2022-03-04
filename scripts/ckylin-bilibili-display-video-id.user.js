@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.0
+// @version      1.17.1
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -905,6 +905,52 @@
         }
     } 
 
+    function getSideloadModules(){
+        if(!unsafeWindow.ShowAVModules) return {};
+        const mods = {};
+        for(const modName of Object.keys(unsafeWindow.ShowAVModules)){
+            const mod = unsafeWindow.ShowAVModules[modName];
+            if(mod&&(typeof(mod.name)==='string')&&(typeof(mod.onload)==='function')&&(typeof(mod.onclick)==='function')&&(typeof(mod.onhold)==='function')){
+                mods[modName] = mod;
+            }
+        }
+        return mods;
+    }
+
+    function mappedSideloadModules(){
+        const sideloads = getSideloadModules();
+        const mods = {};
+        for(const modName of Object.keys(sideloads)){
+            mods['sideload_'+modName] = sideloads[modName];
+        }
+        return mods;
+    }
+
+    async function runSideloadModule(module){
+        try{
+            const { av_root }=this;
+            const onloadFn = module.onload.bind(this);
+            const onclickFn = module.onclick.bind(this);
+            const onholdFn = module.onhold.bind(this);
+            const name = "showav_slm_"+(Math.floor(Math.random()*10000));
+            const slm_span = getOrNew(name, av_root);
+            slm_span.style.textOverflow = "ellipsis";
+            slm_span.style.whiteSpace = "nowarp";
+            slm_span.style.overflow = "hidden";
+            slm_span.title = "模块:" + module.name;
+            slm_span.appendChild(await onloadFn());
+            if (slm_span.getAttribute("setup") != globalinfos.cid) {
+                config.running[name] && config.running[name].uninstall();
+                config.running[name] = new CKTools.HoldClick(slm_span);
+                config.running[name].onclick(onclickFn);
+                config.running[name].onhold(onholdFn);
+                slm_span.setAttribute("setup", globalinfos.cid);
+            }
+        }catch(e){
+            log('[ERR]',module.name,e);
+        }
+    }
+
     async function tryInject(flag) {
         if (flag && config.orders.length === 0) return log('Terminated because no option is enabled.');
         if (!(await playerReady())) return log('Can not load player in time.');
@@ -959,7 +1005,9 @@
         // av_root.style.overflow = "hidden";
         
         const that = {
-            av_root, config, av_infobar, infos : globalinfos, CKTools
+            av_root, config, av_infobar, infos : globalinfos, CKTools, popNotify, tools:{
+                copy, wait, waitForPageVisible, log, getPlayerSeeks, getHEVC, waitForDom, getOrNew, playerReady, variablesReplace:apiBasedVariablesReplacement
+            },
         };
 
         const functions = {
@@ -980,11 +1028,14 @@
             customDriver: feat_custom.bind(that)
         }
 
-        config.orders.forEach(k => {
-            if(Object.keys(functions).includes(k)) functions[k]();
+        const sideloads = mappedSideloadModules();
+
+        config.orders.forEach(async k => {
+            if(Object.keys(functions).includes(k)) await functions[k]();
+            else if(Object.keys(sideloads).includes(k)) await runSideloadModule.bind(that)(sideloads[k]);
             else{
                 try{
-                    functions.customDriver(k);
+                    await functions.customDriver(k);
                 }catch(e){
                     log(`Custom component "${k}" throwed an error:`,e)
                 };
@@ -1449,6 +1500,14 @@
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(config.customComponents[id].content));
                                 draggable.appendChild(node);
+                            }else if (id.split("_")[0] == "sideload") {
+                                let ids = id.split("_");
+                                ids.shift();
+                                const modname = ids.join('_');
+                                draggable.innerHTML = getSideloadModules()[modname].name;
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(getSideloadModules()[modname].description??'外挂组件'));
+                                draggable.appendChild(node);
                             } else {
                                 draggable.innerHTML = txtCn[id];
                                 draggable.innerHTML += `<div>${descCn[id]}</div>`;
@@ -1505,7 +1564,9 @@
                         await CKTools.makeDom("div", async disableddiv => {
                             disableddiv.innerHTML = `<b>禁用</b>`;
                             disableddiv.className = "showav_dragablediv showav_disableddiv";
-                            config.all.forEach(async k => {
+                            const sideloads = getSideloadModules();
+                            const sideloaditems = Object.keys(sideloads).map(k => 'sideload_'+k);
+                            [...config.all,...sideloaditems].forEach(async k => {
                                 if (config.orders.includes(k)) return;
                                 disableddiv.appendChild(await makeDragable(k));
                             });
