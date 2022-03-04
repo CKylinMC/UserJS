@@ -1489,6 +1489,15 @@
                                 const node = document.createElement("div");
                                 node.appendChild(document.createTextNode(config.customComponents[id].content));
                                 draggable.appendChild(node);
+                            }else if (id.split("_")[0] === "sideload") {
+                                let ids = id.split("_");
+                                ids.shift();
+                                const modname = ids.join('_');
+                                draggable.innerHTML = getSideloadModules()[modname].name;
+                                draggable.setAttribute("data-id", modname);
+                                const node = document.createElement("div");
+                                node.appendChild(document.createTextNode(getSideloadModules()[modname].description??'外挂组件'));
+                                draggable.appendChild(node);
                             } else {
                                 draggable.innerHTML = txtCn[id];
                                 draggable.innerHTML += `<div>${descCn[id]}</div>`;
@@ -1545,7 +1554,9 @@
                         await CKTools.makeDom("div", async disableddiv => {
                             disableddiv.innerHTML = `<b>禁用</b>`;
                             disableddiv.className = "showav_dragablediv showav_disableddiv";
-                            config.all.forEach(async k => {
+                            const sideloads = getSideloadModules();
+                            const sideloaditems = Object.keys(sideloads).map(k => 'sideload_'+k);
+                            [...config.all,...sideloaditems].forEach(async k => {
                                 if (config.orders.includes(k)) return;
                                 disableddiv.appendChild(await makeDragable(k));
                             });
