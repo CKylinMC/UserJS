@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频内显工具
 // @namespace    ckylin-script-bilibili-shownameinside
-// @version      1.1
+// @version      1.2
 // @description  视频内显示分P信息(方便全屏时查看)
 // @author       CKylinMC
 // @match        https://*.bilibili.com/*
@@ -35,7 +35,7 @@
 			console.error(this.prefix,...args);
 		}
 	}
-	const defaultList = ["分P编号","斜杠","分P数量","间隔符","分P标题"];
+	const defaultList = ["设置按钮","分P编号","斜杠","分P数量","间隔符","分P标题"];
 	const logger = new Logger("[SNI "+instance+"]");
 	if(CKTools.ver<1.2){
 		logger.warn("Library script 'CKTools' was loaded incompatible version "+CKTools.ver+", so that SNI may couldn't work correctly. Please consider update your scripts.");
@@ -56,7 +56,12 @@
 		return dom;
 	}
 	const Modules = {
-		"测试文字": (d)=>'TestSuccess',
+		"设置按钮": d=>domHelper('span',{
+			text: "🛠️",
+			listeners:{
+				click: openSettingsModal
+			}
+		}),
 		"间隔符": d=>" | ",
 		"空白": d=>"   ",
 		"斜杠": d=>" / ",
@@ -84,6 +89,11 @@
 		"分区": d=>d.info.vid.tname,
 		"UP主": d=>d.info.vid.owner.name,
 		"简介": d=>d.info.vid.desc,
+		"弹性空白": d=>domHelper('span',{
+			css:{
+				flex: 2,
+			},
+		}),
 	};
 	const running = {};
 	function debounce(func, timeout = 300) {
@@ -189,7 +199,19 @@
 		logger.log("injecting - mod list ok",list);
 		const wrapper = domHelper('span',{
 			id: "ck-sni-wrapper",
-			append: container
+			append: container,
+			init: wrapper=>{
+				if(getValueOrDefault('enableFlex',false)){
+					wrapper.style.display = "flex";
+					domHelper('style',{
+						append: wrapper,
+						init:style=>{
+							style.setAttribute("scoped",true);
+							style.appendChild(document.createTextNode(`span{float:none!important;transform:none!important;}`))
+						}
+					})
+				}
+			}
 		});
 		const currentInfo = {
 			info:{
@@ -259,7 +281,7 @@
 	async function openSettingsModal(){
 		combineExternalModules();
 		const makeBadge = (name,title="点击移除",click=()=>{})=>domHelper('div',{
-			classnames: ['ck-sni-mod'],
+			classnames: ['ck-sni-mod','ck-sni-grid-item'],
 			css:{
 				display: "inline-block",
 				margin: "2px",
@@ -287,9 +309,37 @@
 			childs: [
 				domHelper('h3',{
 					css:{
-						color:"#2196f3",
+						fontWeight: "bold"
 					},
-					text: '显示内容设置'
+					text: '选项'
+				}),
+				domHelper('div',{
+					id: 'ck-sni-enable-flex',
+					css:{
+						fontWeight: "bold"
+					},
+					text: '是否启用弹性布局',
+					init: optdiv=>{
+						let getState = ()=>optdiv.getAttribute('enabled')=='yes';
+						const applyState = state=>{
+							optdiv.setAttribute('enabled',state?'yes':'no');
+							optdiv.innerText = (state?'🟢已启用':'🔴已禁用')+"弹性布局";
+						};
+						optdiv.onclick = e=>applyState(!getState());
+						applyState(getValueOrDefault('enableFlex',false));
+					}
+				}),
+				domHelper('div',{
+					css:{
+						paddingLeft: "15px"
+					},
+					text: '开启后允许使用弹性空白，并自动禁用所有浮动和偏移。请注意关闭后弹性空白自动失效。'
+				}),
+				domHelper('h3',{
+					css:{
+						fontWeight: "bold"
+					},
+					text: '组件'
 				}),
 				domHelper('div',{
 					css:{
@@ -306,10 +356,17 @@
 						padding: "6px"
 					},
 					init: div=>{
+						div.classList.add('ck-sni-draggables');
 						const list = getValueOrDefault("moduleseq",defaultList);
 						for(const name of list){
 							div.appendChild(makeBadge(name,"点击移除",e=>e.target.remove()));
 						}
+						setTimeout(()=>{
+							const draggable = new Draggable({
+								element: document.querySelector('.ck-sni-draggables'),
+								cloneElementClassName: 'ck-sni-clone-grid-item'
+							});
+						},1000);
 					}
 				}),
 				domHelper('div',{
@@ -324,7 +381,10 @@
 						margin: "12px",
 						background: "#3e70ff75",
 						borderRadius: "5px",
-						padding: "6px"
+						padding: "6px",
+						flexWrap: 'wrap',
+						display: 'flex',
+						maxWidth: '80vw'
 					},
 					init: div=>{
 						const list = Object.keys(Modules);
@@ -381,6 +441,11 @@
 							const mods = enabledList.map(el=>el.getAttribute("data-sni-mod"));
 							logger.log(enabledList,mods);
 							saveValue("moduleseq",mods);
+							const flexopt = get("#ck-sni-enable-flex");
+							if(flexopt){
+								let opt = flexopt.getAttribute("enabled")=='yes';
+								saveValue("enableFlex",opt);
+							}
 							modal.closeModal();
 							inject();
 						}
@@ -399,7 +464,7 @@
 		})));
 	}
 	async function startInject(){
-		logger.info("Start Trace:", (new Error).stack);
+		//logger.info("Start Trace:", (new Error).stack);
 		if(unsafeWindow.SNI_started){
 			logger.warn("Someone called start twice. Aborting...");
 			logger.warn("Trace:", (new Error).stack);
@@ -420,10 +485,13 @@
 				width: 100%;
 				display: block;
 				height: 60px;
-				padding: 8px 15px;
+				padding: 8px 0;
 				transition: opacity .3s;
 				opacity: 0;
-				z-index: 9999999;
+				z-index: 9999;
+			}
+			#ck-sni-container>#ck-sni-wrapper{
+				padding: 0 15px;
 			}
 			.video-control-show #ck-sni-container{
 				transition: opacity .3s;
@@ -435,6 +503,47 @@
 			#ck-sni-container #ck-sni-wrapper{
 				color: white;
 				background: transparent;
+			}
+
+			/* Copied from https://juejin.cn/post/7022824391163510821 */
+			.ck-sni-draggables * {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			
+			.ck-sni-draggables .ck-sni-grid {
+				display: flex;
+				flex-wrap: wrap;
+				margin: 0 -15px -15px 0;
+				touch-action: none;
+				user-select: none;
+			}
+			
+			.ck-sni-draggables .ck-sni-grid-item, .ck-sni-draggables .ck-sni-grid-item * {
+				-moz-user-select:none;
+				-webkit-user-select:none;
+				-ms-user-select:none;
+				user-select:none;
+			}
+			
+			.ck-sni-draggables .active {
+				background: #c8ebfb;
+			}
+			
+			.ck-sni-draggables .ck-sni-clone-grid-item {
+				display: flex;
+				flex-wrap: wrap;
+				margin: 0 -15px -15px 0;
+				touch-action: none;
+				user-select: none;
+				border: 1px solid #d6d6d6;
+				opacity: 0.8;
+				list-style: none;
+				-moz-user-select:none;
+				-webkit-user-select:none;
+				-ms-user-select:none;
+				user-select:none;
 			}
 			`,"ck-sni-styles","unique");
 		if(get("#ck-sni-identifier")){
@@ -450,6 +559,160 @@
 		regIntervalStateChangeListener();
 		logger.info("loaded");
 	}
+
+	/* Copied from https://juejin.cn/post/7022824391163510821 */
+	class Draggable {
+		constructor(options) {
+			this.parent = options.element;
+			this.cloneElementClassName = options.cloneElementClassName;
+			this.isPointerdown = false;
+			this.diff = { x: 0, y: 0 };
+			this.drag = { element: null, index: 0, lastIndex: 0 };
+			this.drop = { element: null, index: 0, lastIndex: 0 };
+			this.clone = { element: null, x: 0, y: 0 };
+			this.lastPointermove = { x: 0, y: 0 };
+			this.rectList = [];
+			this.startPos = [0,0];
+			this.startTime = 0;
+			this.init();
+		}
+		init() {
+			this.getRect();
+			this.bindEventListener();
+		}
+		getRect() {
+			this.rectList.length = 0;
+			for (const item of this.parent.children) {
+				this.rectList.push(item.getBoundingClientRect());
+			}
+		}
+		getDelta (pos1,pos2){
+			const [x1,y1]=pos1;
+			const [x2,y2]=pos2;
+			return Math.sqrt(Math.pow(x1-x2,2)+Math.pow(y1-y2,2))
+		}
+		handlePointerdown(e) {
+			if (e.pointerType === 'mouse' && e.button !== 0) {
+				return;
+			}
+			if (e.target === this.parent) {
+				return;
+			}
+			this.isPointerdown = true;
+			this.parent.setPointerCapture(e.pointerId);
+			this.lastPointermove.x = e.clientX;
+			this.lastPointermove.y = e.clientY;
+			this.startPos = [e.clientX, e.clientY];
+			this.startTime = (new Date).getTime();
+			this.drag.element = e.target;
+			this.drag.element.classList.add('active');
+			this.clone.element = this.drag.element.cloneNode(true);
+			this.clone.element.className = this.cloneElementClassName;
+			this.clone.element.style.transition = 'none';
+			const i = [].indexOf.call(this.parent.children, this.drag.element);
+			this.clone.x = this.rectList[i].left;
+			this.clone.y = this.rectList[i].top;
+			this.drag.index = i;
+			this.drag.lastIndex = i;
+			this.clone.element.style.transform = 'translate3d(' + this.clone.x + 'px, ' + this.clone.y + 'px, 0)';
+			document.body.appendChild(this.clone.element);
+		}
+		handlePointermove(e) {
+			if (this.isPointerdown) {
+				this.diff.x = e.clientX - this.lastPointermove.x;
+				this.diff.y = e.clientY - this.lastPointermove.y;
+				this.lastPointermove.x = e.clientX;
+				this.lastPointermove.y = e.clientY;
+				this.clone.x += this.diff.x;
+				this.clone.y += this.diff.y;
+				this.clone.element.style.transform = 'translate3d(' + this.clone.x + 'px, ' + this.clone.y + 'px, 0)';
+				for (let i = 0; i < this.rectList.length; i++) {
+					if (e.clientX > this.rectList[i].left && e.clientX < this.rectList[i].right &&
+						e.clientY > this.rectList[i].top && e.clientY < this.rectList[i].bottom) {
+						this.drop.element = this.parent.children[i];
+						this.drop.lastIndex = i;
+						if (this.drag.element !== this.drop.element) {
+							if (this.drag.index < i) {
+								this.parent.insertBefore(this.drag.element, this.drop.element.nextElementSibling);
+								this.drop.index = i - 1;
+							} else {
+								this.parent.insertBefore(this.drag.element, this.drop.element);
+								this.drop.index = i + 1;
+							}
+							this.drag.index = i;
+							const dragRect = this.rectList[this.drag.index];
+							const lastDragRect = this.rectList[this.drag.lastIndex];
+							const dropRect = this.rectList[this.drop.index];
+							const lastDropRect = this.rectList[this.drop.lastIndex];
+							this.drag.lastIndex = i;
+							this.drag.element.style.transition = 'none';
+							this.drop.element.style.transition = 'none';
+							this.drag.element.style.transform = 'translate3d(' + (lastDragRect.left - dragRect.left) + 'px, ' + (lastDragRect.top - dragRect.top) + 'px, 0)';
+							this.drop.element.style.transform = 'translate3d(' + (lastDropRect.left - dropRect.left) + 'px, ' + (lastDropRect.top - dropRect.top) + 'px, 0)';
+							this.drag.element.offsetLeft;
+							this.drag.element.style.transition = 'transform 150ms';
+							this.drop.element.style.transition = 'transform 150ms';
+							this.drag.element.style.transform = 'translate3d(0px, 0px, 0px)';
+							this.drop.element.style.transform = 'translate3d(0px, 0px, 0px)';
+						}
+						break;
+					}
+				}
+			}
+		}
+		handlePointerup(e) {
+			if (this.isPointerdown) {
+				this.isPointerdown = false;
+				this.drag.element.classList.remove('active');
+				this.clone.element.remove();
+				let endPos = [e.clientX, e.clientY];
+				let endTime = (new Date).getTime();
+				logger.log('up',{
+					start:this.startPos,
+					end:endPos,
+					delta:this.getDelta(this.startPos,endPos),
+					timediff:endTime - this.startTime,
+					isclick: this.getDelta(this.startPos,endPos) < 10
+					&& endTime - this.startTime < 800
+				})
+				if(this.getDelta(this.startPos,endPos) < 10
+				&& endTime - this.startTime < 800){
+					this.drag.element.click();
+				}
+			}
+		}
+		handlePointercancel(e) {
+			if (this.isPointerdown) {
+				this.isPointerdown = false;
+				this.drag.element.classList.remove('active');
+				this.clone.element.remove();
+			}
+		}
+		bindEventListener() {
+			this.handlePointerdown = this.handlePointerdown.bind(this);
+			this.handlePointermove = this.handlePointermove.bind(this);
+			this.handlePointerup = this.handlePointerup.bind(this);
+			this.handlePointercancel = this.handlePointercancel.bind(this);
+			this.getRect = this.getRect.bind(this);
+			this.parent.addEventListener('pointerdown', this.handlePointerdown);
+			this.parent.addEventListener('pointermove', this.handlePointermove);
+			this.parent.addEventListener('pointerup', this.handlePointerup);
+			this.parent.addEventListener('pointercancel', this.handlePointercancel);
+			window.addEventListener('scroll', this.getRect);
+			window.addEventListener('resize', this.getRect);
+			window.addEventListener('orientationchange', this.getRect);
+		}
+		unbindEventListener() {
+			this.parent.removeEventListener('pointerdown', this.handlePointerdown);
+			this.parent.removeEventListener('pointermove', this.handlePointermove);
+			this.parent.removeEventListener('pointerup', this.handlePointerup);
+			this.parent.removeEventListener('pointercancel', this.handlePointercancel);
+			window.removeEventListener('scroll', this.getRect);
+			window.removeEventListener('resize', this.getRect);
+			window.removeEventListener('orientationchange', this.getRect);
+		}
+	}
+
 	MenuManager.setMenu("opensettings","打开设置",openSettingsModal);
 	unsafeWindow.SNI_REFRESH = ()=>inject();
 	unsafeWindow.SNI_SETTINGS = openSettingsModal;
