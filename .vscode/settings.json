@@ -1,6 +1,7 @@
 {
     "conventionalCommits.scopes": [
         "unfollow",
-        "showid"
+        "showid",
+        "showinside"
     ]
 }
