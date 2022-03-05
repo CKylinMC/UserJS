@@ -78,6 +78,25 @@
 
 ------
 
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频内显工具 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
+**简单介绍**:
+在视频窗口内顶部区域展示数据，默认展示当前分P信息，可添加额外信息，用于在全屏连播时查看。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/440820)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/440820-bilibili-%E8%A7%86%E9%A2%91%E5%86%85%E6%98%BE%E5%B7%A5%E5%85%B7/code/%5BBilibili%5D%20%E8%A7%86%E9%A2%91%E5%86%85%E6%98%BE%E5%B7%A5%E5%85%B7.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-shownameinside.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-shownameinside.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-shownameinside.user.js](scripts/ckylin-script-bilibili-shownameinside.user.js)
+
+------
+
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) AB循环 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
 AB循环，在某两个进度之间循环！进阶版洗脑循环！
