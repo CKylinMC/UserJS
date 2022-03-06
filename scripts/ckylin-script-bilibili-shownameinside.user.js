@@ -45,7 +45,7 @@
 		let dom = get("#ck-sni-container");
 		if(!dom) dom = domHelper("div",{
 			id: "ck-sni-container",
-			append: get("div.bilibili-player-area")
+			append: get("div.bilibili-player-video-wrap")
 		});
 		else if(dom.getAttribute("data-sni-instance")!=instance+"") {
 			logger.error("Multi instance running! An error throwed by this.");
