@@ -57,6 +57,7 @@
 	}
 	const Modules = {
 		"设置按钮": d=>domHelper('span',{
+			classnames:['ck-sni-clickable'],
 			text: "🛠️",
 			listeners:{
 				click: openSettingsModal
@@ -476,6 +477,7 @@
 		await bili.playerReady();
 		addStyle(`
 			#ck-sni-container {
+				pointer-events: none;
 				position: absolute;
 				top: 0;
 				left: 0;
@@ -492,6 +494,9 @@
 			}
 			#ck-sni-container>#ck-sni-wrapper{
 				padding: 0 15px;
+			}
+			.video-control-show #ck-sni-container .ck-sni-clickable{
+				pointer-events: auto !important;
 			}
 			.video-control-show #ck-sni-container{
 				transition: opacity .3s;
