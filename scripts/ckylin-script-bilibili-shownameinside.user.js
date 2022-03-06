@@ -564,6 +564,12 @@
 				background: transparent;
 			}
 
+			.bilibili-player-video-top {
+				display:none !important;
+				opacity: 0 !important;
+				pointer-events: none !important;
+			}
+
 			/* Copied from https://juejin.cn/post/7022824391163510821 */
 			.ck-sni-draggables * {
 				margin: 0;
