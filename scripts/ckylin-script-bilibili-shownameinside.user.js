@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频内显工具
 // @namespace    ckylin-script-bilibili-shownameinside
-// @version      1.2
+// @version      1.4
 // @description  视频内显示分P信息(方便全屏时查看)
 // @author       CKylinMC
 // @match        https://*.bilibili.com/*
@@ -45,7 +45,7 @@
 		let dom = get("#ck-sni-container");
 		if(!dom) dom = domHelper("div",{
 			id: "ck-sni-container",
-			append: get("div.bilibili-player-area")
+			append: get("div.bilibili-player-video-wrap")
 		});
 		else if(dom.getAttribute("data-sni-instance")!=instance+"") {
 			logger.error("Multi instance running! An error throwed by this.");
@@ -57,6 +57,7 @@
 	}
 	const Modules = {
 		"设置按钮": d=>domHelper('span',{
+			classnames:['ck-sni-clickable'],
 			text: "🛠️",
 			listeners:{
 				click: openSettingsModal
@@ -185,6 +186,11 @@
 	function getCid(){
 		return unsafeWindow.cid;
 	}
+	function setAnimClass(){
+		const target = get(".bilibili-player-area");
+		if(!target) return logger.warn('[anim] Could\'t catch the target.');
+		target.classList.toggle('ck-sni-animation',getValueOrDefault("enableAnim",false));
+	}
 	async function inject(){
 		logger.log("injecting - fetching");
 		saveState();
@@ -193,6 +199,7 @@
 		if(info&&info.code===0) running.info = info.data;
 		else return logger.error("injecting - info fetch errored");
 		logger.log("injecting - fetch info ok",info);
+		setAnimClass();
 		const container = getContainer(true);
 		const list = getValueOrDefault("moduleseq",defaultList);
 		if(list.length === 0) return logger.warn("injecting - exited due to no active module.");;
@@ -301,6 +308,51 @@
 				el.title = title;
 			}
 		})
+		const makeOption = (options)=>{
+			const opt = Object.assign({
+				name: 'opt',
+				optionText: '',
+				description: '选项描述',
+				state:{
+					enabled: '🟢已启用',
+					disabled: '🔴已禁用'
+				},
+				initState: false
+			},options);
+			return domHelper('div',{
+				classnames:['ck-sni-option-wrapper'],
+				childs:[
+					domHelper('div',{
+						id: 'ck-sni-option-'+opt.name,
+						css:{
+							fontWeight: "bold"
+						},
+						init: optdiv=>{
+							let getState = ()=>optdiv.getAttribute('enabled')=='yes';
+							const applyState = state=>{
+								optdiv.setAttribute('enabled',state?'yes':'no');
+								optdiv.innerText = (state?opt.state.enabled:opt.state.disabled)+opt.optionText;
+							};
+							optdiv.onclick = e=>applyState(!getState());
+							applyState(opt.initState);
+						}
+					}),
+					domHelper('div',{
+						css:{
+							paddingLeft: "15px"
+						},
+						text: opt.description
+					})
+				]
+			});
+		};
+		const saveOption = (name,configKey)=>{
+			const optel = get("#ck-sni-option-"+name);
+			if(optel){
+				let opt = optel.getAttribute("enabled")=='yes';
+				saveValue(configKey,opt);
+			}
+		}
 		return new Promise(r=>modal.openModal('视频内显设置',domHelper('div',{
 			id: 'ck-sni-settings',
 			css:{
@@ -313,27 +365,17 @@
 					},
 					text: '选项'
 				}),
-				domHelper('div',{
-					id: 'ck-sni-enable-flex',
-					css:{
-						fontWeight: "bold"
-					},
-					text: '是否启用弹性布局',
-					init: optdiv=>{
-						let getState = ()=>optdiv.getAttribute('enabled')=='yes';
-						const applyState = state=>{
-							optdiv.setAttribute('enabled',state?'yes':'no');
-							optdiv.innerText = (state?'🟢已启用':'🔴已禁用')+"弹性布局";
-						};
-						optdiv.onclick = e=>applyState(!getState());
-						applyState(getValueOrDefault('enableFlex',false));
-					}
+				makeOption({
+					name: 'enable-flex',
+					optionText: '弹性布局',
+					description: '开启后允许使用弹性空白，并自动禁用所有浮动和偏移。请注意关闭后弹性空白自动失效。',
+					initState: getValueOrDefault('enableFlex',false)
 				}),
-				domHelper('div',{
-					css:{
-						paddingLeft: "15px"
-					},
-					text: '开启后允许使用弹性空白，并自动禁用所有浮动和偏移。请注意关闭后弹性空白自动失效。'
+				makeOption({
+					name: 'enable-anim',
+					optionText: '额外控件动画',
+					description: '为顶部条和B站底部控制栏添加额外的显隐动画。',
+					initState: getValueOrDefault('enableAnim',false)
 				}),
 				domHelper('h3',{
 					css:{
@@ -366,7 +408,7 @@
 								element: document.querySelector('.ck-sni-draggables'),
 								cloneElementClassName: 'ck-sni-clone-grid-item'
 							});
-						},1000);
+						},100);
 					}
 				}),
 				domHelper('div',{
@@ -441,11 +483,8 @@
 							const mods = enabledList.map(el=>el.getAttribute("data-sni-mod"));
 							logger.log(enabledList,mods);
 							saveValue("moduleseq",mods);
-							const flexopt = get("#ck-sni-enable-flex");
-							if(flexopt){
-								let opt = flexopt.getAttribute("enabled")=='yes';
-								saveValue("enableFlex",opt);
-							}
+							saveOption('enable-flex','enableFlex');
+							saveOption('enable-anim','enableAnim');
 							modal.closeModal();
 							inject();
 						}
@@ -476,6 +515,7 @@
 		await bili.playerReady();
 		addStyle(`
 			#ck-sni-container {
+				pointer-events: none;
 				position: absolute;
 				top: 0;
 				left: 0;
@@ -486,16 +526,35 @@
 				display: block;
 				height: 60px;
 				padding: 8px 0;
-				transition: opacity .3s;
 				opacity: 0;
 				z-index: 9999;
+				transition: opacity .3s;
 			}
-			#ck-sni-container>#ck-sni-wrapper{
-				padding: 0 15px;
+			.ck-sni-animation #ck-sni-container{
+				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out !important;
+				transform: translateY(-10px) !important;
 			}
 			.video-control-show #ck-sni-container{
 				transition: opacity .3s;
 				opacity: 1;
+			}
+			.ck-sni-animation.video-control-show #ck-sni-container{
+				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out!important;
+				transform: translateY(0px)!important;
+			}
+			.ck-sni-animation.video-control-show .bilibili-player-video-control{
+				transform: translateY(0px);
+				transition: transform .2s cubic-bezier(0, 0, 0.2, 0.97), all .3s ease-out!important;
+			}
+			.ck-sni-animation .bilibili-player-video-control{
+				transform: translateY(10px);
+				transition: transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out!important;
+			}
+			#ck-sni-container>#ck-sni-wrapper{
+				padding: 0 15px;
+			}
+			.video-control-show #ck-sni-container .ck-sni-clickable{
+				pointer-events: auto !important;
 			}
 			#ck-sni-container:empty{
 				display: none;
