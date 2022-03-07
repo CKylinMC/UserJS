@@ -2196,7 +2196,7 @@
             }))
         }))
     }
-    const applyFilters = async config => {
+    const applyFilters = async config => {// TODO: pending a code refactor
         setInfoBar(`正在处理 ...`);
         await alertModal("请稍等", "正在应用选择的筛选器...");
         const cfg = {
