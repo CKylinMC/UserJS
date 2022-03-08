@@ -775,15 +775,20 @@
                 vl: value
             });
         },
-        getValue: (value="{}")=>{
+        getValue: (value="{}",key=null,noprefix=false)=>{
             try{
-                let itemArc = JSON.parse(value);
+                const itemArc = JSON.parse(value);
                 if(itemArc.hasOwnProperty('et')&&itemArc.et>=(new Date()).getTime()){
                     return itemArc.vl;
                 }
+                if(key)CacheProvider.del(key,noprefix);
                 return null;
-            }catch{return null}
+            }catch(e){
+                if(key)CacheProvider.del(key,noprefix);
+                return null;
+            }
         },
+        list: ()=>Object.keys(CacheProvider.storage).filter(el=>el.startsWith(CacheProvider.prefix)),
         has: (key,noprefix=false)=>{
             if(!noprefix){
                 key = CacheProvider.getKey(key);
@@ -796,7 +801,7 @@
             }
             if(CacheProvider.has(key,true)){
                 const value = CacheProvider.storage.getItem(key);
-                return CacheProvider.getValue(value)!==null;
+                return CacheProvider.getValue(value,key,true)!==null;
             }else return false;
         },
         set: (key,val,noexpire=false,noprefix = false)=>{
@@ -812,14 +817,28 @@
             const result = CacheProvider.storage.getItem(key);
             log('Cache-get-with-key',key,result);
             if(result===null) return fallback;
-            log('Cache-get-parsed-value',key,CacheProvider.getValue(result));
-            return CacheProvider.getValue(result);
+            log('Cache-get-parsed-value',key,CacheProvider.getValue(result,key,true));
+            return CacheProvider.getValue(result,key,true);
         },
         del: (key,noprefix=false)=>{
             if(!noprefix){
                 key = CacheProvider.getKey(key);
             }
-            CacheProvider.set(key,null,true);
+            delete CacheProvider.storage[key];
+        },
+        prune: ()=>{
+            const count = {
+                valid:0,expired:0
+            };
+            CacheProvider.list().forEach(it=>{
+                if(!it) return;
+                if(CacheProvider.valid(it,true)){
+                    count.valid++;
+                }else{
+                    count.expired++;
+                }
+            })
+            return;
         }
     }
     const CacheManager = {
@@ -851,6 +870,16 @@
                     datas[n] = cdata[n];
                 }
                 return true;
+            }
+        },
+        prune: ()=>CacheProvider.prune(),
+        clean:()=>{
+            try{
+                CacheProvider.list().forEach(el=>CacheProvider.del(el,true));
+                return true;
+            }catch(e){
+                log(e);
+                return false;
             }
         }
     }
@@ -3357,6 +3386,32 @@
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = "重新载入数据";
                                             btn.onclick = async e => {
+                                                await alertModal("重新载入数据", "正在重新载入数据和列表。将会重新获取所有数据。");
+                                                datas.dommappings = {};
+                                                await createMainWindow(true);
+                                                hideModal();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "整理缓存";
+                                            btn.onclick = async e => {
+                                                await alertModal("整理缓存", "正在整理缓存并移除额外数据，稍后会重新加载。");
+                                                CacheManager.prune();
+                                                await alertModal("重新载入数据", "正在重新载入数据和列表。");
+                                                datas.dommappings = {};
+                                                await createMainWindow();
+                                                hideModal();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = "清空缓存";
+                                            btn.onclick = async e => {
+                                                await alertModal("清空全部缓存", "正在清空全部缓存，稍后会自动重新加载所有数据。");
+                                                CacheManager.clean();
                                                 await alertModal("重新载入数据", "正在重新载入数据和列表。将会重新获取所有数据。");
                                                 datas.dommappings = {};
                                                 await createMainWindow(true);
