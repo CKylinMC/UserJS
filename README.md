@@ -35,6 +35,10 @@
     - [* 移除高能弹幕图标 *](#-%E7%A7%BB%E9%99%A4%E9%AB%98%E8%83%BD%E5%BC%B9%E5%B9%95%E5%9B%BE%E6%A0%87-)
     - [* 高亮视频分区标签](#-%E9%AB%98%E4%BA%AE%E8%A7%86%E9%A2%91%E5%88%86%E5%8C%BA%E6%A0%87%E7%AD%BE)
 - [开源协议](#%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE)
+- [其他脚本推荐](#%E5%85%B6%E4%BB%96%E8%84%9A%E6%9C%AC%E6%8E%A8%E8%8D%90)
+  - [Bilibili-Evolved (the1812)](#bilibili-evolved-the1812)
+  - [解除B站区域限制 (ipcjs)](#%E8%A7%A3%E9%99%A4b%E7%AB%99%E5%8C%BA%E5%9F%9F%E9%99%90%E5%88%B6-ipcjs)
+  - [BLTH (andywang425)](#blth-andywang425)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
