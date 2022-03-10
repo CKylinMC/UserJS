@@ -444,3 +444,35 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 否则，默认使用GPLv3协议。
 
+## 其他脚本推荐
+
+这里推荐其他dalao的油猴脚本。
+
+### Bilibili-Evolved (the1812)
+
+> 强大的哔哩哔哩增强脚本
+
+功能包含对B站几乎全方位的增强，包括夜间模式，视频下载，自定义顶栏，更多倍速等，并且提供扩展方式。
+
+* [发布页面: Github](https://github.com/the1812/Bilibili-Evolved)
+* [添加此脚本](https://cdn.jsdelivr.net/gh/the1812/Bilibili-Evolved@master/dist/bilibili-evolved.user.js)
+
+### 解除B站区域限制 (ipcjs)
+
+> 通过替换获取视频地址接口的方式, 实现解除B站区域限制; 只对HTML5播放器生效;
+
+一个用于观看其他B站向其他地区发布的内容的工具。
+
+* [发布页面: Github](https://github.com/ipcjs/bilibili-helper)
+* [发布页面: GreasyFork](https://greasyfork.org/zh-CN/scripts/25718)
+* [添加此脚本](https://greasyfork.org/scripts/25718/code/%E8%A7%A3%E9%99%A4B%E7%AB%99%E5%8C%BA%E5%9F%9F%E9%99%90%E5%88%B6.user.js)
+
+### BLTH (andywang425)
+
+> 哔哩哔哩（bilibili.com）油猴辅助脚本，B站直播间挂机助手。
+
+优化直播观看体验。
+
+* [发布页面: Github](https://github.com/andywang425/BLTH)
+* [发布页面: Greasyfork](https://greasyfork.org/zh-CN/scripts/406048)
+* [添加此脚本](https://greasyfork.org/scripts/406048-b%E7%AB%99%E7%9B%B4%E6%92%AD%E9%97%B4%E6%8C%82%E6%9C%BA%E5%8A%A9%E6%89%8B/code/B%E7%AB%99%E7%9B%B4%E6%92%AD%E9%97%B4%E6%8C%82%E6%9C%BA%E5%8A%A9%E6%89%8B.user.js)
