@@ -6,6 +6,7 @@
 // @match        https://*
 // @author       CKylinMC
 // @license      GPLv3 License
+// @grant        none
 // ==/UserScript==
 
 class SimpleFilter{
