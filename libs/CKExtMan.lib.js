@@ -6,7 +6,7 @@
 // @match        https://*
 // @author       CKylinMC
 // @license      GPLv3 License
-// @grant        unsafeWindow
+// @grant        none
 // ==/UserScript==
 (function(){
 	if(typeof(this.unsafeWindow)==='undefined'){
