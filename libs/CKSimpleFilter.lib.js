@@ -64,7 +64,7 @@ class SimpleFilter{
 	async applyFilterToAll(datas=[]){
 		try{
 			let pool = datas.map(data=>this.applyFilterTo(data));
-			rerturn Promise.all(pool);
+			return Promise.all(pool);
 		}catch(e){
 			return null;
 		}
