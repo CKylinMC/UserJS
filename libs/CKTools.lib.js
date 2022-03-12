@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      1.2
+// @version      1.4
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
@@ -19,6 +19,7 @@ Object.assign(CKTools,{
 	getAll: (q,base=document) => base.querySelectorAll(q),
 	_: async (func = () => {}, ...args) => await func(...args),
 	makeDom: async (domname, func = () => {}, ...args) => {
+	        console.warn('makeDom has been deprecated.');
 		const d = document.createElement(domname);
 		await CKTools._(func, d, ...args);
 		return d;
@@ -71,11 +72,84 @@ Object.assign(CKTools,{
 		}
 		return el;
 	},
+	addDom: (item)=>{
+		const make = (tag='div')=>document.createElement(tag);
+		const txt = (it='')=>document.createTextNode(it);
+		class DOMItem{
+			constructor(it=''){
+				this.setItem(it);
+			}
+			setItem(it=''){
+				if(typeof it==='string' || it instanceof String){
+					this.el = txt(it);
+				}else if(it instanceof HTMLElement){
+					this.el = it;
+				}else this.el = it.toString();
+				if(!this.target) this.target = document.body;
+				this.mode = 'child';
+				return this;
+			}
+			inside(q=document.body){
+				this.mode = 'child';
+				if(q instanceof HTMLElement){
+					this.target = q;
+				}else if(typeof q==='string' || q instanceof String){
+					const ql = this.target.querySelector(q);
+					if(ql) this.target = ql;
+				}
+				return this;
+			}
+			after(a=null){
+				this.mode = 'child-after';
+				if(a instanceof HTMLElement){
+					this.after = a;
+				}else if(typeof a==='string' || a instanceof String){
+					const al = this.target.querySelector(a);
+					if(al) this.after = al;
+				}
+				return this;
+			}
+			before(a=null){
+				this.mode = 'child-before';
+				if(a instanceof HTMLElement){
+					this.before = a;
+				}else if(typeof a==='string' || a instanceof String){
+					const al = this.target.querySelector(a);
+					if(al) this.before = al;
+				}
+				return this;
+			}
+			done(){
+				switch(this.mode){
+					case "child":
+					{
+						if(this.el&&this.target) 						
+							this.target.appendChild(this.el);
+					}
+					break;
+					case "child-before":
+					{
+						if(this.el&&this.target&&this.before)
+							this.target.insertBefore(this.el,this.before);
+					}
+					break;
+					case "child-after":
+					{
+						if(this.el&&this.target&&this.after)
+							this.target.insertBefore(this.el,this.after.nextSibling);
+					}
+					break;
+				}
+			}
+		}
+		return new DOMItem(item);
+	},
 	getCookie: (name) => {
 		const value = `; ${document.cookie}`;
 		const parts = value.split(`; ${name}=`);
 		if (parts.length === 2) return parts.pop().split(';').shift();
 	},
+	clearAllCookies: ()=>document.cookie.split(';').forEach(cookie => document.cookie = cookie.replace(/^ +/, '').replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`)),
 	getUrlParam: key=>(new URL(location.href)).searchParams.get(key),
 	wait: ms=>new Promise(r=>setTimeout(r,ms)),
 	waitForDom: async (query,domparent=document,maxRetries=20,gagms=200)=>{
@@ -87,18 +161,18 @@ Object.assign(CKTools,{
 		return false;
 	},
 	waitForAttribute: async (q, attr)=>{
-        let i = 50;
-        let value;
-        while (--i >= 0) {
-            if ((attr in q) &&
-                q[attr] != null) {
-                value = q[attr];
-                break;
-            }
-            await wait(100);
-        }
-        return value;
-    },
+		let i = 50;
+		let value;
+		while (--i >= 0) {
+		    if ((attr in q) &&
+			q[attr] != null) {
+			value = q[attr];
+			break;
+		    }
+		    await wait(100);
+		}
+		return value;
+	    },
 	waitForPageVisible: async () => document.hidden && new Promise(r=>document.addEventListener("visibilitychange",r)),
 	clearStyles: (className = "injectedStyle") => {
 		let dom = document.querySelectorAll("style." + className);
@@ -120,6 +194,66 @@ Object.assign(CKTools,{
 		style.classList.add(className);
 		style.innerHTML = s;
 		document.head.appendChild(style);
+	},
+	// stackoverflow
+	debounce:function(func, timeout = 300) {
+	  let timer;
+	  return (...args) => {
+	      clearTimeout(timer);
+	      timer = setTimeout(() => { func.apply(this, args); }, timeout);
+	  };
+	},
+	throttle: function (callback, limit) {
+	    var waiting = false;                     
+	    return function () {                     
+		if (!waiting) {                       
+		    callback.apply(this, arguments); 
+		    waiting = true;                  
+		    setTimeout(function () {      
+			waiting = false;         
+		    }, limit);
+		}
+	    }
+	},
+	domContains:function(selector, text) {
+	  var elements = document.querySelectorAll(selector);
+	  return [].filter.call(elements, function(element){
+	    return RegExp(text).test(element.textContent);
+	  });
+	},
+	mapReplace: (str, map) => {
+	  //reference: https://segmentfault.com/q/1010000023489916 answer-2
+	  const replace = ({ str, reg, replacer }) =>
+	    str.replace(new RegExp(reg, 'g'), replacer);
+	  return Object
+	    .keys(map)
+	    .reduce(
+	      (str, reg) => replace({ str, reg, replacer: map[reg] }),
+	      str
+	    );
+	},
+	padStart: (num,count=2)=>((''+Math.pow(10,count)).substr(1)+num).slice(-1*Math.max(count,(''+num).length)),
+	fixNum: (num, fix = 0) => Math.floor(num * (Math.pow(10, fix))) / (Math.pow(10, fix)),
+	random:{
+		hex: () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padEnd(6, "0")}`,
+		shuffleArray = (arr) => arr.sort(() => 0.5 - Math.random()),
+		num: (min, max) => Math.random() * (max - min) + min,
+		fromArray: (arr = []) => arr[Math.floor(CKTools.random.num(0, arr.length))],
+		from: (...args) => CKTools.random.fromArray(args)
+	},
+	is:{
+		str: s=>(s != null && (typeof s === "string" || s instanceof String)),
+		elementInViewport:function(el) {
+		    var rect = el.getBoundingClientRect();
+		    return (
+			rect.top >= 0 &&
+			rect.left >= 0 &&
+			rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && 
+			rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+		    );
+		},
+		asyncFn: fn=>fn.constructor.name === "AsyncFunction",
+		darkMode: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
 	},
 	modal: {
 		openModal: (title = '', content) => {
@@ -560,5 +694,16 @@ Object.assign(CKTools,{
             CKTools.dragger.dragging = false;
             return CKTools.dragger;
         },
-    }
+    },
+	GUID:{
+		S4: ()=>(((1+Math.random())*0x10000)|0).toString(16).substring(1),
+		get: ()=>{
+			let S4 = CKTools.GUID.S4;
+			return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+		},
+		getShort: ()=>{
+			let S4 = CKTools.GUID.S4;
+			return (S4()+S4()+S4()+S4());
+		}
+	},
 });
