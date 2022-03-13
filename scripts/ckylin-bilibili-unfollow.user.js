@@ -407,10 +407,11 @@
     const getContentFromDynamic = (card) => { 
         if (!card) return '无法解析内容(空内容)';
         if (card.item?.content) return card.item.content;
-        if (card.aid) return 'av'+card.aid+' | '+card.title + "\n简介: " + card.desc;
+        if (card.aid) return 'av'+card.aid+' | <b>'+card.title + "</b><br>简介: " + card.desc;
         if (card.item?.pictures) return card.item.pictures_count + '张图片';
         if (card.origin) return `转发自${card?.user?.uname}: ${card.item?.content}`;
         if (card.item?.description) return card.item.description;
+        if(card.summary) return `cv${card.id} | <b>${card.title}</b><br>简介: ${card.summary}`
         return '无法解析内容(未知特征)';
     }
     const parseDynamic = (d)=>{
@@ -1865,7 +1866,10 @@
             }
             async function addBtn(info,container){
                 container.style.display="flex";
-                container.style.flexDirection="column";
+                container.style.flexDirection = "column";
+                container.style.position = "sticky";
+                container.style.bottom = 0;
+                container.style.background = getBgColor();
                 container.innerHTML = "";
                 if(!noactions){
                     if(info.attribute===0){
