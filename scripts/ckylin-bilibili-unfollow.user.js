@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.12
+// @version      0.2.14
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
 // @supportURL   https://github.com/CKylinMC/UserJS
+// @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1027354
 // @include      http://space.bilibili.com/*
 // @include      https://space.bilibili.com/*
 // @connect      api.bilibili.com
@@ -55,6 +56,13 @@
     const wait = t => new Promise(r => setTimeout(r, t));
     const batchDelay = async () => await wait(datas.batchOperationDelay*1000);
     const log = (...m) => cfg.debug && console.log('[FoMan]', ...m);
+    const mdi = (name, asHTML=true, px = '10', extras = []) => {
+        const i = CKTools.domHelper('i', {
+            classnames: ['mdi',`mdi-${name}`, `mdi-${px}px`, ...extras],
+            text:' '
+        });
+        return asHTML ? i.outerHTML : i;
+    };
     const getSelfId = async () => {
         let stat = unsafeWindow.UserStatus;
         let retrial = 20;
@@ -367,6 +375,44 @@
             return {ok: false}
         }
     };
+    const getTypeNameFromDynamicTypeID = (id,fallback='?') => {
+        switch (+id) {
+            case 1:
+                return mdi('share')+"转发动态";
+            case 2:
+                return mdi('image-multiple')+"相册图片";
+            case 4:
+                return mdi('text');//文字动态
+            case 8:
+                return mdi('youtube')+"视频投稿";
+            case 16:
+                return mdi('video-box')+"小视频";
+            case 64: 
+                return mdi('newspaper-variant-outline')+"专栏文章";
+            case 128: 
+                return fallback;
+            case 256: 
+                return mdi('playlist-music')+"音频投稿";
+            case 512: 
+                return mdi('filmstrip-box-multiple')+"番剧更新";
+            case 1024:
+                return fallback; 
+            case 2048: 
+                return mdi('playlist-play')+"歌单分享";
+            case 4300:
+                return mdi('playlist-star')+"收藏夹";
+            default: return fallback;
+        }
+    }
+    const getContentFromDynamic = (card) => { 
+        if (!card) return '无法解析内容(空内容)';
+        if (card.item?.content) return card.item.content;
+        if (card.aid) return 'av'+card.aid+' | '+card.title + "\n简介: " + card.desc;
+        if (card.item?.pictures) return card.item.pictures_count + '张图片';
+        if (card.origin) return `转发自${card?.user?.uname}: ${card.item?.content}`;
+        if (card.item?.description) return card.item.description;
+        return '无法解析内容(未知特征)';
+    }
     const parseDynamic = (d)=>{
         const dynamic = {
             id: d.desc.dynamic_id_str,
@@ -377,10 +423,16 @@
             status: d.desc.status,
             timestamp: d.desc.timestamp,
             type: d.desc.type,
-            content: d.card.item.content||d.card.item.description,
+            content: getContentFromDynamic(d.card),
+            origin: (d.desc.orig_dy_id && d.desc.orig_dy_id !== 0) ? (
+                d.card.origin = JSON.parse(d.card.origin),
+                getContentFromDynamic(d.card.origin)
+            ):null,
             istop: d.extra.is_space_top===1,
             isrepost: d.desc.orig_dy_id&&d.desc.orig_dy_id!==0,
-            publisher: d.desc.orig_dy_id?(d.desc.orig_dy_id===0?d.card.user:d.card.origin_user.info):d.card.user,
+            publisher: d.desc.orig_dy_id ? (d.desc.orig_dy_id === 0 ? d.card.user : d.card.origin_user.info) : d.card.user,
+            prefix: getTypeNameFromDynamicTypeID(d.desc.type),
+            origprefix: getTypeNameFromDynamicTypeID(d.desc.orig_type)
         };
         return dynamic;
     }
@@ -1704,10 +1756,10 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">[${dynamic.prefix}] ${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like??'?'}点赞 ${dynamic.repost??'?'}转发 ${dynamic.comment??'?'}评论</div>`;
                                         if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
+                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0,100)}...</div></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
@@ -1737,10 +1789,10 @@
                                 vidcard.style.minWidth = "400px";
                                 [
                                     await makeDom("div",async vidinfo=>{
-                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like}点赞 ${dynamic.repost}转发 ${dynamic.comment}评论</div>`;
+                                        vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">[${dynamic.prefix}] ${content}</div>`;
+                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like??'?'}点赞 ${dynamic.repost??'?'}转发 ${dynamic.comment??'?'}评论</div>`;
                                         if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b></div>`;
+                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0,100)}...</div></div>`;
                                         }
                                     })
                                 ].forEach(el=>vidcard.appendChild(el));
