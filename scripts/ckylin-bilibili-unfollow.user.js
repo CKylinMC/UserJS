@@ -47,9 +47,12 @@
     const cfg = {
         debug: true,
         retrial: 3,
-        VERSION: "0.2.12 Beta",
+        VERSION: "0.2.14 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
-        titleTemplate: ()=>`<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug?"debug":""}</small></h1>`
+        titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
+
+        // Turn this on will abort all alert.
+        I_KNOW_WHAT_IM_DOING: false
     }
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
@@ -736,19 +739,19 @@
         datas.currUid = uid;
         datas.self = self;
         if (self === -1) {
-            alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
+            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
             log("Not login");
         } else if (self === 0) {
-            alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
+            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
             log("Failed fetch current user");
         } else if (self + "" !== uid) {
-            alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
+            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
             log("Other's space.");
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
         unsafeWindow.FoMan_CurrentUser = ()=>createUserInfoCardFromOthers(datas.currUid);
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","")})`} <a href='javascript:void(0)' onclick='FoMan_CurrentUser()'>👁️‍🗨️</a></span></small></h1>`
+        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","").replace("的个人空间_哔哩哔哩_Bilibili","")})`} <a href='javascript:void(0)' onclick='FoMan_CurrentUser()'>👁️‍🗨️</a></span></small></h1>`
         setTitle();
         let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
@@ -812,7 +815,25 @@
         }
         datas.status = 2;
         log("fetch completed.");
+        autoCacheCleaner();
     }
+    const autoCacheCleaner = (force=false) => {
+        let size = CacheManager.getSize();
+        if (force || size >= 2) {
+            setInfoBar("正在整理缓存空间...");
+            alertModal('请稍等', '由于缓存空间到达警戒值，正在自动整理缓存，请稍等...');
+            CacheManager.prune();
+            let aftersize = CacheManager.getSize();
+            if (aftersize >= 2) {
+                alertModal('请稍等', '缓存空间仍然处于警戒值以上，整理缓存无效，正在自动清理缓存，请稍等...');
+                CacheManager.clean();
+            }
+            aftersize = CacheManager.getSize();
+            alertModal('清理完成', '本次自动清理释放了' + (size - aftersize) + ' MB缓存空间。', "确定");
+            resetInfoBar();
+        }
+    }
+    unsafeWindow.FoManCleaner = (force=false)=>autoCacheCleaner(force);
     const CacheProvider = {
         storage: window.localStorage,
         prefix: "Unfollow_",
@@ -892,20 +913,25 @@
                 }
             })
             return;
+        },
+        getSize: (filter = (key) => key.startsWith(CacheProvider.prefix)) => {
+            const sum = (...args)=>args.reduce((a,b)=>a+b,0);
+            return sum(...Object.keys(CacheProvider.storage).filter(filter).map(it=>CacheProvider.storage.getItem(it).length));
         }
     }
     const CacheManager = {
+        version: 1,
         save:(uid=datas.currUid)=>{
-            const {total,fetched,pages,followings,mappings,tags,currInfo} = datas;
+            const {total,fetched,pages,followings,tags,currInfo} = datas;
             const tagclone = {};
             for(let tn of Object.keys(tags)){
                 tagclone[tn+''] = tags[tn];
             }
-            log({
+            /*log({
                 total,fetched,pages,followings,mappings,tagclone,currInfo
-            });
+            });*/
             CacheProvider.set(`cache_${uid}`,{
-                total,fetched,pages,followings,mappings,tagclone,currInfo
+                total,fetched,pages,followings,tagclone,currInfo,cacheVersion:CacheManager.version
             });
         },
         load:(uid=datas.currUid)=>{
@@ -913,10 +939,18 @@
             const cached = CacheProvider.get(`cache_${uid}`);
             if(cached===null) return false;
             else{
-                const {total,fetched,pages,followings,mappings,tagclone,currInfo} = cached;
+                const { total, fetched, pages, followings, tagclone, currInfo } = cached;
+                if (!cached.cacheVersion || cached.cacheVersion < CacheManager.version) {
+                    CacheProvider.del(`cache_${uid}`);
+                    return false;
+                }
                 const tags = {};
                 for(let tn of Object.keys(tagclone)){
                     tags[parseInt(tn)] = tagclone[tn];
+                }
+                const mappings = {};
+                for (const follow of followings) {
+                    mappings[+follow.mid] = follow;
                 }
                 const cdata = {total,fetched,pages,followings,mappings,tags,currInfo};
                 for(let n of Object.keys(cdata)){
@@ -925,7 +959,19 @@
                 return true;
             }
         },
-        prune: ()=>CacheProvider.prune(),
+        prune: () => {
+            CacheProvider.prune();
+            try{
+                CacheProvider.list().forEach(el => {
+                    const value = CacheProvider.get(el, null, true);
+                    if (!value.cacheVersion||value.cacheVersion < CacheManager.version) CacheProvider.del(el, true);
+                });
+                return true;
+            }catch(e){
+                log(e);
+                return false;
+            }
+        },
         clean:()=>{
             try{
                 CacheProvider.list().forEach(el=>CacheProvider.del(el,true));
@@ -934,6 +980,9 @@
                 log(e);
                 return false;
             }
+        },
+        getSize: () => {
+            return (CacheProvider.getSize()/1024/1024).toFixed(2);
         }
     }
     const clearStyles = (className = "CKFOMAN") => {
@@ -1603,6 +1652,23 @@
         }))
         await wait(300);
     }
+    const showCacheQuotaModal = async () => {
+        hideModal();
+        await wait(300);
+        const size = CacheManager.getSize();
+        let content = "本地缓存空间已占用 " + size + " MB。";
+        if(size < 1.8){
+            content += "无需处理。定期整理缓存可以减少空间占用。";
+        }else if (size < 2.5) {
+            content += "<b>建议整理缓存。</b>";
+        } else {
+            content += "<b>建议整理或清理缓存以避免缓存空间超出配额。</b>";
+        }
+        content += "<br><br>FoMan使用本地存储空间保存缓存，本地存储在不同浏览器中有不同的限额，最小的为2.5MB(Opera)，最大的为10MB(Chromium)。请注意此空间非FoMan独占，B站自身和其他插件也会占用此空间，因此建议经常进行整理。";
+        content += "<br><br><b>整理缓存</b>仅会清理过期和过时的缓存。<br><br>默认情况下，FoMan存储的缓存有效期为2小时，超过2小时的缓存和数据总数发生变化时都会触发强制放弃缓存重新加载。"
+        content += "<br><br><b>清空缓存</b>会清理所有由FoMan产生的缓存。若配额达到上限，或经常查看其他人关注列表，则建议使用此功能。"
+        alertModal("缓存使用说明",content,"确定");
+    }
     const createUserInfoCardFromOthers = async(uid)=>{
         if(!uid) return;
         const i = await fillUserStatus(uid, true).catch(err => log(err));
@@ -2154,12 +2220,80 @@
             refreshList();
         }))
     }
+    const makeButtons = (btns = []) => {
+        const dom = CKTools.domHelper;
+        return dom('div', {
+            css: {
+                'display': 'flex',
+                'flex-direction': 'column'
+            },
+            init: el => {
+                for (const btncfg of btns) {
+                    let opt = Object.assign({
+                        text: '按钮',
+                        extras: '',
+                        init: () => { },
+                        onclick: () => { }
+                    }, btncfg);
+                    dom('button', {
+                        classnames: ['CKFOMAN-toolbar-btns', ...opt.extras],
+                        text: opt.text, init: opt.init, listeners: { click: opt.onclick },
+                        append: el
+                    })
+                }
+            }
+        });
+    }
+    const openNewFilterGuideScreen = async () => {
+        const dom = CKTools.domHelper;
+        hideModal();
+        await wait(300);
+        let newFilterModuleInstalled = unsafeWindow.FoManPlugins && unsafeWindow.FoManPlugins.NewFilterModule;
+        openModal("全新的筛选模块", dom('div', {
+            childs: [
+                dom('p', {
+                    text: "新的筛选模块支持更多、更灵活的筛选方式，配置方式更加直观，选择器组合方式更加自由，可以实现更高级的批量筛选。"
+                }),
+                dom('p', {
+                    text: "但是新版本选择器并非完美，目前还在初步测试中，不能保证稳定性。"
+                }),
+                dom('p', {
+                    text:"正在检测...",
+                    init: el => {
+                        if (newFilterModuleInstalled) {
+                            el.innerText = "你已安装新模块，点击启动立刻打开使用新模块";
+                        } else {
+                            el.innerText = "新模块是可选附加模块之一，你需要前往页面点击安装，然后刷新页面生效。点击前往安装立刻打开安装页面。";
+                        }
+                    }
+                }),
+                makeButtons([
+                    {
+                        text: newFilterModuleInstalled?"启动":"前往安装",
+                        onclick: e => {
+                            hideModal();
+                            if (newFilterModuleInstalled) {
+                                //startModule
+                            } else {
+                                // open('about:blank');
+                                if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("很抱歉","此模块尚未发布，请等待下个版本更新。","确定");
+                            }
+                        }
+                    },
+                    {
+                        text: "取消",
+                        onclick: e => hideModal()
+                    }
+                ])
+            ]
+        }))
+    }
     const createBlockOrFollowModal = async (isBlock = true) => {
         hideModal();
         await wait(300);
         refreshChecked();
         if (datas.checked.length === 0) {
-            alertModal("无法继续", "你没有选中任何项，请选中一些项然后再进行操作。", "确认");
+            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("无法继续", "你没有选中任何项，请选中一些项然后再进行操作。", "确认");
             return;
         }
         const ui = {
@@ -2192,7 +2326,7 @@
                         btn.innerHTML = "确认";
                         btn.onclick = async e => {
                             if (datas.checked.length === 0)
-                                return alertModal("无需继续", "你没有选中任何项。", "确定");
+                            if(!cfg.I_KNOW_WHAT_IM_DOING)return alertModal("无需继续", "你没有选中任何项。", "确定");
                             const finalList = datas.checked;
                             await alertModal("正在" + ui.action, `正在${ui.action}${finalList.length}个关注...`);
                             const result = await batchOperateUser(finalList, isBlock?RELE_ACTION.BLOCK:RELE_ACTION.FOLLOW);
@@ -2224,11 +2358,11 @@
             }))
         }))
     }
-    const createOtherSpaceAlert = () => alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
+    const createOtherSpaceAlert = () => cfg.I_KNOW_WHAT_IM_DOING||alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
     const createUnfollowModal = async () => {
         refreshChecked();
         if (datas.checked.length === 0) {
-            alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
+            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
         } else
             hideModal();
         await wait(300);
@@ -2466,30 +2600,6 @@
                                                 })
                                             } else return null;
                                         }),
-                                        await _(() => {
-                                            if (datas.isSelf) {
-                                                return makeDom("button", async btn => {
-                                                    btn.className = "CKFOMAN-toolbar-btns grey";
-                                                    btn.style.margin = "4px 0";
-                                                    btn.innerHTML = '添加到分组';
-                                                    btn.title = "原分组信息保留，并添加到新分组。";
-                                                    btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
-                                                })
-                                            } else
-                                                return null;
-                                        }),
-                                        await _(() => {
-                                            if (datas.isSelf) {
-                                                return makeDom("button", async btn => {
-                                                    btn.className = "CKFOMAN-toolbar-btns grey";
-                                                    btn.style.margin = "4px 0";
-                                                    btn.innerHTML = '设置分组';
-                                                    btn.title = "丢失原分组信息，并设置到新分组。";
-                                                    btn.onclick = () => alertModal("施工中", "功能尚未完成", "确定");
-                                                })
-                                            } else
-                                                return null;
-                                        }),
                                         await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
@@ -2594,6 +2704,11 @@
                                         await makeDom("div", async tip => {
                                             tip.innerHTML = "勾选要生效的筛选器"
                                         }),
+                                        cfg.debug?await makeDom("div", async tip => {
+                                            tip.innerHTML = "👉尝鲜新版筛选器";
+                                            tip.style.color = "#00a0e9";
+                                            tip.onclick = () => openNewFilterGuideScreen();
+                                        }):null,
                                         divider(),
                                         await makeDom("form", async filters => {
                                             filters.id = filtersid;
@@ -2819,7 +2934,7 @@
                                                 }),
                                             ].forEach(el => btns.appendChild(el));
                                         })
-                                    ].forEach(el => container.appendChild(el));
+                                    ].forEach(el => el&&container.appendChild(el));
                                 }))
                             }
                         }))
@@ -3448,6 +3563,19 @@
                                                 hideModal();
                                             }
                                         }),
+                                        await makeDom("div", div => {
+                                            div.style.margin = "4px 0";
+                                            const size = CacheManager.getSize();
+                                            div.innerHTML = "ℹ 本地缓存空间已占用 " + size + " MB。";
+                                            if(size < 1.8){
+                                                div.innerHTML += "无需处理。定期整理缓存可以减少空间占用。";
+                                            }else if (size < 2.5) {
+                                                div.innerHTML += "<b>建议整理缓存。</b>";
+                                            } else {
+                                                div.innerHTML += "<b>建议整理或清理缓存以避免缓存空间超出配额。</b>";
+                                            }
+                                            div.onclick = e => showCacheQuotaModal();
+                                        }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
@@ -3607,6 +3735,40 @@
         getContainer().appendChild(content);
     }
 
+    const callAlertWindow = () => {
+        cfg.closedByBlocker++;
+        if (cfg.I_KNOW_WHAT_IM_DOING) return hideModal();
+        cfg.disableCloseModalFromBlockWindow = true;
+        const waitTimer = cfg.debug ? 10 : 5;
+        alertModal("等一下，这不是正确的关闭方式！",
+            `点击空白处可以关闭弹窗，但是有些窗口下这样可能会导致未知问题，<b>请尽量减少使用此方式关闭弹窗。</b>${cfg.debug ? "<br><br><i>修改脚本第53行附近的'I_KNOW_WHAT_IM_DOING:false'的false为true可以永久阻止此弹窗出现直到下一次更新。</i>" : ""}<br><br>此消息每页面只会显示一次，此窗口 ${waitTimer} 秒后自动关闭。<br><progress value=0 max=100 style="width: 100%;height: 4px" id='CKFOMAN-TIMERPROGRESS'></progress>`);
+        wait(10).then(async () => {
+            await CKTools.waitForDom('#CKFOMAN-TIMERPROGRESS');
+            const interval = setInterval(() => {
+                const pg = CKTools.get('#CKFOMAN-TIMERPROGRESS');
+                if (!pg) return (log('pg not found',pg??null),clearInterval(interval));
+                pg.value = pg.value + (cfg.debug?1:2);
+                if(pg>100) return (log('pg is full',pg??null),clearInterval(interval));
+            },100);
+        });
+        wait((waitTimer * 1000)+100).then(() => {
+            cfg.disableCloseModalFromBlockWindow = false;
+            hideModal();
+        });
+    }
+
+    const closeModalFromBlockWindow = () => {
+        if (cfg.disableCloseModalFromBlockWindow) return;
+        if (!cfg.closedByBlocker) {
+            cfg.closedByBlocker = 1;
+        } else if (cfg.closedByBlocker == 3) {
+            callAlertWindow();
+        } else {
+            cfg.closedByBlocker++;
+            closeModal();
+        }
+    }
+
     const blockWindow = (block = true) => {
         addStyle(`
         #CKFOMAN-blockWindow{
@@ -3636,6 +3798,7 @@
             dom.className = "hide";
             document.body.appendChild(dom);
         }
+        dom.onclick = e => closeModalFromBlockWindow();
         datas.preventUserCard = block;
         if (block) {
             dom.className = "show";
