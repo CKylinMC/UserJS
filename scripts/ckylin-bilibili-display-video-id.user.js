@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.1
+// @version      1.17.2
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -655,7 +655,7 @@
         ct_span.innerHTML = config.defaultTextTime ? txttime : rawtime
         if (config.hideTime) ct_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(3){
+        .video-data>span:nth-child(3),.video-data>span.pupdate{
             display:none!important;
         }
         </style>`;
@@ -709,7 +709,7 @@
         top_span.innerHTML = ''
         top_span.innerHTML += `
         <style>
-        .video-data>span.rank{
+        .video-data>span.rank,.video-data>a.honor{
             display:none!important;
         }
         </style>`;
