@@ -74,7 +74,7 @@
 			if (options.text) el.innerText = options.text;
 			if (options.attr) {
 				for (const ak of Object.keys(options.attr)) {
-					el.setAttribute(ak, opttions.attr[ak]);
+					el.setAttribute(ak, options.attr[ak]);
 				}
 			}
 			if (options.cssText) el.style.cssText = options.cssText;
@@ -110,6 +110,12 @@
 				});
 				else if (options.childs instanceof HTMLElement) el.appendChild(options.childs);
 				else el.appendChild(document.createTextNode(options.childs));
+			}
+			if (options.classlist) {
+				if (options.classlist instanceof Array) options.classlist.forEach(classname => {
+					el.classList.add(classname);
+				});
+				else el.classList.add(...options.classlist.split(" "));
 			}
 			if (options.classList) {
 				if (options.classList instanceof Array) options.classList.forEach(classname => {
@@ -239,9 +245,16 @@
 		}
 		static deepClone(obj) {
 			let newObject = {};
+			if (Array.isArray(obj)) {
+				newObject = [];
+				for (let i = 0; i < obj.length; i++) {
+					newObject.push(CKTools.deepClone(obj[i]));
+				}
+				return newObject;
+			}
 			Object.keys(obj).map(key => {
 				if (typeof obj[key] === 'object') {
-					newObject[key] = makeDeepClone(obj[key]);
+					newObject[key] = CKTools.deepClone(obj[key]);
 				} else {
 					newObject[key] = obj[key];
 				}
