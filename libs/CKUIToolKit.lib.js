@@ -194,17 +194,22 @@
                             el = document.createElement("style");
                             break;
                         default:
-                            console.log('Err:unknown type', res);
+                            console.error('[CKUI]','Err:unknown type', res);
                             continue resloop;
                     }
                     el.id = res.name;
-                    el.innerHTML = res.type.startsWith('raw') ? res.content : GM_getResourceText(res.name);
+                    el.appendChild(document.createTextNode(res.type.startsWith('raw') ? res.content : GM_getResourceText(res.name)));
                     document.head.appendChild(el);
+                    console.info('[CKUI]', 'Applied:',res.type,res.name);
                 }
             }
+            console.info('[CKUI]', 'Resources all applied');
         }
         applyResource();
+    } else {
+        console.error('[CKUI]', 'Err:resource api not found');
     }
+    
     let { domHelper, deepClone } = CKTools;
     if (!deepClone) {
         deepClone = (obj)=>{
