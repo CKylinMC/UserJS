@@ -205,7 +205,27 @@
         }
         applyResource();
     }
-    const {domHelper,deepClone} = CKTools;
+    let { domHelper, deepClone } = CKTools;
+    if (!deepClone) {
+        deepClone = (obj)=>{
+            let newObject = {};
+            if (Array.isArray(obj)) {
+                newObject = [];
+                for (let i = 0; i < obj.length; i++) {
+                    newObject.push(deepClone(obj[i]));
+                }
+                return newObject;
+            }
+            Object.keys(obj).map(key => {
+                if (typeof obj[key] === 'object') {
+                    newObject[key] = deepClone(obj[key]);
+                } else {
+                    newObject[key] = obj[key];
+                }
+            });
+            return newObject;
+        };
+    }
     const CKUIToolkit = {};
     class CompUtils{
         static getId(name) {
