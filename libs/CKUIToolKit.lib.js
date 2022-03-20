@@ -512,7 +512,7 @@
                 childs:domHelper(cfg.contents)
             })
         }
-        static window(cfg) {
+        static window(cfg,type) {
             if (!CompUtils.cfgValidator(cfg, 'label,config')) return;
             return domHelper('div', {
                 id: CompUtils.getId(cfg.name),
@@ -523,7 +523,10 @@
                         html: cfg.label,
                         on: {
                             click: async (e) => {
-                                const subres = await SettingsBuilder.open(cfg.config);
+                                let subres = {};
+                                if (type == 'confirm') subres = await SettingsBuilder.open(cfg.config);
+                                else if (type == 'modal') subres = await SettingsBuilder.modal(cfg.config);
+                                else return;
                                 console.log('subres:', subres)
                                 Object.assign(cfg.config, subres);
                             }
@@ -640,7 +643,7 @@
                     classlist:'ckui-base',
                     init: el => {
                         for (const comp of copiedConfig.settings) {
-                            const r = this.makeComponent(comp);
+                            const r = this.makeComponent(comp,'alert');
                             r&&el.appendChild(r);
                         }
                     }
@@ -666,9 +669,9 @@
                 });
             })
         }
-        makeComponent(cfg) {
+        makeComponent(cfg, type='confirm') {
             if (Components.hasOwnProperty(cfg.type)) {
-                return Components[cfg.type](cfg);
+                return Components[cfg.type](cfg,type);
             }
         }
     }
