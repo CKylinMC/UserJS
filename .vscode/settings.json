@@ -3,6 +3,7 @@
         "unfollow",
         "showid",
         "showinside",
-        "CKTools"
+        "CKTools",
+        "uitoolkit"
     ]
 }

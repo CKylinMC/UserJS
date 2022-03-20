@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUIToolkit
 // @namespace    ckylin-script-lib-combined-ui-components
-// @version      1.0
+// @version      1.1
 // @match        http://*
 // @match        https://*
 // // @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
@@ -231,27 +231,29 @@
     }
     applyResource().then(() => unsafeWindow.CKUIToolkit_loaded = true);
     
-    let { domHelper, deepClone } = CKTools;
-    if (!deepClone) {
-        deepClone = (obj)=>{
-            let newObject = {};
-            if (Array.isArray(obj)) {
-                newObject = [];
-                for (let i = 0; i < obj.length; i++) {
-                    newObject.push(deepClone(obj[i]));
-                }
-                return newObject;
+    let deepClone = (obj)=>{
+        let newObject = {};
+        if (Array.isArray(obj)) {
+            newObject = [];
+            for (let i = 0; i < obj.length; i++) {
+                newObject.push(deepClone(obj[i]));
             }
-            Object.keys(obj).map(key => {
-                if (typeof obj[key] === 'object') {
-                    newObject[key] = deepClone(obj[key]);
-                } else {
-                    newObject[key] = obj[key];
-                }
-            });
             return newObject;
-        };
+        }
+        Object.keys(obj).map(key => {
+            if (typeof obj[key] === 'object') {
+                newObject[key] = deepClone(obj[key]);
+            } else {
+                newObject[key] = obj[key];
+            }
+        });
+        return newObject;
+    };
+
+    let domHelper = (...args) => {
+        return CKTools.domHelper(...args);
     }
+
     const CKUIToolkit = {};
     class CompUtils{
         static getId(name) {
@@ -266,6 +268,7 @@
                     const result = checker(...args);
                     return !!result;
                 } catch (e) {
+                    console.log('checker errored', e);
                     return false;
                 }
             } else return true;
@@ -308,12 +311,12 @@
                         id: customId,
                         attr: {
                             type: 'checkbox',
-                            value: cfg.value??false
+                            checked: cfg.value??false
                         },
                         on: {
                             change: (e) => {
-                                const value = !!(e.target?.value);
-                                if (CompUtils.runChecker(cfg.checker)) cfg.value = value;
+                                const value = !!(e.target?.checked);
+                                if (CompUtils.runChecker(cfg.checker,value)) cfg.value = value;
                                 // else  TODO: error tip
                             }
                         }
@@ -342,11 +345,13 @@
                         html: cfg.label
                     }),
                     domHelper('input', {
-                        attr:cfg.value,
+                        attr: {
+                            value: cfg.value??''
+                        },
                         on: {
                             keyup: CKTools.debounce((e) => {
                                 const value = e.target?.value;
-                                if (CompUtils.runChecker(cfg.checker)) cfg.value = value;
+                                if (CompUtils.runChecker(cfg.checker,value)) cfg.value = value;
                                 // else  TODO: error tip
                             })
                         }
@@ -369,12 +374,15 @@
                     }),
                     domHelper('textarea', {
                         attr: {
-                            value: cfg.value
+                            value: cfg.value??''//not work until it put into dom
                         },
+                        html:cfg.value??'',
                         on: {
                             keyup: CKTools.debounce((e) => {
                                 const value = e.target?.value ?? e.target.innerHTMl;
-                                if (CompUtils.runChecker(cfg.checker)) cfg.value = value;
+                                console.log('inputarea', value,e.target?.value,e.target.innerHTMl);
+                                if (CompUtils.runChecker(cfg.checker, value)) cfg.value = value;
+                                else console.warn('checker refused');
                                 // else  TODO: error tip
                             })
                         }
@@ -398,17 +406,25 @@
                     domHelper('input', {
                         attr: {
                             type: 'number',
-                            value: cfg.value,
+                            value: isNaN(cfg.value)?undefined:+cfg.value,
                             min: cfg.min,
                             max: cfg.max,
                             step: cfg.step
                         },
                         on: {
-                            keyup: CKTools.debounce((e) => {
-                                const value = e.target?.value;
-                                if (CompUtils.runChecker(cfg.checker)) cfg.value = value;
+                            change: (e) => {
+                                let value = e.target?.value;
+                                if (!isNaN(value)) {
+                                    value = +value;
+                                }
+                                if (CompUtils.runChecker(cfg.checker, value)) {
+                                    console.log('updated:', value);
+                                    cfg.value = value;
+                                } else {
+                                    console.log('refused to update value', value);
+                                }
                                 // else  TODO: error tip
-                            })
+                            }
                         }
                     }),
                     domHelper('span', {
@@ -428,26 +444,26 @@
                         html: cfg.label
                     }),
                     domHelper('select', {
-                        attr: {
-                            value: cfg.value??'',
-                        },
                         init: select => {
                             for (let option of cfg.options) {
+                                console.log('select option', option.opt,option.value,cfg.value == option.value);
                                 select.appendChild(domHelper('option', {
                                     attr: {
                                         value: option.value,
-                                        selected: cfg.value == option.value
                                     },
-                                    html: option.opt
+                                    html: option.opt,
+                                    init: optionel => {
+                                        if (cfg.value == option.value) optionel.setAttribute('selected', true);
+                                    }
                                 }));
                             }
                         },
                         on: {
-                            change: CKTools.debounce((e) => {
-                                const value = !!(e.target?.value);
-                                if (CompUtils.runChecker(cfg.checker)) cfg.value = value;
+                            change: (e) => {
+                                const value = e.target?.value??'';
+                                if (CompUtils.runChecker(cfg.checker,value)) cfg.value = value;
                                 // else  TODO: error tip
-                            })
+                            }
                         }
                     }),
                     domHelper('span', {
@@ -507,7 +523,9 @@
                         html: cfg.label,
                         on: {
                             click: async (e) => {
-                                cfg.config = await SettingsBuilder.open(cfg.config);
+                                const subres = await SettingsBuilder.open(cfg.config);
+                                console.log('subres:', subres)
+                                Object.assign(cfg.config, subres);
                             }
                         }
                     })
@@ -547,9 +565,66 @@
                 settings:[]
             },config);
         }
+        findSettingObjectByName(key = '',cfg = this.config) {
+            const settings = cfg.settings;
+            for (const setting of settings) {
+                if(setting.name == key) return setting;
+            }
+            const subSettings = settings.filter(el => el.type == 'window');
+            if (!subSettings.length) return null;
+            for (const setting of subSettings) {
+                const subresult = this.findSettingObjectByName(key, setting);
+                if(subresult) return subresult;
+            }
+            return null;
+        }
+        setValues(settingsValues = {}) {
+            for (let vk of Object.keys(settingsValues)) {
+                const setting = this.findSettingObjectByName(vk);
+                if (setting) setting.value = settingsValues[vk];
+                else console.warn('[CKUI]', `${vk} not found in scheme`);
+            }
+        }
+        flatValues(cfg) {
+            const cfgs = {};
+            if(cfg.settings){
+                cfg = cfg.settings;
+            }
+            if(!Array.isArray(cfg)){
+                return cfgs;
+            }
+            for(const s of cfg){
+                if(!s.name || !s.type) {
+                    console.warn('[CKUI]', 'missing name or type',s);
+                    continue;
+                }
+                switch(s.type){
+                    case "toggle":
+                    case "texttoggle":
+                        cfgs[s.name] = !!s.value;
+                        break;
+                    case "select":
+                    case "input":
+                    case "inputarea":
+                        cfgs[s.name] = s.value?s.value+"":"";
+                        break;
+                    case "inputnumber":
+                        if(!isNaN(s.value)) cfgs[s.name] = +s.value;
+                        break;
+                    case "window":
+                        {
+                            const sub = Settings.flatValues(s.config);
+                            Object.assign(cfgs,sub);
+                        }
+                        break;
+                    default:
+                        console.log('[CKUI]','unrecognized type',s.type);
+                }
+            }
+            return cfgs;
+        }
         async showWindow(config = this.config) {
             const copiedConfig = deepClone(config);
-            console.log('Cloned:',config,copiedConfig)
             return new Promise(r => {
                 FloatPopup.confirm(copiedConfig.title, domHelper('div', {
                     classlist:'ckui-base',
@@ -559,7 +634,10 @@
                             r&&el.appendChild(r);
                         }
                     }
-                }), "保存", "取消").then(result => result?r(copiedConfig):r(config));
+                }), "保存", "取消").then(result => {
+                    console.log('[CKUI]', 'Save?', result);
+                    result ? r(this.flatValues(copiedConfig)) : r({});
+                });
             })
         }
         makeComponent(cfg) {
