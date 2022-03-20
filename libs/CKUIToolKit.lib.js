@@ -478,7 +478,7 @@
                             }
                             const toggleValue = () => setValue(!cfg.value);
                             div.addEventListener('click', toggleValue);
-                            setValue(cfg.value);
+                            setTimeout(()=>setValue(cfg.value),50);
                         }
                     }),
                     domHelper('span', {
