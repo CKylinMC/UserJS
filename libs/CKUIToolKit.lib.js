@@ -627,6 +627,23 @@
             }
             return cfgs;
         }
+        async showAlertWindow(config = this.config) {
+            const copiedConfig = deepClone(config);
+            return new Promise(r => {
+                FloatPopup.alert(copiedConfig.title, domHelper('div', {
+                    classlist:'ckui-base',
+                    init: el => {
+                        for (const comp of copiedConfig.settings) {
+                            const r = this.makeComponent(comp);
+                            r&&el.appendChild(r);
+                        }
+                    }
+                }), copiedConfig.btnName??"确定").then(result => {
+                    console.log('[CKUI]', 'Save?', result);
+                    result ? r(this.flatValues(copiedConfig)) : r({});
+                });
+            })
+        }
         async showWindow(config = this.config) {
             const copiedConfig = deepClone(config);
             return new Promise(r => {
@@ -638,7 +655,7 @@
                             r&&el.appendChild(r);
                         }
                     }
-                }), "保存", "取消").then(result => {
+                }), copiedConfig.saveBtn??"保存", copiedConfig.cancelBtn??"取消").then(result => {
                     console.log('[CKUI]', 'Save?', result);
                     result ? r(this.flatValues(copiedConfig)) : r({});
                 });
