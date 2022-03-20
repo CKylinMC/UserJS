@@ -651,6 +651,7 @@
         }
     }
     CKUIToolkit.showSettings = SettingsBuilder.open;
+    CKUIToolkit.builder = SettingsBuilder.builder;
 
     unsafeWindow.CKUIToolkit = CKUIToolkit;
 })();
