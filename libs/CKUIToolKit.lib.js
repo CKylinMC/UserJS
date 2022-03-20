@@ -554,8 +554,12 @@
         }
     }
     class SettingsBuilder{
-        static async open(cfg) {
+        static builder(cfg) {
+            return new SettingsBuilder(cfg);
+        }
+        static async open(cfg, values = null) {
             const s = new SettingsBuilder(cfg);
+            if(values) s.setValues(values);
             const result = await s.showWindow();
             return result;
         }
