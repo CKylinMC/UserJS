@@ -4,11 +4,12 @@
 // @version      1.0
 // @match        http://*
 // @match        https://*
-// @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1028655
+// // @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
 // @resource     fpjs https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.js
 // @resource     fpcss https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.modal.css
+// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
 // @author       CKylinMC
 // @license      GPL-3.0-only
 // @grant        GM_getResourceText
@@ -22,12 +23,14 @@
     if (typeof (GM_getResourceText) != 'function') {
         GM_getResourceText = () => null;
     }
+    unsafeWindow.CKUIToolkit_loaded = false;
     //======[Apply all resources]
     const resourceList = [
         { name: 'popjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js'},
         { name: 'popcss', type: 'css', source:'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css' },
         { name: 'fpjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.js' },
         { name: 'fpcss', type: 'css', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.modal.css' },
+        { name: 'cktools', type: 'js', source: 'https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952' },
         { name: 'popcsspatch', type: 'rawcss', content: "div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}" },
         { name: 'settingscss', type: 'rawcss', content: `
             .ckui-base .ckui-text{
@@ -226,7 +229,7 @@
         }
         console.info('[CKUI]', 'Resources all applied');
     }
-    applyResource();
+    applyResource().then(() => unsafeWindow.CKUIToolkit_loaded = true);
     
     let { domHelper, deepClone } = CKTools;
     if (!deepClone) {
