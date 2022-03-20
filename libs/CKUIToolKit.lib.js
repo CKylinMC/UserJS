@@ -563,6 +563,12 @@
             const result = await s.showWindow();
             return result;
         }
+        static async modal(cfg, values = null) {
+            const s = new SettingsBuilder(cfg);
+            if(values) s.setValues(values);
+            const result = await s.showAlertWindow();
+            return result;
+        }
         constructor(config) {
             this.config = Object.assign({
                 title: '设置',
@@ -667,6 +673,7 @@
         }
     }
     CKUIToolkit.showSettings = SettingsBuilder.open;
+    CKUIToolkit.showModal = SettingsBuilder.modal;
     CKUIToolkit.builder = SettingsBuilder.builder;
 
     unsafeWindow.CKUIToolkit = CKUIToolkit;
