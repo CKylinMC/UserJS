@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUIToolkit
 // @namespace    ckylin-script-lib-combined-ui-components
-// @version      1.1
+// @version      1.2
 // @match        http://*
 // @match        https://*
 // // @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
@@ -638,9 +638,8 @@
                             r&&el.appendChild(r);
                         }
                     }
-                }), copiedConfig.btnName??"确定").then(result => {
-                    console.log('[CKUI]', 'Save?', result);
-                    result ? r(this.flatValues(copiedConfig)) : r({});
+                }), copiedConfig.btnName ?? "确定").then(() => {
+                    r(this.flatValues(copiedConfig));
                 });
             })
         }
