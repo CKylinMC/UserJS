@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.14
+// @version      0.2.15
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -2003,7 +2003,7 @@
                                 }
                             }
                         }))
-                        if(info.attribute!==2){
+                        if(info.attribute===1){
                             container.appendChild(await makeDom("button", btn => {
                                 btn.className = "CKFOMAN-toolbar-btns blue";
                                 btn.style.margin = "4px 0";
@@ -3110,7 +3110,7 @@
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (d.attribute===1||d.isWhisper) {
+                                                                    if (d.attribut===1||d.isWhisper) {
                                                                         toggleSwitch(d.mid, true);
                                                                     }
                                                                 }
@@ -3142,7 +3142,7 @@
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (isLongAgo(d)) {
+                                                                    if (isLongAgo(d.mtime)) {
                                                                         toggleSwitch(d.mid, true);
                                                                     }
                                                                 }
@@ -3158,7 +3158,7 @@
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (isNearly(d)) {
+                                                                    if (isNearly(d.mtime)) {
                                                                         toggleSwitch(d.mid, true);
                                                                     }
                                                                 }
@@ -3191,7 +3191,7 @@
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (isLongAgo(d)) {
+                                                                    if (isLongAgo(d.mtime)) {
                                                                         toggleSwitch(d.mid, false);
                                                                     }
                                                                 }
@@ -3207,7 +3207,7 @@
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (isNearly(d)) {
+                                                                    if (isNearly(d.mtime)) {
                                                                         toggleSwitch(d.mid, false);
                                                                     }
                                                                 }
