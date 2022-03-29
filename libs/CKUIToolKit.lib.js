@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         CKUIToolkit
 // @namespace    ckylin-script-lib-combined-ui-components
-// @version      1.2
+// @version      1.2.1
 // @match        http://*
 // @match        https://*
 // // @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
-// @resource     fpjs https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.js
-// @resource     fpcss https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.modal.css
+// @resource     fpjs https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/floatwin.js
+// @resource     fpcss https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/floatwin.modal.css
 // @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952
 // @author       CKylinMC
 // @license      GPL-3.0-only
@@ -28,8 +28,8 @@
     const resourceList = [
         { name: 'popjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js'},
         { name: 'popcss', type: 'css', source:'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css' },
-        { name: 'fpjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.js' },
-        { name: 'fpcss', type: 'css', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatPopup.js@main/floatpopup.modal.css' },
+        { name: 'fpjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/FloatWindow.js' },
+        { name: 'fpcss', type: 'css', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/FloatWindow.modal.css' },
         { name: 'cktools', type: 'js', source: 'https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952' },
         { name: 'popcsspatch', type: 'rawcss', content: "div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}" },
         { name: 'settingscss', type: 'rawcss', content: `
@@ -639,7 +639,7 @@
         async showAlertWindow(config = this.config) {
             const copiedConfig = deepClone(config);
             return new Promise(r => {
-                FloatPopup.alert(copiedConfig.title, domHelper('div', {
+                FloatWindow.alert(copiedConfig.title, domHelper('div', {
                     classlist:'ckui-base',
                     init: el => {
                         for (const comp of copiedConfig.settings) {
@@ -655,7 +655,7 @@
         async showWindow(config = this.config) {
             const copiedConfig = deepClone(config);
             return new Promise(r => {
-                FloatPopup.confirm(copiedConfig.title, domHelper('div', {
+                FloatWindow.confirm(copiedConfig.title, domHelper('div', {
                     classlist:'ckui-base',
                     init: el => {
                         for (const comp of copiedConfig.settings) {
