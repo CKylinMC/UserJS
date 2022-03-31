@@ -28,8 +28,8 @@
     const resourceList = [
         { name: 'popjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js'},
         { name: 'popcss', type: 'css', source:'https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css' },
-        { name: 'fpjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/FloatWindow.js' },
-        { name: 'fpcss', type: 'css', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/FloatWindow.modal.css' },
+        { name: 'fpjs', type: 'js', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/floatwin.js' },
+        { name: 'fpcss', type: 'css', source: 'https://cdn.jsdelivr.net/gh/CKylinMC/FloatWindow.js@main/floatwin.modal.css' },
         { name: 'cktools', type: 'js', source: 'https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1029952' },
         { name: 'popcsspatch', type: 'rawcss', content: "div.popNotifyUnitFrame{z-index:110000!important;}.CKTOOLS-modal-content{color: #616161!important;max-height: 80vh;overflow: auto;}" },
         { name: 'settingscss', type: 'rawcss', content: `
