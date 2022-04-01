@@ -8,11 +8,11 @@
 // @license      GPLv3 License
 // ==/UserScript==
 (function () {
-	const VERSION = 1.5;
+	const VERSION = 1.6;
 	if ('CKTools' in window) {
 		if (!window.CKTools.ver) console.warn('Unrecognized version of CKTools is already loaded, overwriting...');
-		else if (window.CKTools.ver > 1.5) throw new Error("You have newer version CKTools loaded. Aborting loading version " + 1.5);
-		else console.warn(`You have older version of CKTools (${window.CKTools.ver}) was loaded, and now upgrading to newer version 1.5.`);
+		else if (window.CKTools.ver > VERSION) throw new Error("You have newer version CKTools loaded. Aborting loading version " + VERSION);
+		else console.warn(`You have older version of CKTools (${window.CKTools.ver}) was loaded, and now upgrading to newer version ${VERSION}.`);
 	}
 	class CKTools {
 		static ver = VERSION
