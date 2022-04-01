@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.2
+// @version      1.17.3
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
 // @match        https://www.bilibili.com/medialist/play/*
-// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1023553
+// @resource     cktools https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1034581
 // @resource     popjs https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.js
 // @resource     popcss https://cdn.jsdelivr.net/gh/CKylinMC/PopNotify.js@master/PopNotify.css
 // @resource     timeago https://unpkg.com/timeago.js@4.0.2/dist/timeago.min.js
@@ -1089,65 +1089,65 @@
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置", await CKTools.domHelper("div", async container => {
             container.style.alignItems = "stretch";
             container.style.minWidth = "300px";
             [
                 closeButton(),
-                await CKTools.makeDom("div", async tip => {
+                await CKTools.domHelper("div", async tip => {
                     tip.style.lineHeight = "2em";
                     tip.style.fontSize = "small";
                     tip.style.fontStyle = "italic";
                     tip.style.width = "100%";
                     tip.innerText = "修改设置后记得点击保存哦";
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.classList.add("showav_menuitem");
                     list.onclick = e => GUISettings_options();
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.innerHTML = "功能选项";
                         }),
-                        await CKTools.makeDom("span", label => {
+                        await CKTools.domHelper("span", label => {
                             label.innerHTML = "调整每个功能模块的单独选项";
                             label.style.marginLeft = "6px";
                         }),
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.classList.add("showav_menuitem");
                     list.onclick = e => GUISettings_components();
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.innerHTML = "组件设置";
                         }),
-                        await CKTools.makeDom("span", label => {
+                        await CKTools.domHelper("span", label => {
                             label.innerHTML = "启用/排序/自定义功能组件";
                             label.style.marginLeft = "6px";
                         }),
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.classList.add("showav_menuitem");
                     list.onclick = e => GUISettings_customcomponents(()=>GUISettings());
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.innerHTML = "自定义组件设置";
                         }),
-                        await CKTools.makeDom("span", label => {
+                        await CKTools.domHelper("span", label => {
                             label.innerHTML = "添加或删除自定义的信息栏组件";
                             label.style.marginLeft = "6px";
                         }),
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.classList.add("showav_menuitem");
                     list.onclick = e => GUISettings_advcopy(()=>GUISettings());
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.innerHTML = "高级复制设置";
                         }),
-                        await CKTools.makeDom("span", label => {
+                        await CKTools.domHelper("span", label => {
                             label.innerHTML = "自定义复制弹窗和默认动作";
                             label.style.marginLeft = "6px";
                         }),
@@ -1162,18 +1162,18 @@
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置 / 功能选项", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置 / 功能选项", await CKTools.domHelper("div", async container => {
             container.style.alignItems = "stretch";
             [
                 closeButton(),
-                await CKTools.makeDom("li", sectiontitle=>{
+                await CKTools.domHelper("li", sectiontitle=>{
                     sectiontitle.innerText = "信息栏";
                     sectiontitle.className = "showav_settings_sectiontitle";
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_forcegap";
                             input.name = "showav_forcegap";
@@ -1189,7 +1189,7 @@
                                 }
                             })
                         }),
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.id = "showav_forcegaptip";
                             label.setAttribute('for', "showav_forcegap");
                             if(config.forceGap){
@@ -1198,17 +1198,17 @@
                                 label.innerHTML = "在第一个组件前<b>保持默认</b>间隔(点击切换)"
                             }
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `可选扩展信息栏和原版信息栏之间强制添加一个间隔，或保持默认`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_newline";
                             input.style.display = "none";
@@ -1224,7 +1224,7 @@
                                 }
                             })
                         }),
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.id = "showav_showinnewlinetip";
                             label.setAttribute('for', "showav_newline");
                             if(config.showInNewLine){
@@ -1233,17 +1233,17 @@
                                 label.innerHTML = "在<b>当前位置后</b>显示扩展信息栏(点击切换)"
                             }
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `可选将扩展信息栏显示在下一行，尽量减少对原信息栏的修改`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_foldvidwarn_tip";
                             label.setAttribute('for', "showav_foldvidwarn");
@@ -1252,7 +1252,7 @@
                             else
                                 label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
                         }),
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_foldvidwarn";
                             input.name = "showav_foldvidwarn";
@@ -1267,26 +1267,26 @@
                                     label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
                             })
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", sectiontitle=>{
+                await CKTools.domHelper("li", sectiontitle=>{
                     sectiontitle.innerText = "组件: 显示视频分P信息";
                     sectiontitle.className = "showav_settings_sectiontitle";
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
                             label.setAttribute('for', "showav_pnwid");
                             label.innerHTML = "字数限制";
                         }),
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "number";
                             input.id = "showav_pnwid";
                             input.name = "showav_pnwid";
@@ -1306,7 +1306,7 @@
                             input.addEventListener("input", updatePreview);
                             wait(300).then(updatePreview);
                         }),
-                        await CKTools.makeDom("span", span => {
+                        await CKTools.domHelper("span", span => {
                             span.id = "showav_lengthpreview";
                             span.innerText = "这里是一条长度预览，你可以在这里查看长度限制的效果。好吧，我承认，后面这几个字只是为了凑个字数而已的。等等，你还要更长？？？相信我，你不会想要这么长的。";
                             span.style.maxWidth = "0em";
@@ -1319,21 +1319,21 @@
                             span.style.fontSize = "12px";
                             span.style.transition = "all .5s";
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `限制分P信息显示时的最大长度`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", sectiontitle=>{
+                await CKTools.domHelper("li", sectiontitle=>{
                     sectiontitle.innerText = "组件: 显示视频编号和高级复制";
                     sectiontitle.className = "showav_settings_sectiontitle";
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_defaultav_tip";
                             label.setAttribute('for', "showav_defaultav");
@@ -1342,7 +1342,7 @@
                             else
                                 label.innerHTML = "默认展示 <b>视频BV号</b> (点击切换)";
                         }),
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_defaultav";
                             input.name = "showav_defaultav";
@@ -1358,7 +1358,7 @@
 
                             })
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `仅对<b>可切换视频编号和高级复制</b>功能起效。<br>
@@ -1367,14 +1367,14 @@
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", sectiontitle=>{
+                await CKTools.domHelper("li", sectiontitle=>{
                     sectiontitle.innerText = "组件: 显示视频投稿时间";
                     sectiontitle.className = "showav_settings_sectiontitle";
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_hidetime_tip";
                             label.setAttribute('for', "showav_hidetime");
@@ -1383,7 +1383,7 @@
                             else
                                 label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                         }),
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_hidetime";
                             input.name = "showav_hidetime";
@@ -1398,7 +1398,7 @@
                                     label.innerHTML = "<b>显示</b>原版发布时间 (点击切换)";
                             })
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `仅在开启<b>视频投稿时间</b>功能时起效。<br>
@@ -1406,10 +1406,10 @@
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     list.style.lineHeight = "2em";
                     [
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
                             label.id = "showav_deftxttime_tip";
                             label.setAttribute('for', "showav_deftxttime");
@@ -1418,7 +1418,7 @@
                             else
                                 label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                         }),
-                        await CKTools.makeDom("input", input => {
+                        await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_deftxttime";
                             input.name = "showav_deftxttime";
@@ -1433,17 +1433,17 @@
                                     label.innerHTML = "显示<b>完整时间戳</b> (点击切换)";
                             })
                         }),
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `<b>相对时间格式:</b> 如  1周前<br><b>完整时间戳格式:</b> 如  2021-09-10 11:21:03<br>仅对<b>视频投稿时间</b>功能起效。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
-                await CKTools.makeDom("div", async btns => {
+                await CKTools.domHelper("div", async btns => {
                     btns.style.display = "flex";
                     btns.style.alignItems = "flex-end";
-                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                    btns.appendChild(await CKTools.domHelper("button", btn => {
                         btn.className = "CKTOOLS-toolbar-btns";
                         btn.innerHTML = "保存并返回";
                         btn.onclick = e => {
@@ -1463,7 +1463,7 @@
                             wait(300).then(()=>GUISettings());
                         }
                     }))
-                    btns.appendChild(await CKTools.makeDom("button", btn => {
+                    btns.appendChild(await CKTools.domHelper("button", btn => {
                         btn.className = "CKTOOLS-toolbar-btns";
                         btn.innerHTML = "返回";
                         btn.style.background = "#ececec";
@@ -1484,14 +1484,14 @@
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置 / 组件", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置 / 组件", await CKTools.domHelper("div", async container => {
             container.style.alignItems = "stretch";
             [
                 closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     const makeDragable = async id => {
-                        return await CKTools.makeDom("div", draggable => {
+                        return await CKTools.domHelper("div", draggable => {
                             draggable.className = "showav_dragableitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
@@ -1550,10 +1550,10 @@
                         })
                     }
                     [
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.innerHTML = `<b>拖动下面的功能模块进行排序</b>`;
                         }),
-                        await CKTools.makeDom("div", async enableddiv => {
+                        await CKTools.domHelper("div", async enableddiv => {
                             enableddiv.innerHTML = `<b>启用</b>`;
                             enableddiv.className = "showav_dragablediv showav_enableddiv";
                             config.orders.forEach(async k => {
@@ -1561,7 +1561,7 @@
                             });
                             registerDragEvent(enableddiv);
                         }),
-                        await CKTools.makeDom("div", async disableddiv => {
+                        await CKTools.domHelper("div", async disableddiv => {
                             disableddiv.innerHTML = `<b>禁用</b>`;
                             disableddiv.className = "showav_dragablediv showav_disableddiv";
                             const sideloads = getSideloadModules();
@@ -1572,7 +1572,7 @@
                             });
                             registerDragEvent(disableddiv);
                         }),
-                        await CKTools.makeDom("div", async div => {
+                        await CKTools.domHelper("div", async div => {
                             div.style.lineHeight = "2em";
                             div.style.cursor = "pointer";
                             div.style.color = "#1976d2";
@@ -1580,7 +1580,7 @@
                             div.innerHTML = `功能设置`;
                             div.onclick = e => GUISettings_options();
                         }),
-                        await CKTools.makeDom("div", async div => {
+                        await CKTools.domHelper("div", async div => {
                             div.style.lineHeight = "2em";
                             div.style.cursor = "pointer";
                             div.style.color = "#1976d2";
@@ -1588,14 +1588,14 @@
                             div.innerHTML = `管理自定义组件`;
                             div.onclick = e => GUISettings_customcomponents();
                         }),
-                        await CKTools.makeDom("div", async div => {
+                        await CKTools.domHelper("div", async div => {
                             div.style.lineHeight = "2em";
                             div.innerHTML = `<a href="https://github.com/CKylinMC/UserJS/issues/new?assignees=CKylinMC&labels=&template=feature-request.yaml&title=%5BIDEA%5D+ShowAV%E8%84%9A%E6%9C%AC%E6%98%BE%E7%A4%BA%E5%8A%9F%E8%83%BD%E8%AF%B7%E6%B1%82&target=[%E8%84%9A%E6%9C%AC%EF%BC%9A%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAV/BV%E5%8F%B7]&desp=%E6%88%91%E5%B8%8C%E6%9C%9B%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%BF%AB%E6%8D%B7%E5%B1%95%E7%A4%BA%E5%8A%9F%E8%83%BD%EF%BC%8C%E5%8A%9F%E8%83%BD%E7%9A%84%E4%BD%9C%E7%94%A8%E5%92%8C%E6%95%88%E6%9E%9C%E5%A6%82%E4%B8%8B...">需要添加其他的显示或快捷功能？反馈来添加...</a>`
                         }),
-                        await CKTools.makeDom("div", async div => {
-                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                        await CKTools.domHelper("div", async div => {
+                            div.appendChild(await CKTools.domHelper("div", async btns => {
                                 btns.style.display = "flex";
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "保存并返回";
                                     btn.onclick = e => {
@@ -1614,7 +1614,7 @@
                                         wait(310).then(()=>GUISettings());
                                     }
                                 }))
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "返回";
                                     btn.style.background = "#ececec";
@@ -1637,14 +1637,14 @@
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置 / 快速复制设置", await CKTools.domHelper("div", async container => {
             container.style.alignItems = "stretch";
             [
                 closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     const makeDragable = async id => {
-                        return await CKTools.makeDom("div", draggable => {
+                        return await CKTools.domHelper("div", draggable => {
                             draggable.className = "showav_dragableitem copyitem";
                             draggable.setAttribute("draggable", true);
                             draggable.setAttribute("data-id", id);
@@ -1696,10 +1696,10 @@
                         })
                     }
                     [
-                        await CKTools.makeDom("div", div => {
+                        await CKTools.domHelper("div", div => {
                             div.innerHTML = `<b>拖动下面的功能模块进行排序</b>，第一个单项将成为默认快速复制项目。`;
                         }),
-                        await CKTools.makeDom("div", async enableddiv => {
+                        await CKTools.domHelper("div", async enableddiv => {
                             enableddiv.innerHTML = `<b>启用</b>`;
                             enableddiv.className = "showav_dragablediv showav_enableddiv";
                             config.copyitems.forEach(async k => {
@@ -1707,7 +1707,7 @@
                             });
                             registerDragEvent(enableddiv);
                         }),
-                        await CKTools.makeDom("div", async disableddiv => {
+                        await CKTools.domHelper("div", async disableddiv => {
                             disableddiv.innerHTML = `<b>禁用</b>`;
                             disableddiv.className = "showav_dragablediv showav_disableddiv";
                             config.copyitemsAll.forEach(async k => {
@@ -1716,7 +1716,7 @@
                             });
                             registerDragEvent(disableddiv);
                         }),
-                        await CKTools.makeDom("li", async list => {
+                        await CKTools.domHelper("li", async list => {
                             const makeItem = (copyitemid,focus=false) => {
                                 const item = config.customcopyitems[copyitemid];
                                 const node = document.createElement("li");
@@ -1773,15 +1773,15 @@
                                 return node;
                             };
                             [
-                                await CKTools.makeDom("label", label => {
+                                await CKTools.domHelper("label", label => {
                                     label.style.paddingLeft = "3px";
                                     label.style.fontWeight = "bold";
                                     label.innerHTML = "添加自定义复制项目";
                                 }),
-                                await CKTools.makeDom("div", async div => {
+                                await CKTools.domHelper("div", async div => {
                                     div.style.paddingLeft = "20px";
                                     [
-                                        await CKTools.makeDom("input", async input => {
+                                        await CKTools.domHelper("input", async input => {
                                             input.id = "showav_customcopytitle";
                                             input.setAttribute("type", "text");
                                             input.style.width = "60%";
@@ -1791,7 +1791,7 @@
                                             input.style.border = "solid 2px grey";
                                             input.setAttribute("placeholder", "自定义标题");
                                         }),
-                                        await CKTools.makeDom("input", async input => {
+                                        await CKTools.domHelper("input", async input => {
                                             input.id = "showav_customcopycontent";
                                             input.setAttribute("type", "text");
                                             input.style.width = "60%";
@@ -1801,7 +1801,7 @@
                                             input.style.border = "solid 2px grey";
                                             input.setAttribute("placeholder", "自定义内容");
                                         }),
-                                        await CKTools.makeDom("div", div => {
+                                        await CKTools.domHelper("div", div => {
                                             div.style.paddingLeft = "20px";
                                             div.style.color = "#919191";
                                             div.innerHTML = `变量提示<br><ul>
@@ -1830,7 +1830,7 @@
                                                 }
                                             }
                                         }),
-                                        await CKTools.makeDom("button", btn => {
+                                        await CKTools.domHelper("button", btn => {
                                             btn.className = "CKTOOLS-toolbar-btns";
                                             btn.innerHTML = "添加";
                                             btn.style.background = "#ececec";
@@ -1856,12 +1856,12 @@
                                         })
                                     ].forEach(e => div.appendChild(e));
                                 }),
-                                await CKTools.makeDom("label", label => {
+                                await CKTools.domHelper("label", label => {
                                     label.style.paddingLeft = "3px";
                                     label.style.fontWeight = "bold";
                                     label.innerHTML = "已有自定义复制项目 <small>(点击移除)</small>";
                                 }),
-                                await CKTools.makeDom("ul", ul => {
+                                await CKTools.domHelper("ul", ul => {
                                     ul.style.paddingLeft = "3px";
                                     ul.id = "showav_customitems";
                                     for (let copyitemid of Object.keys(config.customcopyitems)) {
@@ -1870,10 +1870,10 @@
                                 }),
                             ].forEach(e => list.appendChild(e));
                         }),
-                        await CKTools.makeDom("div", async div => {
-                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                        await CKTools.domHelper("div", async div => {
+                            div.appendChild(await CKTools.domHelper("div", async btns => {
                                 btns.style.display = "flex";
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "保存并关闭";
                                     if(back!=null)
@@ -1892,7 +1892,7 @@
                                         else CKTools.modal.hideModal();
                                     }
                                 }))
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "关闭";
                                     if(back!=null)
@@ -1915,14 +1915,14 @@
             CKTools.modal.hideModal();
             await wait(300);
         }
-        CKTools.modal.openModal("ShowAV / 设置 / 组件 / 自定义组件", await CKTools.makeDom("div", async container => {
+        CKTools.modal.openModal("ShowAV / 设置 / 组件 / 自定义组件", await CKTools.domHelper("div", async container => {
             container.style.alignItems = "stretch";
             [
                 closeButton(),
                 // dragable code from ytb v=jfYWwQrtzzY
-                await CKTools.makeDom("li", async list => {
+                await CKTools.domHelper("li", async list => {
                     [
-                        await CKTools.makeDom("li", async list => {
+                        await CKTools.domHelper("li", async list => {
                             const makeItem = (customitemid,focus=false) => {
                                 const item = config.customComponents[customitemid];
                                 const node = document.createElement("li");
@@ -1979,15 +1979,15 @@
                                 return node;
                             };
                             [
-                                await CKTools.makeDom("label", label => {
+                                await CKTools.domHelper("label", label => {
                                     label.style.paddingLeft = "3px";
                                     label.style.fontWeight = "bold";
                                     label.innerHTML = "添加组件";
                                 }),
-                                await CKTools.makeDom("div", async div => {
+                                await CKTools.domHelper("div", async div => {
                                     div.style.paddingLeft = "20px";
                                     [
-                                        await CKTools.makeDom("input", async input => {
+                                        await CKTools.domHelper("input", async input => {
                                             input.id = "showav_customcopntitle";
                                             input.setAttribute("type", "text");
                                             input.style.width = "60%";
@@ -2003,7 +2003,7 @@
                                                 setTimeout(()=>contentel.value = input.value,10);
                                             })
                                         }),
-                                        await CKTools.makeDom("input", async input => {
+                                        await CKTools.domHelper("input", async input => {
                                             input.id = "showav_customcopncontent";
                                             input.setAttribute("type", "text");
                                             input.style.width = "60%";
@@ -2035,7 +2035,7 @@
                                                 }
                                             })
                                         }),
-                                        await CKTools.makeDom("div", div => {
+                                        await CKTools.domHelper("div", div => {
                                             div.style.paddingLeft = "20px";
                                             div.id = "showav_custom_txttip";
                                             div.style.color = "#919191";
@@ -2065,7 +2065,7 @@
                                                 }
                                             }
                                         }),
-                                        await CKTools.makeDom("div", div => {
+                                        await CKTools.domHelper("div", div => {
                                             div.style.paddingLeft = "20px";
                                             div.id = "showav_custom_jstip";
                                             div.style.display = "none";
@@ -2088,7 +2088,7 @@
                                                 }
                                             }
                                         }),
-                                        await CKTools.makeDom("button", btn => {
+                                        await CKTools.domHelper("button", btn => {
                                             btn.className = "CKTOOLS-toolbar-btns";
                                             btn.innerHTML = "添加";
                                             btn.style.background = "#ececec";
@@ -2112,12 +2112,12 @@
                                         })
                                     ].forEach(e => div.appendChild(e));
                                 }),
-                                await CKTools.makeDom("label", label => {
+                                await CKTools.domHelper("label", label => {
                                     label.style.paddingLeft = "3px";
                                     label.style.fontWeight = "bold";
                                     label.innerHTML = "已有自定义组件 <small>(点击移除)</small>";
                                 }),
-                                await CKTools.makeDom("ul", ul => {
+                                await CKTools.domHelper("ul", ul => {
                                     ul.style.paddingLeft = "3px";
                                     ul.id = "showav_customitems";
                                     for (let itemid of Object.keys(config.customComponents)) {
@@ -2126,16 +2126,16 @@
                                 }),
                             ].forEach(e => list.appendChild(e));
                         }),
-                        await CKTools.makeDom("label", label => {
+                        await CKTools.domHelper("label", label => {
                             label.style.width = "100%";
                             label.style.display = "block";
                             label.style.textAlign = "center";
                             label.innerHTML = "此页面内容自动保存";
                         }),
-                        await CKTools.makeDom("div", async div => {
-                            div.appendChild(await CKTools.makeDom("div", async btns => {
+                        await CKTools.domHelper("div", async div => {
+                            div.appendChild(await CKTools.domHelper("div", async btns => {
                                 btns.style.display = "flex";
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "返回";
                                     btn.onclick = e => {
@@ -2143,7 +2143,7 @@
                                         back();
                                     }
                                 }))
-                                btns.appendChild(await CKTools.makeDom("button", btn => {
+                                btns.appendChild(await CKTools.domHelper("button", btn => {
                                     btn.className = "CKTOOLS-toolbar-btns";
                                     btn.innerHTML = "关闭";
                                     btn.onclick = e => {
