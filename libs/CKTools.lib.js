@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKTools
 // @namespace    ckylin-script-lib-combined-tools
-// @version      1.6
+// @version      1.6.1
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
@@ -548,12 +548,12 @@
 				document.body.appendChild(modal);
 				return modal;
 			}
-			closeModal() {
+			static closeModal() {
 				CKTools.modal.blockWindow(false);
 				let modal = CKTools.get("#CKTOOLS-modal");
 				if (modal) modal.remove();
 			}
-			async alertModal(title = "", content = "", okbtn = null) {
+			static async alertModal(title = "", content = "", okbtn = null) {
 				if (CKTools.modal.isModalShowing()) {
 					CKTools.modal.hideModal();
 					await CKTools.wait(200);
@@ -574,7 +574,7 @@
 				}))
 				await CKTools.wait(300);
 			}
-			blockWindow(block = true) {
+			static blockWindow(block = true) {
 				CKTools.addStyle(`
 				#CKTOOLS-blockWindow{
 					z-index: 99005;
