@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.15
+// @version      0.2.16
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
 // @supportURL   https://github.com/CKylinMC/UserJS
-// @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1027354
+// @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1034581
 // @include      http://space.bilibili.com/*
 // @include      https://space.bilibili.com/*
 // @connect      api.bilibili.com
@@ -45,13 +45,14 @@
         batchOperationDelay: .5
     };
     const cfg = {
-        debug: true,
+        debug: false,
         retrial: 3,
-        VERSION: "0.2.14 Beta",
+        enableNewModules: false,
+        VERSION: "0.2.16 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
 
-        // Turn this on will abort all alert.
+        // Turn this on will abort all alerts.
         I_KNOW_WHAT_IM_DOING: false
     }
     const get = q => document.querySelector(q);
@@ -101,14 +102,16 @@
       
         document.body.removeChild(element);
       }
-    const _ = async (func = () => {
-    }, ...args) => await func(...args);// wtf? seriously?
     const makeDom = async (domname, func = () => {
-    }, ...args) => {
+    }) => {
+        if(CKTools.domHelper) return CKTools.domHelper(domname, func);
         const d = document.createElement(domname);
-        await _(func, d, ...args);
+        if(typeof(func)=='function') func.constructor.name=='AsyncFunction' ? await func(d) : func(d);
         return d;
     };
+    const isHardCoreMember = d => d.is_senior_member ===1;
+    const isFans = d => d.attribute === 6;
+    const isWhisper = d => d.attribute === 1;
     const isNearly = d => {
         const nearly = (new Date).getTime() - (60 * 60 * 24 * 7 * 4 * 3 * 1000);
         return parseInt(d + "000") > nearly;
@@ -1383,6 +1386,7 @@
         let info = datas.mappings[parseInt(data.mid)] || {};
         return await makeDom("li", async item => {
             item.className = "CKFOMAN-data-inforow";
+            item.style.contentVisibility = "auto";
             item.onclick = e => {
                 if (e.target.classList.contains("CKFOMAN-data-inforow-name")) {
                     //open("https://space.bilibili.com/" + data.mid);
@@ -1707,7 +1711,7 @@
                         upinfo.style.maxWidth = "300px";
                         upinfo.innerHTML = `<b style="color:${info.vip['nickname_color']};font-size: large">${info.uname??info.name??'未知昵称'}</b> <span style="display:inline-block;transform: translateY(-5px);font-size:xx-small;line-height:1.2;padding:1px 3px;border-radius:6px;background: ${info.vip.vipType>0?(info.vip.label['bg_color']||"#f06292"):"rgba(0,0,0,0)"};color: ${info.vip.label['text_color']||"white"}">${info.vip.vipType>1?info.vip.label.text:info.vip.vipType>0?"大会员":""}</span>`;
                         if(info.level){
-                            upinfo.innerHTML+= `<div style="display: inline-block;border-radius:3px;line-height: 1.2;padding: 1px 3px;background:#f06292;margin-left: 12px;color:white">LV${info.level}</div>`;
+                            upinfo.innerHTML+= `<div style="display: inline-block;border-radius:3px;line-height: 1.2;padding: 1px 3px;background:#f06292;margin-left: 12px;color:white">LV${info.level}${isHardCoreMember(info)?" ⚡ (硬核)":""}</div>`;
                         }
                         upinfo.innerHTML+= `<div style="color:gray;border-left: 2px solid gray;padding-left: 2px;font-style: italic;">${info.sign}</div>`;
                         if(info.official_verify.type!==-1){
@@ -2248,7 +2252,7 @@
         const dom = CKTools.domHelper;
         hideModal();
         await wait(300);
-        let newFilterModuleInstalled = unsafeWindow.FoManPlugins && unsafeWindow.FoManPlugins.NewFilterModule;
+        let newFilterModuleInstalled = unsafeWindow.FoManPlugins && unsafeWindow.FoManPlugins.FilterReborn;
         openModal("全新的筛选模块", dom('div', {
             childs: [
                 dom('p', {
@@ -2270,10 +2274,39 @@
                 makeButtons([
                     {
                         text: newFilterModuleInstalled?"启动":"前往安装",
-                        onclick: e => {
+                        onclick: async e => {
                             hideModal();
                             if (newFilterModuleInstalled) {
-                                //startModule
+                                hideModal();
+                                await wait(300);
+                                unsafeWindow.FoManPlugins.FilterReborn({
+                                    datas,
+                                    info: cfg,
+                                    domHelper:CKTools.domHelper,
+                                    mdi,
+                                    get, getAll, wait, log,
+                                    addStyle, clearStyles,
+                                    alertModal, hideModal,
+                                    checkers: {
+                                        isNearly, isLongAgo, isInvalid,
+                                        isFans, isWhisper, isHardCoreMember,
+                                        isSpecial: d=>d.special === 1,
+                                        isVerified: d=>d.official_verify.type>0,
+                                        isVIP: d => d.vip.vipType === 0,
+                                        isNormalVIP: d => d.vip.vipType === 1,
+                                        isYearVIP: d=>d.vip.vipType!==1&&d.vip.vipType!==0,
+                                    },
+                                    getGroups: () => [...datas.tags],
+                                    select: (uid, status = true) => toggleSwitch(uid, status),
+                                    getSelected: () => refreshChecked().filter(id => !isNaN(id)).map(id => datas.followings[+id]).filter(el => !!el),
+                                    clearSelected: () => {
+                                        datas.checked = [];
+                                        [...getAll(`input.CKFOMAN-data-inforow-toggle[checked]`)].map(el => el.checked = false);
+                                    }
+                                }).catch(e => {
+                                    alertModal("模块加载失败", "出现了一个错误，不能加载模块。", "确定");
+                                    console.error(e);
+                                });
                             } else {
                                 // open('about:blank');
                                 if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("很抱歉","此模块尚未发布，请等待下个版本更新。","确定");
@@ -2570,7 +2603,7 @@
                                 await openModal("批量操作", await makeDom("div", async container => {
                                     container.style.alignContent = "stretch";
                                     [
-                                        await _(() => {
+                                        (() => {
                                             if (datas.isSelf) {
                                                 return makeDom("button", async btn => {
                                                     btn.className = "CKFOMAN-toolbar-btns";
@@ -2579,8 +2612,8 @@
                                                     btn.onclick = () => createUnfollowModal();
                                                 })
                                             } else return null;
-                                        }),
-                                        await _(() => {
+                                        })(),
+                                        (() => {
                                             if (datas.isSelf) {
                                                 return makeDom("button", async btn => {
                                                     btn.className = "CKFOMAN-toolbar-btns";
@@ -2589,8 +2622,8 @@
                                                     btn.onclick = () => createGroupChangeModal('copy');
                                                 })
                                             } else return null;
-                                        }),
-                                        await _(() => {
+                                        })(),
+                                        (() => {
                                             if (datas.isSelf) {
                                                 return makeDom("button", async btn => {
                                                     btn.className = "CKFOMAN-toolbar-btns";
@@ -2599,14 +2632,14 @@
                                                     btn.onclick = () => createGroupChangeModal('move');
                                                 })
                                             } else return null;
-                                        }),
+                                        })(),
                                         await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '批量拉黑(测试)';
                                             btn.onclick = () => createBlockOrFollowModal(true);
                                         }),
-                                        await _(() => {
+                                        (() => {
                                             if (!datas.isSelf) {
                                                 return makeDom("button", async btn => {
                                                     btn.className = "CKFOMAN-toolbar-btns";
@@ -2615,7 +2648,7 @@
                                                     btn.onclick = () => createBlockOrFollowModal(false);
                                                 })
                                             } else return null;
-                                        }),
+                                        })(),
                                         divider(),
                                         await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
@@ -2704,7 +2737,7 @@
                                         await makeDom("div", async tip => {
                                             tip.innerHTML = "勾选要生效的筛选器"
                                         }),
-                                        cfg.debug?await makeDom("div", async tip => {
+                                        cfg.enableNewModules?await makeDom("div", async tip => {
                                             tip.innerHTML = "👉尝鲜新版筛选器";
                                             tip.style.color = "#00a0e9";
                                             tip.onclick = () => openNewFilterGuideScreen();
@@ -3279,9 +3312,6 @@
                                                             btn.onclick = async e => {
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
-                                                                const isFans = d => {
-                                                                    return d.attribute === 6;
-                                                                }
                                                                 for (let d of datas.followings) {
                                                                     if (isFans(d)) {
                                                                         toggleSwitch(d.mid, false);
