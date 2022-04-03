@@ -12,6 +12,9 @@
 // @connect      api.bilibili.com
 // @grant        GM_registerMenuCommand
 // @grant        GM_getResourceText
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_removeValue
 // @grant        unsafeWindow
 // @license      GPL-3.0-only
 // @compatible   chrome 80+
@@ -19,6 +22,20 @@
 // ==/UserScript==
 (function () {
     'use strict';
+    const s = {
+        get(key, def) {
+            const val = GM_getValue('autoExtendInfo');
+            if (typeof (val) == 'undefined' || val === null) return def;
+            return val;
+        },
+        set(key, val) { 
+            GM_setValue('autoExtendInfo', val);
+        },
+        del(key) {
+            if (typeof (GM_removeValue) == 'function') GM_removeValue(key);
+            else GM_setValue(key, undefined);
+        }
+    };
     const datas = {
         status: 0,
         total: 0,
@@ -41,8 +58,26 @@
             whisper: -1,
         },
         preventUserCard: false,
-        autoExtendInfo: true,
-        batchOperationDelay: .5
+        settings: {
+            get autoExtendInfo() {
+                return s.get('autoExtendInfo', true);
+            },
+            set autoExtendInfo(val) {
+                s.set('autoExtendInfo', val);
+            },
+            get lazyRenderForList() {
+                return s.get('lazyRenderForList', true);
+            },
+            set lazyRenderForList(val) {
+                s.set('lazyRenderForList', val);
+            },
+            get batchOperationDelay() {
+                return s.get('batchOperationDelay', .5);
+            },
+            set batchOperationDelay(val) {
+                s.set('batchOperationDelay', val);
+            },
+        }
     };
     const cfg = {
         debug: false,
@@ -58,7 +93,7 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const batchDelay = async () => await wait(datas.batchOperationDelay*1000);
+    const batchDelay = async () => await wait(datas.settings.batchOperationDelay*1000);
     const log = (...m) => cfg.debug && console.log('[FoMan]', ...m);
     const mdi = (name, asHTML=true, px = '10', extras = []) => {
         const i = CKTools.domHelper('i', {
@@ -1386,7 +1421,7 @@
         let info = datas.mappings[parseInt(data.mid)] || {};
         return await makeDom("li", async item => {
             item.className = "CKFOMAN-data-inforow";
-            item.style.contentVisibility = "auto";
+            if(datas.settings.lazyRenderForList)item.style.contentVisibility = "auto";
             item.onclick = e => {
                 if (e.target.classList.contains("CKFOMAN-data-inforow-name")) {
                     //open("https://space.bilibili.com/" + data.mid);
@@ -1681,7 +1716,7 @@
     const createUserInfoCard = async (info, refilldata = true, noactions = false)=>{
         if(datas.preventUserCard) return;
         log(info);
-        if(datas.autoExtendInfo){
+        if(datas.settings.autoExtendInfo){
             alertModal("请稍后...");
             if(refilldata) await fillUserStatus(info.mid).catch(err => log(err));
             info.dynamics = await getDynamic(info.mid).catch(err => log(err));
@@ -2408,7 +2443,7 @@
             container.appendChild(await makeDom("div", delaySettings => {
                 delaySettings.style.color = "blue";
                 delaySettings.style.fontWeight = "bold";
-                delaySettings.innerHTML = `操作间隔：<input id="CKFOMAN-form-delay" type="number" step="0.01" value="${datas.batchOperationDelay}" />`;
+                delaySettings.innerHTML = `操作间隔：<input id="CKFOMAN-form-delay" type="number" step="0.01" value="${datas.settings.batchOperationDelay}" />`;
             }))
             container.appendChild(divider());
             container.appendChild(await makeDom("div", async unfolistdom => {
@@ -2433,7 +2468,7 @@
                             if(delayDom) {
                                 try{
                                     let delay = parseFloat(delayDom.value);
-                                    datas.batchOperationDelay = Math.max(delay,0);
+                                    datas.settings.batchOperationDelay = Math.max(delay,0);
                                 }catch{}
                             }
                             doUnfollowChecked()
