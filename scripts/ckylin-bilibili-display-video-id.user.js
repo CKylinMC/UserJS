@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.3
+// @version      1.17.4
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -926,13 +926,13 @@
         return mods;
     }
 
-    async function runSideloadModule(module){
+    async function runSideloadModule(module,moduleInternalID = (Math.floor(Math.random()*10000))){
         try{
             const { av_root }=this;
             const onloadFn = module.onload.bind(this);
             const onclickFn = module.onclick.bind(this);
             const onholdFn = module.onhold.bind(this);
-            const name = "showav_slm_"+(Math.floor(Math.random()*10000));
+            const name = "showav_slm_" + moduleInternalID;
             const slm_span = getOrNew(name, av_root);
             slm_span.style.textOverflow = "ellipsis";
             slm_span.style.whiteSpace = "nowarp";
@@ -1032,7 +1032,7 @@
 
         config.orders.forEach(async k => {
             if(Object.keys(functions).includes(k)) await functions[k]();
-            else if(Object.keys(sideloads).includes(k)) await runSideloadModule.bind(that)(sideloads[k]);
+            else if(Object.keys(sideloads).includes(k)) await runSideloadModule.bind(that)(sideloads[k], k);
             else{
                 try{
                     await functions.customDriver(k);
