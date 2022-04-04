@@ -934,6 +934,7 @@
             const onholdFn = module.onhold.bind(this);
             const name = "showav_slm_" + moduleInternalID;
             const slm_span = getOrNew(name, av_root);
+            slm_span.innerHTML = '';
             slm_span.style.textOverflow = "ellipsis";
             slm_span.style.whiteSpace = "nowarp";
             slm_span.style.overflow = "hidden";
