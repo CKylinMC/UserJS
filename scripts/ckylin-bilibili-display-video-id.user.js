@@ -927,19 +927,26 @@
     }
 
     async function runSideloadModule(module,moduleInternalID = (Math.floor(Math.random()*10000))){
+        let slm_span = null;
         try{
             const { av_root }=this;
             const onloadFn = module.onload.bind(this);
             const onclickFn = module.onclick.bind(this);
             const onholdFn = module.onhold.bind(this);
             const name = "showav_slm_" + moduleInternalID;
-            const slm_span = getOrNew(name, av_root);
+            slm_span = getOrNew(name, av_root);
             slm_span.innerHTML = '';
             slm_span.style.textOverflow = "ellipsis";
             slm_span.style.whiteSpace = "nowarp";
             slm_span.style.overflow = "hidden";
             slm_span.title = "模块:" + module.name;
-            slm_span.appendChild(await onloadFn());
+            if(module.tip){
+                if(typeof(module.tip)=='function') slm_span.title+='\n'+module.tip.bind(this)();
+                else slm_span.title+='\n'+module.tip;
+            }else if(module.description){
+                slm_span.title+='\n'+module.description;
+            }
+            slm_span.appendChild(await onloadFn(slm_span));
             if (slm_span.getAttribute("setup") != globalinfos.cid) {
                 config.running[name] && config.running[name].uninstall();
                 config.running[name] = new CKTools.HoldClick(slm_span);
@@ -949,6 +956,7 @@
             }
         }catch(e){
             log('[ERR]',module.name,e);
+            (slm_span&&(slm_span instanceof HTMLElement)&&slm_span.remove());
         }
     }
 
