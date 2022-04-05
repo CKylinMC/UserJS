@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.16
+// @version      0.2.17
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -83,7 +83,7 @@
         debug: false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.16 Beta",
+        VERSION: "0.2.17 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
 
@@ -2638,36 +2638,24 @@
                                 await openModal("批量操作", await makeDom("div", async container => {
                                     container.style.alignContent = "stretch";
                                     [
-                                        (() => {
-                                            if (datas.isSelf) {
-                                                return makeDom("button", async btn => {
-                                                    btn.className = "CKFOMAN-toolbar-btns";
-                                                    btn.style.margin = "4px 0";
-                                                    btn.innerHTML = '取关选中';
-                                                    btn.onclick = () => createUnfollowModal();
-                                                })
-                                            } else return null;
-                                        })(),
-                                        (() => {
-                                            if (datas.isSelf) {
-                                                return makeDom("button", async btn => {
-                                                    btn.className = "CKFOMAN-toolbar-btns";
-                                                    btn.style.margin = "4px 0";
-                                                    btn.innerHTML = '复制到分组';
-                                                    btn.onclick = () => createGroupChangeModal('copy');
-                                                })
-                                            } else return null;
-                                        })(),
-                                        (() => {
-                                            if (datas.isSelf) {
-                                                return makeDom("button", async btn => {
-                                                    btn.className = "CKFOMAN-toolbar-btns";
-                                                    btn.style.margin = "4px 0";
-                                                    btn.innerHTML = '修改分组';
-                                                    btn.onclick = () => createGroupChangeModal('move');
-                                                })
-                                            } else return null;
-                                        })(),
+                                        datas.isSelf?await makeDom("button", async btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '取关选中';
+                                            btn.onclick = () => createUnfollowModal();
+                                        }):null,
+                                        datas.isSelf?await makeDom("button", async btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '复制到分组';
+                                            btn.onclick = () => createGroupChangeModal('copy');
+                                        }):null,
+                                        datas.isSelf?await makeDom("button", async btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = '修改分组';
+                                            btn.onclick = () => createGroupChangeModal('move');
+                                        }):null,
                                         await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
