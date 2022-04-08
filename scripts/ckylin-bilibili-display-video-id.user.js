@@ -340,8 +340,8 @@
         return {currpage,partinfo,url,vidurl,shorturl,part,t,infos}
     }
     
-    async function getCopyItem(copyitem,infos){
-        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos,this.av_span);
+    async function getCopyItem(copyitem,infos,av_span=null){
+        const {partinfo,url,vidurl,shorturl,part,t} = await prepareData(infos,av_span);
         switch (copyitem) {
             case "curr":
                 return {
@@ -489,7 +489,7 @@
         let title = `左键单击复制，${force?'右键单击切换显示，':''}长按打开窗口`;
         if(config.copyitems.length){
             const firstCopyItem = config.copyitems[0];
-            const firstInfo = await getCopyItem.bind({av_span})(firstCopyItem,globalinfos);
+            const firstInfo = await getCopyItem(firstCopyItem,globalinfos,av_span);
             if(firstInfo!==null){
                 if(firstInfo.type=="copiable"||firstInfo.type=="component"){
                     av_span.setAttribute('title',title + '\n默认复制: '+firstInfo.title);
@@ -510,7 +510,7 @@
             runningCfg = new CKTools.HoldClick(av_span);
             runningCfg.onclick(async e => {
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
+                    const copyiteminfo = await getCopyItem(copyitem,globalinfos,av_span);
                     if(copyiteminfo===null) {
                         log(`[ADVCOPY] warning: unknown custom copy item id "${copyitem}", maybe should clean settings up.`);
                         continue;
@@ -565,7 +565,7 @@
                 </style>
                 <b>点击输入框可以快速复制</b><br>`;
                 for (let copyitem of config.copyitems) {
-                    const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,globalinfos);
+                    const copyiteminfo = await getCopyItem(copyitem,globalinfos,av_span);
                     if(copyiteminfo.type=="copiable"){
                         modalcontent+=`<span class="copyitem-title">${copyiteminfo.title}</span><input readonly value="${copyiteminfo.content}" onclick="showav_fastcopy(this);" />`
                     }
