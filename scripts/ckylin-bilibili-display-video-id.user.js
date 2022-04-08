@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.4
+// @version      1.17.5
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -111,9 +111,9 @@
         openGUI: "设置选项"
     };
     const descCn = {
-        showAv: "展示视频号(AV号/BV号可切换)，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
-        showSAv: "展示视频AV号，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
-        showSBv: "展示视频BV号，右键单击可以切换，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showAv: "展示视频号(AV号/BV号右键单击可切换)，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showSAv: "展示视频AV号,左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
+        showSBv: "展示视频BV号，左键单击快速复制(包含当前播放时间)，左键长按打开更多格式复制窗口",
         showPn: "展示视频分P信息以及缓存名(分P名)。可能较长，建议放在最下面，并调整最大长度。",
         showCid: "展示视频资源CID编号，通常不需要展示。",
         showCate: "展示视频所在的子分区。",
@@ -393,7 +393,7 @@
                 };
             case "vid":
                 return {
-                    title: "",
+                    title: "视频编号",
                     content: `<div class="shoav_expandinfo">
                     <div>
                     AV号
@@ -486,17 +486,29 @@
         if (video) {
             config.vduration = Math.floor(video.duration);
         }
-
+        let title = `左键单击复制，${force?'右键单击切换显示，':''}长按打开窗口`;
+        if(config.copyitems.length){
+            const firstCopyItem = config.copyitems[0];
+            const firstInfo = await getCopyItem.bind({av_span})(firstCopyItem,globalinfos);
+            if(firstInfo!==null){
+                if(firstInfo.type=="copiable"||firstInfo.type=="component"){
+                    av_span.setAttribute('title',title + '\n默认复制: '+firstInfo.title);
+                }
+            }else av_span.setAttribute('title',title + '\n没有默认复制行为');
+        }else{
+            av_span.setAttribute('title',title + '\n没有默认复制行为');
+        }
         if (av_span.getAttribute("setup") != globalinfos.cid) {
             if (!force)
                 av_span.oncontextmenu = e => {
                     if (e.target.innerText.startsWith('av')) e.target.innerText = infos.bvid;
                     else av_span.innerText = 'av' + infos.aid;
                     e.preventDefault();
-                }
-            config.running.avspanHC && config.running.avspanHC.uninstall();
-            config.running.avspanHC = new CKTools.HoldClick(av_span);
-            config.running.avspanHC.onclick(async e => {
+                };
+            let runningCfg = config.running['avspanHC'+(force ? mode : '')];
+            if(runningCfg) runningCfg.uninstall();
+            runningCfg = new CKTools.HoldClick(av_span);
+            runningCfg.onclick(async e => {
                 for (let copyitem of config.copyitems) {
                     const copyiteminfo = await getCopyItem.bind({av_span})(copyitem,globalinfos);
                     if(copyiteminfo===null) {
@@ -524,7 +536,7 @@
                 }
                 popNotify.error("快速复制失败","没有任何已启用的可用快速复制设定");
             });
-            config.running.avspanHC.onhold(async e => {
+            runningCfg.onhold(async e => {
                 let modalcontent = `
                 <style scoped>
                 input:not(.shortinput){
@@ -552,16 +564,10 @@
                 }
                 </style>
                 <b>点击输入框可以快速复制</b><br>`;
-                let first = true;
                 for (let copyitem of config.copyitems) {
                     const copyiteminfo = await getCopyItem.bind(av_span)(copyitem,globalinfos);
                     if(copyiteminfo.type=="copiable"){
-                        let titleex = "";
-                        if(first){
-                            titleex = " (默认快速复制)"
-                            first = false;
-                        }
-                        modalcontent+=`<span class="copyitem-title">${copyiteminfo.title}${titleex}</span><input readonly value="${copyiteminfo.content}" onclick="showav_fastcopy(this);" />`
+                        modalcontent+=`<span class="copyitem-title">${copyiteminfo.title}</span><input readonly value="${copyiteminfo.content}" onclick="showav_fastcopy(this);" />`
                     }
                     else{
                         modalcontent+=copyiteminfo.content;
@@ -574,6 +580,7 @@
                 CKTools.modal.alertModal("高级复制", modalcontent, "关闭");
             });
             av_span.setAttribute("setup", globalinfos.cid);
+            config.running['avspanHC'+(force ? mode : '')] = runningCfg;
         }
         //} else av_span.remove();
     }
