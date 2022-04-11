@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.17
+// @version      0.2.18
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -83,7 +83,7 @@
         debug: false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.17 Beta",
+        VERSION: "0.2.18 Beta",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
 
@@ -3416,6 +3416,48 @@
                                                 ${mtitle}
                                                 <br>
                                                 <textarea readonly style="width: 400px;" onclick="this.select()" >${list}</textarea>
+                                                `, "确定");
+                                                resetInfoBar();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            refreshChecked();
+                                            if (datas.checked.length > 0)
+                                                btn.innerHTML = "导出所有选中的UID结构数据..."
+                                            else
+                                                btn.innerHTML = "导出所有关注的UID结构数据...";
+                                            btn.onclick = async e => {
+                                                let list;
+                                                if (datas.checked.length > 0)
+                                                    list = datas.checkedlistdom;
+                                                else
+                                                    list = Object.keys(datas.mappings);
+                                                const mapToObj = (uid)=>{
+                                                    if(datas.mappings.hasOwnProperty(+uid)){
+                                                        const {mid,name,uname,tag} = datas.mappings[+uid];
+                                                        let tags = tag?.map(t=>datas.tags[t]?.name??null).filter(t=>!!t);
+                                                        return {mid,name:name??uname??'',tag:tags??[]};
+                                                    }else return null;
+                                                }
+                                                let infoList = list.map(it=>mapToObj(it)).filter(it=>!!it);
+                                                let copyList = JSON.stringify(infoList);
+                                                let mtitle = "";
+                                                if(await copy(copyList)){
+                                                    mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                }else{
+                                                    mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                }
+                                                unsafeWindow.CKFOMAN_EXPORTUIDS = copyList;
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
+                                                    download("export_uids.json",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                }
+                                                mtitle+=`，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
+                                                await alertModal("导出UID结构数据", `
+                                                ${mtitle}
+                                                <br>
+                                                <textarea readonly style="width: 400px;" onclick="this.select()" >${copyList}</textarea>
                                                 `, "确定");
                                                 resetInfoBar();
                                             }
