@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.5
+// @version      1.18.0
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -62,7 +62,7 @@
     const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
     const config = {
         defaultAv: true,
-        hideTime: false,
+        hideTime: true,
         firstTimeLoad: true,
         defaultTextTime: true,
         foldedWarningTip: true,
@@ -70,8 +70,8 @@
         forceGap: false,
         jssafetyWarning: true,
         pnmaxlength: 18,
-        orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
-        all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
+        orders: ['openGUI', 'showArgue', 'showPic', 'showAv', 'showPn'],
+        all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop', 'showArgue'],
         copyitems: ['currTime', 'short', 'shareTime', 'vid'],
         copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
         customcopyitems: {},
@@ -99,6 +99,7 @@
         showViews: "替换视频播放量",
         showDmk: "替换视频弹幕量",
         showTop: "替换全站排名提示",
+        showArgue: "显示危险提示",
         curr: "当前视频地址",
         currTime: "当前视频地址(含视频进度)",
         short: "短地址",
@@ -124,6 +125,7 @@
         showViews: "替换展示视频播放量(由于内容相同，将自动隐藏原版播放量信息)",
         showDmk: "替换展示视频弹幕量(由于内容相同，将自动隐藏原版弹幕量信息)",
         showTop: "替换原版全站排名信息",
+        showArgue: "如果视频有危险提示，则显示危险提示",
         curr: "提供当前视频纯净地址",
         currTime: "提供当前视频地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
         short: "提供当前视频的b23.tv短地址",
@@ -149,6 +151,7 @@
         showViews: -2,
         showDmk: -2,
         showTop: 0,
+        showArgue: 1,
         openGUI: 1
     };
     let globalinfos = {};
@@ -804,6 +807,18 @@
         gui_span.onclick = e => GUISettings();
     }
 
+    async function feat_showArgue() {
+        const { av_root, infos } = this;
+        const argue_span = getOrNew("bilibiliShowArgue", av_root);
+        const original = document.querySelector(".argue.item");
+        if(!original) argue_span.style.display = "none";
+        else argue_span.style.display = "block";
+        argue_span.style.color = "rgb(255, 170, 44)";
+        argue_span.innerHTML = "<i class='van-icon-info_warning'></i>";
+        argue_span.title = (original&&original.title)||"警告";
+        argue_span.style.overflow = "hidden";
+    }
+
     async function feat_showPn() {
         const { av_root, infos } = this;
         const pn_span = getOrNew("bilibiliShowPN", av_root);
@@ -975,11 +990,12 @@
             registerVideoChangeHandler();
             config.firstTimeLoad = false;
         }
+        
+        CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}.video-container-v1>.video-data{flex-wrap: wrap!important;}`,"showav_patchNewPlayer","update",document.head);
 
         if (config.forceGap) {
             CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
         }else{
-            
             CKTools.addStyle(``,"showav_forceGapCss","update",document.head);
         }
 
@@ -1040,6 +1056,7 @@
             showDmk: feat_showDmk.bind(that),
             showViews: feat_showViews.bind(that),
             showTop: feat_showTop.bind(that),
+            showArgue: feat_showArgue.bind(that),
             openGUI: feat_openGUI.bind(that),
             customDriver: feat_custom.bind(that)
         }
@@ -1077,14 +1094,17 @@
     }
 
     function setupWarningAutoFolding(){
-        if(config.foldedWarningTip)
+        //if(config.foldedWarningTip)
+            /*CKTools.addStyle(
+                "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 15px !important;text-overflow: clip !important;padding: 3px 4px !important}span.argue>i{margin-right: 5px!important}",
+                "showav_foldWarningTip","update");*/
             CKTools.addStyle(
-                "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 6px !important;text-overflow: clip !important;}",
+                "span.argue{display:none!important}",
                 "showav_foldWarningTip","update");
-        else
+        /*else
         CKTools.addStyle(
             "span.argue{margin-right: 10px !important;margin-left: 0 !important;}",
-            "showav_foldWarningTip","update");
+            "showav_foldWarningTip","update");*/
     }
 
     function closeButton(){
@@ -1263,12 +1283,12 @@
                             label.style.paddingLeft = "3px";
                             label.id = "showav_foldvidwarn_tip";
                             label.setAttribute('for', "showav_foldvidwarn");
-                            if (config.foldedWarningTip)
-                                label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
-                            else
-                                label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                            //if (config.foldedWarningTip)
+                                //label.innerHTML = "默认 <b>隐藏</b> 视频警告文字(点击切换)";
+                            //else
+                                label.innerHTML = "默认 <b>隐藏</b> 视频警告文字";
                         }),
-                        await CKTools.domHelper("input", input => {
+                        /*await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_foldvidwarn";
                             input.name = "showav_foldvidwarn";
@@ -1282,11 +1302,11 @@
                                 else
                                     label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
                             })
-                        }),
+                        }),*/
                         await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。`;
+                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。<br>由于新版本播放器适配问题，默认隐藏原版提示。<br>请前往组件管理开启或关闭组件中的警告提示。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
