@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.18.0
+// @version      1.18.1
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -998,6 +998,12 @@
         }else{
             CKTools.addStyle(``,"showav_forceGapCss","update",document.head);
         }
+        
+        if(config.forceRemoveAllItem){
+            CKTools.addStyle(`.video-container-v1 .video-data>.item{display:none!important}`,"showav_hideall", "update", document.head);
+        }else{
+            CKTools.addStyle(``,"showav_hideall", "update", document.head);
+        }
 
         if (location.pathname.startsWith("/medialist")) {
             let aid = unsafeWindow.aid;
@@ -1307,6 +1313,40 @@
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
                             div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。<br>由于新版本播放器适配问题，默认隐藏原版提示。<br>请前往组件管理开启或关闭组件中的警告提示。`;
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.domHelper("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.domHelper("label", label => {
+                            label.style.paddingLeft = "3px";
+                            label.id = "showav_forceRemoveAllItem_tip";
+                            label.setAttribute('for', "showav_forceRemoveAllItem");
+                            if (config.forceRemoveAllItem)
+                                label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
+                            else
+                                label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件";
+                        }),
+                        await CKTools.domHelper("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_forceRemoveAllItem";
+                            input.name = "showav_forceRemoveAllItem";
+                            input.style.display = "none";
+                            input.checked = config.forceRemoveAllItem;
+                            input.addEventListener('change', e => {
+                                const label = document.querySelector("#showav_forceRemoveAllItem_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
+                                else
+                                    label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件(点击切换)";
+                            })
+                        }),
+                        await CKTools.domHelper("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `是否尽量隐藏B站原本信息条中的组件。仅对新版本播放器生效。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
