@@ -976,7 +976,7 @@
             config.firstTimeLoad = false;
         }
         
-        CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}`,"showav_patchNewPlayer","update",document.head);
+        CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}.video-container-v1>.video-data{flex-wrap: wrap!important;}`,"showav_patchNewPlayer","update",document.head);
 
         if (config.forceGap) {
             CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
@@ -1080,7 +1080,7 @@
     function setupWarningAutoFolding(){
         if(config.foldedWarningTip)
             CKTools.addStyle(
-                "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 6px !important;text-overflow: clip !important;}",
+                "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 15px !important;text-overflow: clip !important;padding: 3px 4px !important}span.argue>i{margin-right: 5px!important}",
                 "showav_foldWarningTip","update");
         else
         CKTools.addStyle(
