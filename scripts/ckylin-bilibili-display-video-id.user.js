@@ -69,6 +69,7 @@
         forceRemoveAllItem: true,
         showInNewLine: false,
         forceGap: false,
+        nobreakline: false,
         jssafetyWarning: true,
         pnmaxlength: 18,
         orders: ['openGUI', 'showArgue', 'showPic', 'showAv', 'showPn'],
@@ -1005,6 +1006,12 @@
         }else{
             CKTools.addStyle(``,"showav_hideall", "update", document.head);
         }
+        
+        if(config.nobreakline){
+            CKTools.addStyle(`#bilibiliShowInfos{max-width: 100%;flex-wrap: nowrap!important;}`,"showav_nobreak", "update", document.head);
+        }else{
+            CKTools.addStyle(``,"showav_nobreak", "update", document.head);
+        }
 
         if (location.pathname.startsWith("/medialist")) {
             let aid = unsafeWindow.aid;
@@ -1288,6 +1295,40 @@
                     [
                         await CKTools.domHelper("label", label => {
                             label.style.paddingLeft = "3px";
+                            label.id = "showav_nobreakline_tip";
+                            label.setAttribute('for', "showav_nobreakline");
+                            if (config.nobreakline)
+                                label.innerHTML = "默认 <b>禁止</b> 信息栏换行(点击切换)";
+                            else
+                                label.innerHTML = "默认 <b>允许</b> 信息栏换行";
+                        }),
+                        await CKTools.domHelper("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_nobreakline";
+                            input.name = "showav_nobreakline";
+                            input.style.display = "none";
+                            input.checked = config.nobreakline;
+                            input.addEventListener('change', e => {
+                                const label = document.querySelector("#showav_nobreakline_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "默认 <b>禁止</b> 信息栏换行(点击切换)";
+                                else
+                                    label.innerHTML = "默认 <b>允许</b> 信息栏换行(点击切换)";
+                            })
+                        }),
+                        await CKTools.domHelper("div", div => {
+                            div.style.paddingLeft = "20px";
+                            div.style.color = "#919191";
+                            div.innerHTML = `是否要求信息栏尽量不换行，可能其中的文本会被截断。`;
+                        })
+                    ].forEach(e => list.appendChild(e));
+                }),
+                await CKTools.domHelper("li", async list => {
+                    list.style.lineHeight = "2em";
+                    [
+                        await CKTools.domHelper("label", label => {
+                            label.style.paddingLeft = "3px";
                             label.id = "showav_foldvidwarn_tip";
                             label.setAttribute('for', "showav_foldvidwarn");
                             //if (config.foldedWarningTip)
@@ -1529,6 +1570,7 @@
                             config.hideTime = document.querySelector("#showav_hidetime").checked;
                             config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
                             config.forceRemoveAllItem = document.querySelector("#showav_forceRemoveAllItem").checked;
+                            config.nobreakline = document.querySelector("#showav_nobreakline").checked;
                             config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                             config.showInNewLine = document.querySelector("#showav_newline").checked;
                             saveAllConfig();
