@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.17.5
+// @version      1.17.6
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -975,11 +975,12 @@
             registerVideoChangeHandler();
             config.firstTimeLoad = false;
         }
+        
+        CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}`,"showav_patchNewPlayer","update",document.head);
 
         if (config.forceGap) {
             CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
         }else{
-            
             CKTools.addStyle(``,"showav_forceGapCss","update",document.head);
         }
 
