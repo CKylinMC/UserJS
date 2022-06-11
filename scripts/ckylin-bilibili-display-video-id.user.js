@@ -66,6 +66,7 @@
         firstTimeLoad: true,
         defaultTextTime: true,
         foldedWarningTip: true,
+        forceRemoveAllItem: true,
         showInNewLine: false,
         forceGap: false,
         jssafetyWarning: true,
