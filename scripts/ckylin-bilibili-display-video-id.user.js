@@ -62,7 +62,7 @@
     const getAidAPI = (aid) => fetch('https://api.bilibili.com/x/web-interface/view?aid=' + aid).then(raw => raw.json());
     const config = {
         defaultAv: true,
-        hideTime: false,
+        hideTime: true,
         firstTimeLoad: true,
         defaultTextTime: true,
         foldedWarningTip: true,
@@ -70,8 +70,8 @@
         forceGap: false,
         jssafetyWarning: true,
         pnmaxlength: 18,
-        orders: ['openGUI', 'showPic', 'showAv', 'showPn'],
-        all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop'],
+        orders: ['openGUI', 'showArgue', 'showPic', 'showAv', 'showPn'],
+        all: ['showAv', 'showSAv', 'showSBv', 'showPn', 'showCid', 'showCate', 'openGUI', 'showPic', 'showSize', 'showMore', 'showCTime', 'showViews', 'showDmk', 'showTop', 'showArgue'],
         copyitems: ['currTime', 'short', 'shareTime', 'vid'],
         copyitemsAll: ['curr', 'currTime', 'short', 'share', 'shareTime', 'md', 'bb', 'html', 'vid'],
         customcopyitems: {},
@@ -99,6 +99,7 @@
         showViews: "替换视频播放量",
         showDmk: "替换视频弹幕量",
         showTop: "替换全站排名提示",
+        showArgue: "显示危险提示",
         curr: "当前视频地址",
         currTime: "当前视频地址(含视频进度)",
         short: "短地址",
@@ -124,6 +125,7 @@
         showViews: "替换展示视频播放量(由于内容相同，将自动隐藏原版播放量信息)",
         showDmk: "替换展示视频弹幕量(由于内容相同，将自动隐藏原版弹幕量信息)",
         showTop: "替换原版全站排名信息",
+        showArgue: "如果视频有危险提示，则显示危险提示",
         curr: "提供当前视频纯净地址",
         currTime: "提供当前视频地址，并在播放时提供含跳转时间的地址(可以直接跳转到当前进度)。",
         short: "提供当前视频的b23.tv短地址",
@@ -149,6 +151,7 @@
         showViews: -2,
         showDmk: -2,
         showTop: 0,
+        showArgue: 1,
         openGUI: 1
     };
     let globalinfos = {};
@@ -804,6 +807,17 @@
         gui_span.onclick = e => GUISettings();
     }
 
+    async function feat_showArgue() {
+        const { av_root, infos } = this;
+        const argue_span = getOrNew("bilibiliShowArgue", av_root);
+        const original = document.querySelector(".argue.item");
+        if(!original) argue_span.style.display = "none";
+        else argue_span.style.display = "block";
+        argue_span.innerHTML = "<i class='van-icon-info_warning'></i>";
+        argue_span.title = (original&&original.title)||"警告";
+        argue_span.style.overflow = "hidden";
+    }
+
     async function feat_showPn() {
         const { av_root, infos } = this;
         const pn_span = getOrNew("bilibiliShowPN", av_root);
@@ -1041,6 +1055,7 @@
             showDmk: feat_showDmk.bind(that),
             showViews: feat_showViews.bind(that),
             showTop: feat_showTop.bind(that),
+            showArgue: feat_showArgue.bind(that),
             openGUI: feat_openGUI.bind(that),
             customDriver: feat_custom.bind(that)
         }
