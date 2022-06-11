@@ -1306,7 +1306,7 @@
                         await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。由于新版本播放器适配问题，默认隐藏原版提示，请前往组件管理开启或关闭组件中的警告提示。`;
+                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。<br>由于新版本播放器适配问题，默认隐藏原版提示。<br>请前往组件管理开启或关闭组件中的警告提示。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
