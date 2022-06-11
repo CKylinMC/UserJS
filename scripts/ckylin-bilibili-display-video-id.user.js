@@ -813,6 +813,7 @@
         const original = document.querySelector(".argue.item");
         if(!original) argue_span.style.display = "none";
         else argue_span.style.display = "block";
+        argue_span.style.color = "rgb(255, 170, 44)";
         argue_span.innerHTML = "<i class='van-icon-info_warning'></i>";
         argue_span.title = (original&&original.title)||"警告";
         argue_span.style.overflow = "hidden";
@@ -1093,14 +1094,17 @@
     }
 
     function setupWarningAutoFolding(){
-        if(config.foldedWarningTip)
-            CKTools.addStyle(
+        //if(config.foldedWarningTip)
+            /*CKTools.addStyle(
                 "span.argue{margin-right: 10px !important;margin-left: 0 !important;overflow: hidden !important;width: 15px !important;text-overflow: clip !important;padding: 3px 4px !important}span.argue>i{margin-right: 5px!important}",
+                "showav_foldWarningTip","update");*/
+            CKTools.addStyle(
+                "span.argue{display:none!important}",
                 "showav_foldWarningTip","update");
-        else
+        /*else
         CKTools.addStyle(
             "span.argue{margin-right: 10px !important;margin-left: 0 !important;}",
-            "showav_foldWarningTip","update");
+            "showav_foldWarningTip","update");*/
     }
 
     function closeButton(){
@@ -1279,12 +1283,12 @@
                             label.style.paddingLeft = "3px";
                             label.id = "showav_foldvidwarn_tip";
                             label.setAttribute('for', "showav_foldvidwarn");
-                            if (config.foldedWarningTip)
-                                label.innerHTML = "默认 <b>折叠</b> 视频警告文字(点击切换)";
-                            else
-                                label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
+                            //if (config.foldedWarningTip)
+                                //label.innerHTML = "默认 <b>隐藏</b> 视频警告文字(点击切换)";
+                            //else
+                                label.innerHTML = "默认 <b>隐藏</b> 视频警告文字";
                         }),
-                        await CKTools.domHelper("input", input => {
+                        /*await CKTools.domHelper("input", input => {
                             input.type = "checkbox";
                             input.id = "showav_foldvidwarn";
                             input.name = "showav_foldvidwarn";
@@ -1298,11 +1302,11 @@
                                 else
                                     label.innerHTML = "默认 <b>展示</b> 视频警告文字(点击切换)";
                             })
-                        }),
+                        }),*/
                         await CKTools.domHelper("div", div => {
                             div.style.paddingLeft = "20px";
                             div.style.color = "#919191";
-                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。`;
+                            div.innerHTML = `将视频警告(如 含有危险行为)折叠为图标，防止占用过多信息栏空间。由于新版本播放器适配问题，默认隐藏原版提示，请前往组件管理开启或关闭组件中的警告提示。`;
                         })
                     ].forEach(e => list.appendChild(e));
                 }),
