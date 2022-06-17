@@ -1165,6 +1165,10 @@
         #CKFOMAN .mdi-close:hover{
             color: #ff5722;
         }
+        .CKFOMAN-aliastext{
+            font-weight: lighter;
+            color: gray;
+        }
         `, "CKFOMAN-mainWindowcss", "unique");
         const id = "CKFOMAN";
         let win = document.querySelector("#" + id);
@@ -1416,6 +1420,8 @@
         setToggleStatus(mid, status, operateDom);
         //unsafeWindow.postMessage(`CKFOMANSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
     }
+    const isAliasPluginInstalled = () => unsafeWindow.FoManPlugins?.UpAlias ?? false;
+    const getAliasPlugin = ()=>unsafeWindow.FoManPlugins.UpAlias;
     const upinfoline = async data => {
         let invalid = isInvalid(data);
         let info = datas.mappings[parseInt(data.mid)] || {};
@@ -1476,6 +1482,9 @@
                 name.className = "CKFOMAN-data-inforow-name";
                 name.innerText = data.uname;
                 name.style.flex = "1";
+                if (isAliasPluginInstalled()) {
+                    name.innerHTML += ` <span class="CKFOMAN-aliastext alias-content-${data.mid}">${getAliasPlugin().provider.getAlias(+data.mid, "")}</span>`
+                }
                 if (invalid) {
                     name.style.textDecoration = "line-through 3px red";
                 } else {
@@ -1734,35 +1743,72 @@
                     await makeDom("img", async img => {
                         img.style.flex = "1";
                         img.style.maxWidth = "70px";
-                        img.setAttribute("loading","lazy");
+                        img.setAttribute("loading", "lazy");
                         img.src = info.face;
                         img.style.width = "70px";
                         img.style.height = "70px";
                         img.style.borderRadius = "50%";
                         img.style.margin = "0 30px";
                     }),
-                    await makeDom("div", async upinfo=>{
+                    await makeDom("div", async upinfo => {
                         upinfo.style.flex = "1";
                         upinfo.style.maxWidth = "300px";
-                        upinfo.innerHTML = `<b style="color:${info.vip['nickname_color']};font-size: large">${info.uname??info.name??'未知昵称'}</b> <span style="display:inline-block;transform: translateY(-5px);font-size:xx-small;line-height:1.2;padding:1px 3px;border-radius:6px;background: ${info.vip.vipType>0?(info.vip.label['bg_color']||"#f06292"):"rgba(0,0,0,0)"};color: ${info.vip.label['text_color']||"white"}">${info.vip.vipType>1?info.vip.label.text:info.vip.vipType>0?"大会员":""}</span>`;
-                        if(info.level){
-                            upinfo.innerHTML+= `<div style="display: inline-block;border-radius:3px;line-height: 1.2;padding: 1px 3px;background:#f06292;margin-left: 12px;color:white">LV${info.level}${isHardCoreMember(info)?" ⚡ (硬核)":""}</div>`;
+                        upinfo.innerHTML = `<b style="color:${info.vip['nickname_color']};font-size: large">${info.uname ?? info.name ?? '未知昵称'}</b> <span style="display:inline-block;transform: translateY(-5px);font-size:xx-small;line-height:1.2;padding:1px 3px;border-radius:6px;background: ${info.vip.vipType > 0 ? (info.vip.label['bg_color'] || "#f06292") : "rgba(0,0,0,0)"};color: ${info.vip.label['text_color'] || "white"}">${info.vip.vipType > 1 ? info.vip.label.text : info.vip.vipType > 0 ? "大会员" : ""}</span>`;
+                        if (info.level) {
+                            upinfo.innerHTML += `<div style="display: inline-block;border-radius:3px;line-height: 1.2;padding: 1px 3px;background:#f06292;margin-left: 12px;color:white">LV${info.level}${isHardCoreMember(info) ? " ⚡ (硬核)" : ""}</div>`;
                         }
-                        upinfo.innerHTML+= `<div style="color:gray;border-left: 2px solid gray;padding-left: 2px;font-style: italic;">${info.sign}</div>`;
-                        if(info.official_verify.type!==-1){
+                        upinfo.innerHTML += `<div style="color:gray;border-left: 2px solid gray;padding-left: 2px;font-style: italic;">${info.sign}</div>`;
+                        if (info.official_verify.type !== -1) {
                             let color = "gray";
-                            switch(info.official_verify.type){
+                            switch (info.official_verify.type) {
                                 case 0:
-                                    color="goldenrod";
+                                    color = "goldenrod";
                                     break;
                                 case 1:
-                                    color="#FB7299";
+                                    color = "#FB7299";
                                     break;
                                 case 2:
-                                    color="dodgerblue";
+                                    color = "dodgerblue";
                                     break;
                             }
-                            upinfo.innerHTML+= `<div style="color:${color}">${info.official_verify.desc}</div>`;
+                            upinfo.innerHTML += `<div style="color:${color}">${info.official_verify.desc}</div>`;
+                        }
+                        if (isAliasPluginInstalled()) {
+                            document.querySelector("#CKFOMAN-showalias")?.remove();
+                            upinfo.innerHTML += `<div id="CKFOMAN-showalias" style="color:gray"></div>`;
+                            const refreshAlias = async () => {
+                                const aliasdom = document.querySelector("#CKFOMAN-showalias");
+                                aliasdom.innerHTML = '';
+                                if (!aliasdom) return;
+                                [...document.querySelectorAll(`.alias-content-${info.mid}`)].map(el=>el.innerText=getAliasPlugin().provider.getAlias(+info.mid, ""))
+                                if (getAliasPlugin().provider.hasAlias(+info.mid)) {
+                                    aliasdom.innerHTML += `别名: <span class="alias-content-${info.mid}">` + getAliasPlugin().provider.getAlias(+info.mid, "无别名") + "</span> ";
+                                    aliasdom.appendChild(await makeDom("a", async a => {
+                                        a.innerText = "修改";
+                                        a.onclick = async () => {
+                                            await getAliasPlugin().actions.setFor(info.mid, info.uname);
+                                            refreshAlias();
+                                        }
+                                    }))
+                                    aliasdom.appendChild(document.createTextNode(" / "));
+                                    aliasdom.appendChild(await makeDom("a", async a => {
+                                        a.innerText = "删除";
+                                        a.onclick = async () => {
+                                            await getAliasPlugin().actions.removeFor(info.mid, info.uname);
+                                            refreshAlias();
+                                        }
+                                    }))
+                                } else {
+                                    aliasdom.appendChild(await makeDom("a", async a => {
+                                        a.innerText = "设置别名";
+                                        a.onclick = async () => {
+                                            await getAliasPlugin().actions.setFor(info.mid, info.uname);
+                                            refreshAlias();
+                                        }
+                                    }))
+                                }
+                            }
+                            setTimeout(()=>refreshAlias(), 20);
                         }
                         if(info.stats){
                             const { follower, following }=info.stats;
