@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] UP主备注别名
 // @namespace    ckylin-script-bili-foman-plugins-up-alias
-// @version      0.1
+// @version      0.2
 // @description  为UP主进行别名备注！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -10,6 +10,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_listValues
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @license      GPLv3
