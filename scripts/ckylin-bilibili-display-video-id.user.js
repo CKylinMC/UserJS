@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         哔哩哔哩视频页面常驻显示AV/BV号[已完全重构，支持显示分P标题]
+// @name         哔哩哔哩自定义视频信息条
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.18.2
+// @version      1.19.0
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -225,16 +225,17 @@
         let i = 150;
         while (--i > 0) {
             await wait(100);
-            if (!('player' in unsafeWindow)) continue;
-            if (!('isInitialized' in unsafeWindow.player)) continue;
-            if (!unsafeWindow.player.isInitialized()) continue;
-            break;
+            console.log('ShowAV waiting for player ready - loop')
+            if (unsafeWindow.player?.isInitialized()??false) break;
         }
+        console.log('ShowAV waiting for player ready - loop end')
         if (i < 0) return false;
+        console.log('ShowAV waiting for player ready - wait visible')
         await waitForPageVisible();
         while (1) {
             await wait(200);
-            if (document.querySelector(".bilibili-player-video-control-wrap")) return true;
+            console.log('ShowAV waiting for player controlls')
+            if (document.querySelector(".bilibili-player-video-control-wrap, .bpx-player-control-wrap")) return true;
         }
     }
 
@@ -985,6 +986,7 @@
     }
 
     async function tryInject(flag) {
+        console.log('ShowAV waiting for player ready')
         if (flag && config.orders.length === 0) return log('Terminated because no option is enabled.');
         if (!(await playerReady())) return log('Can not load player in time.');
 
@@ -992,6 +994,7 @@
             registerVideoChangeHandler();
             config.firstTimeLoad = false;
         }
+        console.log('ShowAV start inject')
         
         CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}.video-container-v1>.video-data{flex-wrap: wrap!important;}`,"showav_patchNewPlayer","update",document.head);
 
@@ -1047,7 +1050,7 @@
         //const av_root = av_infobar;
 
         av_root.style.textOverflow = "ellipsis";
-        av_root.style.whiteSpace = "nowarp";
+        av_root.style.whiteSpace = "nowrap!important";
         // av_root.style.overflow = "hidden";
         
         const that = {
@@ -2484,6 +2487,20 @@
         flex-wrap: wrap;
     }
     `, 'showav_dragablecss', "unique", document.head);
+
+    CKTools.addStyle(`
+    .video-data-list{
+        display: none!important;
+    }
+    #bilibiliShowInfos{
+        white-space: nowrap !important;
+    }
+    #CKTOOLS-modal li, #CKTOOLS-modal ul{
+        list-style: none !important;
+    }
+    `,'showav_css_patch', 'unique', document.head);
+
+    console.log('ShowAV loaded')
 
     initScript(false);
 })();
