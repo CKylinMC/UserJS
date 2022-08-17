@@ -25,7 +25,7 @@
     //const d = (...m) => unsafeWindow.ABLOOPDEBUG ? console.log('[ABLoop Debug]', ...m) : 0;
     const registerMenu = (text, callback) => menuIds.push(GM_registerMenuCommand(text, callback));
     const clearMenu = () => { menuIds.forEach(id => GM_unregisterMenuCommand(id)); menuIds = []; };
-    const getTotalTime = async () => await waitForAttribute(cfg.video,'duration');
+    const getTotalTime = async () => (await waitForAttribute(cfg.video,'duration'))||unsafeWindow.player?.getDuration();
     const getCurrentTime = () => cfg.video.currentTime||unsafeWindow.player?.getCurrentTime();
     const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim({ico:'motion-play',txt:`回到开头 已循环 ${cfg.loopcounter} 次`})})() : null];
     const play = () => unsafeWindow.player.play();
