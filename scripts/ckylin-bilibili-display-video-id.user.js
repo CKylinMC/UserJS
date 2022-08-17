@@ -1572,7 +1572,7 @@
                             config.forceGap = document.querySelector("#showav_forcegap").checked;
                             config.hideTime = document.querySelector("#showav_hidetime").checked;
                             config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
-                            config.forceRemoveAllItem = document.querySelector("#showav_forceRemoveAllItem").checked;
+                            // config.forceRemoveAllItem = document.querySelector("#showav_forceRemoveAllItem").checked;
                             config.nobreakline = document.querySelector("#showav_nobreakline").checked;
                             config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                             config.showInNewLine = document.querySelector("#showav_newline").checked;
