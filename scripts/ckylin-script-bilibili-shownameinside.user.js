@@ -535,6 +535,9 @@
 		await waitForPageVisible();
 		await playerReady();
 		addStyle(`
+			.bpx-player-top-left{
+				display:none !important;
+			}
 			#ck-sni-container {
 				pointer-events: none;
 				position: absolute;
@@ -555,9 +558,13 @@
 				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out !important;
 				transform: translateY(-10px) !important;
 			}
-			.video-control-show #ck-sni-container{
+			.video-control-show #ck-sni-container, .bpx-player-container #ck-sni-container{
 				transition: opacity .3s;
 				opacity: 1;
+			}
+			.bpx-player-container.bpx-state-no-cursor #ck-sni-container{
+				transition: opacity .3s;
+				opacity: 0!important;
 			}
 			.ck-sni-animation.video-control-show #ck-sni-container{
 				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out!important;
