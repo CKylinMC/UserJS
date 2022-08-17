@@ -584,6 +584,12 @@
 			.video-control-show #ck-sni-container .ck-sni-clickable{
 				pointer-events: auto !important;
 			}
+			.bpx-player-container #ck-sni-container .ck-sni-clickable{
+				pointer-events: none !important;
+			}
+			.bpx-player-container.bpx-state-no-cursor #ck-sni-container .ck-sni-clickable{
+				pointer-events: auto !important;
+			}
 			#ck-sni-container:empty{
 				display: none;
 			}
