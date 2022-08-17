@@ -1373,26 +1373,26 @@
                             else
                                 label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件";
                         }),
-                        await CKTools.domHelper("input", input => {
-                            input.type = "checkbox";
-                            input.id = "showav_forceRemoveAllItem";
-                            input.name = "showav_forceRemoveAllItem";
-                            input.style.display = "none";
-                            input.checked = config.forceRemoveAllItem;
-                            input.addEventListener('change', e => {
-                                const label = document.querySelector("#showav_forceRemoveAllItem_tip");
-                                if (!label) return;
-                                if (input.checked)
-                                    label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
-                                else
-                                    label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件(点击切换)";
-                            })
-                        }),
-                        await CKTools.domHelper("div", div => {
-                            div.style.paddingLeft = "20px";
-                            div.style.color = "#919191";
-                            div.innerHTML = `是否尽量隐藏B站原本信息条中的组件。仅对新版本播放器生效。`;
-                        })
+                        // await CKTools.domHelper("input", input => {
+                        //     input.type = "checkbox";
+                        //     input.id = "showav_forceRemoveAllItem";
+                        //     input.name = "showav_forceRemoveAllItem";
+                        //     input.style.display = "none";
+                        //     input.checked = config.forceRemoveAllItem;
+                        //     input.addEventListener('change', e => {
+                        //         const label = document.querySelector("#showav_forceRemoveAllItem_tip");
+                        //         if (!label) return;
+                        //         if (input.checked)
+                        //             label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
+                        //         else
+                        //             label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件(点击切换)";
+                        //     })
+                        // }),
+                        // await CKTools.domHelper("div", div => {
+                        //     div.style.paddingLeft = "20px";
+                        //     div.style.color = "#919191";
+                        //     div.innerHTML = `是否尽量隐藏B站原本信息条中的组件。仅对新版本播放器生效。`;
+                        // })
                     ].forEach(e => list.appendChild(e));
                 }),
                 await CKTools.domHelper("li", sectiontitle=>{
