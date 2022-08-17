@@ -626,14 +626,14 @@
 				await CKTools.waitForPageVisible();
 				while (1) {
 					await CKTools.wait(200);
-					if (document.querySelector(".bilibili-player-video-control-wrap")) return true;
+					if (document.querySelector(".bilibili-player-video-control-wrap, .bpx-player-control-wrap")) return true;
 				}
 			}
 			static getTotalTime() {
-				return waitForAttribute(CKTools.get('video, bwp-video'), 'duration');
+				return waitForAttribute(CKTools.get('video, bwp-video'), 'duration')||unsafeWindow.player?.getDuration();
 			}
 			static getCurrentTime() {
-				return CKTools.get('video, bwp-video').currentTime;
+				return CKTools.get('video, bwp-video').currentTime||unsafeWindow.player?.getCurrentTime();
 			}
 			static setTime(t) {
 				return window.player.seek(t);
