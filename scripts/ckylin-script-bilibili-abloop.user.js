@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩AB循环
 // @namespace    ckylin-script-bilibili-abloop
-// @version      0.9
+// @version      0.10
 // @description  让播放器在AB点之间循环！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -26,7 +26,7 @@
     const registerMenu = (text, callback) => menuIds.push(GM_registerMenuCommand(text, callback));
     const clearMenu = () => { menuIds.forEach(id => GM_unregisterMenuCommand(id)); menuIds = []; };
     const getTotalTime = async () => await waitForAttribute(cfg.video,'duration');
-    const getCurrentTime = () => cfg.video.currentTime;
+    const getCurrentTime = () => cfg.video.currentTime||unsafeWindow.player?.getCurrentTime();
     const setTime = (t,countincrease=false) => [unsafeWindow.player.seek(t),countincrease ? (function(){cfg.loopcounter+=1;showAnim({ico:'motion-play',txt:`回到开头 已循环 ${cfg.loopcounter} 次`})})() : null];
     const play = () => unsafeWindow.player.play();
     const pause = () => unsafeWindow.player.pause();
@@ -593,11 +593,14 @@
         await waitForPageVisible();
         log("Waiting for player to be ready...");
         if(!(await playerReady())) return handleLoadFail();
+        log("Player ready");
         initAnimCss();
-        cfg.video = await waitForDom(".bilibili-player-video video,.bilibili-player-video bwp-video");
+        log("Waiting for dom...");
+        cfg.video = await waitForDom(".bilibili-player-video video,bwp-video");
         //d('video', get(".bilibili-player-video video"));
         //d('total', await getTotalTime());
-        cfg.video = get(".bilibili-player-video video,.bilibili-player-video bwp-video");
+        cfg.video = get(".bilibili-player-video video,bwp-video");
+        log("Dom OK");
         cfg.b = (await getTotalTime())-0.1;
         triggerAnimTipStatus(false,true);
         setAPointMenu(true);
