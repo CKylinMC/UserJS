@@ -2,6 +2,8 @@
     "conventionalCommits.scopes": [
         "unfollow",
         "showid",
-        "showinside"
+        "showinside",
+        "CKTools",
+        "uitoolkit"
     ]
 }

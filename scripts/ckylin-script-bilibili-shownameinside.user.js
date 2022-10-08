@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频内显工具
 // @namespace    ckylin-script-bilibili-shownameinside
-// @version      1.4.1
+// @version      1.5.1
 // @description  视频内显示分P信息(方便全屏时查看)
 // @author       CKylinMC
 // @match        https://*.bilibili.com/*
@@ -46,7 +46,7 @@
 		let dom = get("#ck-sni-container");
 		if(!dom) dom = domHelper("div",{
 			id: "ck-sni-container",
-			append: get("div.bilibili-player-video-wrap")
+			append: get("div.bilibili-player-video-wrap, .bpx-player-video-wrap")
 		});
 		else if(dom.getAttribute("data-sni-instance")!=instance+"") {
 			logger.error("Multi instance running! An error throwed by this.");
@@ -193,6 +193,13 @@
 		target.classList.toggle('ck-sni-animation',getValueOrDefault("enableAnim",false));
 	}
 	async function inject(){
+		if(unsafeWindow.player?.getManifest?.()??false){
+			//remap all variables to global [maybe break other plugins or die in the future]
+			const manifest = unsafeWindow.player.getManifest();
+			for(let key of Object.keys(manifest)){
+				unsafeWindow[key] = manifest[key]
+			}
+		}
 		logger.log("injecting - fetching");
 		saveState();
 		combineExternalModules();
@@ -503,6 +510,20 @@
 			]
 		})));
 	}
+
+    async function playerReady() {
+        let i = 150;
+        while (--i > 0) {
+            await wait(100);
+            if (unsafeWindow.player?.isInitialized()??false) break;
+        }
+        if (i < 0) return false;
+        await waitForPageVisible();
+        while (1) {
+            await wait(200);
+            if (document.querySelector(".bilibili-player-video-control-wrap, .bpx-player-control-wrap")) return true;
+        }
+    }
 	async function startInject(){
 		//logger.info("Start Trace:", (new Error).stack);
 		if(unsafeWindow.SNI_started){
@@ -513,8 +534,11 @@
 		unsafeWindow.SNI_started = true;
 		logger.info("waiting for player to be ready");
 		await waitForPageVisible();
-		await bili.playerReady();
+		await playerReady();
 		addStyle(`
+			.bpx-player-top-left{
+				display:none !important;
+			}
 			#ck-sni-container {
 				pointer-events: none;
 				position: absolute;
@@ -535,9 +559,13 @@
 				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out !important;
 				transform: translateY(-10px) !important;
 			}
-			.video-control-show #ck-sni-container{
+			.video-control-show #ck-sni-container, .bpx-player-container #ck-sni-container{
 				transition: opacity .3s;
 				opacity: 1;
+			}
+			.bpx-player-container.bpx-state-no-cursor #ck-sni-container{
+				transition: opacity .3s;
+				opacity: 0!important;
 			}
 			.ck-sni-animation.video-control-show #ck-sni-container{
 				transition: opacity .3s, transform .2s cubic-bezier(0.74, 0.01, 1, 1), all .3s ease-out!important;
@@ -555,6 +583,12 @@
 				padding: 0 15px;
 			}
 			.video-control-show #ck-sni-container .ck-sni-clickable{
+				pointer-events: auto !important;
+			}
+			.bpx-player-container #ck-sni-container .ck-sni-clickable{
+				pointer-events: none !important;
+			}
+			.bpx-player-container.bpx-state-no-cursor #ck-sni-container .ck-sni-clickable{
 				pointer-events: auto !important;
 			}
 			#ck-sni-container:empty{

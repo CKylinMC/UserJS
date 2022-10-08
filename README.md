@@ -14,6 +14,7 @@
   - [用户脚本](#%E7%94%A8%E6%88%B7%E8%84%9A%E6%9C%AC)
     - [* 视频页面常驻显示AV/BV号 *](#-%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAavbv%E5%8F%B7-)
     - [* 关注管理器 *](#-%E5%85%B3%E6%B3%A8%E7%AE%A1%E7%90%86%E5%99%A8-)
+    - [* 视频内显工具 *](#-%E8%A7%86%E9%A2%91%E5%86%85%E6%98%BE%E5%B7%A5%E5%85%B7-)
     - [* AB循环 *](#-ab%E5%BE%AA%E7%8E%AF-)
     - [* 视频旋转和缩放 *](#-%E8%A7%86%E9%A2%91%E6%97%8B%E8%BD%AC%E5%92%8C%E7%BC%A9%E6%94%BE-)
     - [* 不要Sentry服务](#-%E4%B8%8D%E8%A6%81sentry%E6%9C%8D%E5%8A%A1)
@@ -34,6 +35,10 @@
     - [* 移除高能弹幕图标 *](#-%E7%A7%BB%E9%99%A4%E9%AB%98%E8%83%BD%E5%BC%B9%E5%B9%95%E5%9B%BE%E6%A0%87-)
     - [* 高亮视频分区标签](#-%E9%AB%98%E4%BA%AE%E8%A7%86%E9%A2%91%E5%88%86%E5%8C%BA%E6%A0%87%E7%AD%BE)
 - [开源协议](#%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE)
+- [其他脚本推荐](#%E5%85%B6%E4%BB%96%E8%84%9A%E6%9C%AC%E6%8E%A8%E8%8D%90)
+  - [Bilibili-Evolved (the1812)](#bilibili-evolved-the1812)
+  - [解除B站区域限制 (ipcjs)](#%E8%A7%A3%E9%99%A4b%E7%AB%99%E5%8C%BA%E5%9F%9F%E9%99%90%E5%88%B6-ipcjs)
+  - [BLTH (andywang425)](#blth-andywang425)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -75,6 +80,25 @@
 **仓库文件:**
 
 [ckylin-bilibili-unfollow.user.js](scripts/ckylin-bilibili-unfollow.user.js)
+
+------
+
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频内显工具 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
+**简单介绍**:
+在视频窗口内顶部区域展示数据，默认展示当前分P信息，可添加额外信息，用于在全屏连播时查看。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/440820)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/440820-bilibili-%E8%A7%86%E9%A2%91%E5%86%85%E6%98%BE%E5%B7%A5%E5%85%B7/code/%5BBilibili%5D%20%E8%A7%86%E9%A2%91%E5%86%85%E6%98%BE%E5%B7%A5%E5%85%B7.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-shownameinside.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-shownameinside.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-shownameinside.user.js](scripts/ckylin-script-bilibili-shownameinside.user.js)
 
 ------
 
@@ -424,3 +448,35 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 否则，默认使用GPLv3协议。
 
+## 其他脚本推荐
+
+这里推荐其他dalao的油猴脚本。
+
+### Bilibili-Evolved (the1812)
+
+> 强大的哔哩哔哩增强脚本
+
+功能包含对B站几乎全方位的增强，包括夜间模式，视频下载，自定义顶栏，更多倍速等，并且提供扩展方式。
+
+* [发布页面: Github](https://github.com/the1812/Bilibili-Evolved)
+* [添加此脚本](https://cdn.jsdelivr.net/gh/the1812/Bilibili-Evolved@master/dist/bilibili-evolved.user.js)
+
+### 解除B站区域限制 (ipcjs)
+
+> 通过替换获取视频地址接口的方式, 实现解除B站区域限制; 只对HTML5播放器生效;
+
+一个用于观看其他B站向其他地区发布的内容的工具。
+
+* [发布页面: Github](https://github.com/ipcjs/bilibili-helper)
+* [发布页面: GreasyFork](https://greasyfork.org/zh-CN/scripts/25718)
+* [添加此脚本](https://greasyfork.org/scripts/25718/code/%E8%A7%A3%E9%99%A4B%E7%AB%99%E5%8C%BA%E5%9F%9F%E9%99%90%E5%88%B6.user.js)
+
+### BLTH (andywang425)
+
+> 哔哩哔哩（bilibili.com）油猴辅助脚本，B站直播间挂机助手。
+
+优化直播观看体验。
+
+* [发布页面: Github](https://github.com/andywang425/BLTH)
+* [发布页面: Greasyfork](https://greasyfork.org/zh-CN/scripts/406048)
+* [添加此脚本](https://greasyfork.org/scripts/406048-b%E7%AB%99%E7%9B%B4%E6%92%AD%E9%97%B4%E6%8C%82%E6%9C%BA%E5%8A%A9%E6%89%8B/code/B%E7%AB%99%E7%9B%B4%E6%92%AD%E9%97%B4%E6%8C%82%E6%9C%BA%E5%8A%A9%E6%89%8B.user.js)
