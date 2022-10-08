@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         [Bilibili] 视频内显工具
 // @namespace    ckylin-script-bilibili-shownameinside
-// @version      1.5
+// @version      1.5.1
 // @description  视频内显示分P信息(方便全屏时查看)
 // @author       CKylinMC
 // @match        https://*.bilibili.com/*
+// @exclude      https://www.bilibili.com/bangumi/play*
 // @grant        unsafeWindow
 // @grant        GM_setValue
 // @grant        GM_getValue
