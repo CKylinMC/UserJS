@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.18
+// @version      0.2.19
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -182,7 +182,7 @@
     const getHeaders = () => {
         return {
             "user-agent": unsafeWindow.navigator.userAgent,
-            "cookie": unsafeWindow.document.cookie,
+            "cookie": unsafeWindow.document.cookie.split('; ').map(it=>it.split("=")).map(it=>it.map(i=>i.match(/[^\x00-\x7F]/gm)?encodeURIComponent(i):i)).map(it=>it.join("=")).join(", "),
             "origin": "space.bilibili.com",
             "referer": "https://www.bilibili.com/"
         }
