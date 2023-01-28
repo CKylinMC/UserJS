@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 视频旋转
 // @namespace    ckylin-script-bilibili-rotate
-// @version      0.14
+// @version      0.15
 // @description  旋转和缩放视频，防止某些视频伤害到你的脖子或眼睛！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video/*
@@ -251,7 +251,7 @@
         await waitForPageVisible();
         while(1){
             await wait(200);
-            if(document.querySelector(".bilibili-player-video-control-wrap")) return true;
+            if(document.querySelector(".bilibili-player-video-control-wrap,.bpx-player-video-wrap")) return true;
         }
     }
 
@@ -321,7 +321,7 @@
     }
 
     function applyEffects() {
-        let style = ".bilibili-player-video video,.bilibili-player-video bwp-video { transform: ";
+        let style = ".bilibili-player-video video,.bilibili-player-video bwp-video,.bpx-player-video-wrap video { transform: ";
         effects.forEach(e => {
             let key = e.name;
             let value = e.value + "";
@@ -440,7 +440,7 @@
     }
 
     function smartLR() {
-        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video,.bpx-player-video-wrap video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -452,7 +452,7 @@
     }
 
     function smartRR() {
-        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video,.bpx-player-video-wrap video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -552,7 +552,7 @@
 
     async function videoDetect() {
         if (!(await playerReady())) return;
-        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video");
+        let dom = document.querySelector(".bilibili-player-video video,.bilibili-player-video bwp-video,.bpx-player-video-wrap video");
         if (!dom) return;
         let w = dom.videoWidth;
         let h = dom.videoHeight;
@@ -1029,7 +1029,7 @@
     }
 
     function enableAnim() {
-        addStyle(".bilibili-player-video video,.bilibili-player-video bwp-video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
+        addStyle(".bilibili-player-video video,.bilibili-player-video bwp-video,.bpx-player-video-wrap video{transition: transform cubic-bezier(0.61, 0.01, 0.44, 0.93) .5s;}", "CKANIMATION");
     }
 
     function disableAnim() {
