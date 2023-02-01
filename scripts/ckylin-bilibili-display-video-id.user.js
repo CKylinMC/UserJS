@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩自定义视频信息条
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.19.0
+// @version      1.19.1
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -660,8 +660,8 @@
         ct_span.style.textOverflow = "ellipsis";
         ct_span.style.whiteSpace = "nowarp";
         ct_span.style.overflow = "hidden";
-        const d = new Date(infos.ctime * 1000);
-        let txttime = timeago.format(infos.ctime * 1000, 'zh_CN');
+        const d = new Date(infos.pubdate * 1000);
+        let txttime = timeago.format(infos.pubdate * 1000, 'zh_CN');
         let rawtime = `${d.getFullYear()}-${(d.getMonth() + 1) < 10 ? '0' + (d.getMonth() + 1) : d.getMonth() + 1}-${d.getDate() < 10 ? '0' + d.getDate() : d.getDate()} ${d.getHours() < 10 ? '0' + d.getHours() : d.getHours()}:${d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes()}:${d.getSeconds() < 10 ? '0' + d.getSeconds() : d.getSeconds()}`;
 
         ct_span.title = "投稿时间 " + (config.defaultTextTime ? rawtime : txttime);
