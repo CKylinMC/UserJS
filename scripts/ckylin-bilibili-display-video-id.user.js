@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩自定义视频信息条
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.19.1
+// @version      1.19.2
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -1005,7 +1005,7 @@
         }
         
         if(config.forceRemoveAllItem){
-            CKTools.addStyle(`.video-container-v1 .video-data>.item{display:none!important}`,"showav_hideall", "update", document.head);
+            CKTools.addStyle(`.video-container-v1 .video-data>.item{display:none!important}.video-data>span:not(#bilibiliShowInfos){display:none!important}`,"showav_hideall", "update", document.head);
         }else{
             CKTools.addStyle(``,"showav_hideall", "update", document.head);
         }
@@ -1027,7 +1027,7 @@
             globalinfos = apidata.data;
         } else {
             if (flag)
-            globalinfos = (await getAPI(unsafeWindow.bvid)).data;
+            globalinfos = (await getAPI(unsafeWindow.vd?.bvid)).data;
             else globalinfos = unsafeWindow.vd;
         }
         globalinfos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, globalinfos);
@@ -1373,21 +1373,21 @@
                             else
                                 label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件";
                         }),
-                        // await CKTools.domHelper("input", input => {
-                        //     input.type = "checkbox";
-                        //     input.id = "showav_forceRemoveAllItem";
-                        //     input.name = "showav_forceRemoveAllItem";
-                        //     input.style.display = "none";
-                        //     input.checked = config.forceRemoveAllItem;
-                        //     input.addEventListener('change', e => {
-                        //         const label = document.querySelector("#showav_forceRemoveAllItem_tip");
-                        //         if (!label) return;
-                        //         if (input.checked)
-                        //             label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
-                        //         else
-                        //             label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件(点击切换)";
-                        //     })
-                        // }),
+                        await CKTools.domHelper("input", input => {
+                            input.type = "checkbox";
+                            input.id = "showav_forceRemoveAllItem";
+                            input.name = "showav_forceRemoveAllItem";
+                            input.style.display = "none";
+                            input.checked = config.forceRemoveAllItem;
+                            input.addEventListener('change', e => {
+                                const label = document.querySelector("#showav_forceRemoveAllItem_tip");
+                                if (!label) return;
+                                if (input.checked)
+                                    label.innerHTML = "默认 <b>隐藏</b> 原版所有组件(点击切换)";
+                                else
+                                    label.innerHTML = "默认 <b>不隐藏</b> 原版所有组件(点击切换)";
+                            })
+                        }),
                         // await CKTools.domHelper("div", div => {
                         //     div.style.paddingLeft = "20px";
                         //     div.style.color = "#919191";
@@ -1572,7 +1572,7 @@
                             config.forceGap = document.querySelector("#showav_forcegap").checked;
                             config.hideTime = document.querySelector("#showav_hidetime").checked;
                             config.defaultTextTime = document.querySelector("#showav_deftxttime").checked;
-                            // config.forceRemoveAllItem = document.querySelector("#showav_forceRemoveAllItem").checked;
+                            config.forceRemoveAllItem = document.querySelector("#showav_forceRemoveAllItem").checked;
                             config.nobreakline = document.querySelector("#showav_nobreakline").checked;
                             config.pnmaxlength = parseInt(document.querySelector("#showav_pnwid").value);
                             config.showInNewLine = document.querySelector("#showav_newline").checked;
