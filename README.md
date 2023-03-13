@@ -47,27 +47,10 @@
 ### 用户脚本
 
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频页面常驻显示AV/BV号 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
-**简单介绍**:
-始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
-
-**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/398655)
-
-**安装链接**:
-
-* [Greasyfork](https://greasyfork.org/scripts/398655-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAav-bv%E5%8F%B7-%E5%B7%B2%E5%AE%8C%E5%85%A8%E9%87%8D%E6%9E%84-%E6%94%AF%E6%8C%81%E6%98%BE%E7%A4%BA%E5%88%86p%E6%A0%87%E9%A2%98/code/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAVBV%E5%8F%B7%5B%E5%B7%B2%E5%AE%8C%E5%85%A8%E9%87%8D%E6%9E%84%EF%BC%8C%E6%94%AF%E6%8C%81%E6%98%BE%E7%A4%BA%E5%88%86P%E6%A0%87%E9%A2%98%5D.user.js)
-* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-bilibili-display-video-id.user.js)
-* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-display-video-id.user.js)
-
-**仓库文件:**
-
-[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-display-video-id.user.js)
-
-------
 
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 关注管理器 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
-快速整理你的关注列表，一键取关。
+快速整理你的关注列表，一键取关。 [新版本 FoMan 正在开发中~]
 
 **脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/428895)
 
@@ -138,7 +121,26 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 不要Sentry服务
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 视频页面常驻显示AV/BV号 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
+**简单介绍**:
+始终在哔哩哔哩视频页面标题下方显示当前视频号，默认显示AV号，右键切换为BV号，单击弹窗可复制链接
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/398655)
+
+**安装链接**:
+
+* [Greasyfork](https://greasyfork.org/scripts/398655-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAav-bv%E5%8F%B7-%E5%B7%B2%E5%AE%8C%E5%85%A8%E9%87%8D%E6%9E%84-%E6%94%AF%E6%8C%81%E6%98%BE%E7%A4%BA%E5%88%86p%E6%A0%87%E9%A2%98/code/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E8%A7%86%E9%A2%91%E9%A1%B5%E9%9D%A2%E5%B8%B8%E9%A9%BB%E6%98%BE%E7%A4%BAAVBV%E5%8F%B7%5B%E5%B7%B2%E5%AE%8C%E5%85%A8%E9%87%8D%E6%9E%84%EF%BC%8C%E6%94%AF%E6%8C%81%E6%98%BE%E7%A4%BA%E5%88%86P%E6%A0%87%E9%A2%98%5D.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-bilibili-display-video-id.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-display-video-id.user.js)
+
+**仓库文件:**
+
+[ckylin-bilibili-display-video-id.user.js](scripts/ckylin-bilibili-display-video-id.user.js)
+
+------
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 不要Sentry服务 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 禁止Bilibili视频播放页面自动加载Sentry脚本。Sentry是一个问题跟踪反馈服务，但是会替换页面所有的事件和钩子并监听所有操作，可能造成页面卡顿以及部分脚本异常。
 
@@ -156,7 +158,7 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内私信一键已读
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 站内私信一键已读 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 快速设置站内私信为已读状态
 
@@ -200,6 +202,8 @@ AB循环，在某两个进度之间循环！进阶版洗脑循环！
 快速修改bilibili网页版迷你播放器窗口大小。
 
 在播放页面中点击油猴脚本管理图标，然后可以看到多项预设。修改后自动记忆，下次打开页面自动设置。
+
+**虽然这个脚本不再更新了，但是你还可以使用这个：[滚轮调整小窗尺寸](https://greasyfork.org/zh-CN/scripts/455657)**
 
 **脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/404623)
 
@@ -274,7 +278,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 平滑展开视频信息   
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 平滑展开视频信息 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 网页版哔哩哔哩视频下方的视频信息默认折叠，并有个“展开更多”按钮
 
@@ -294,7 +298,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 宽屏模式不重定位
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 宽屏模式不重定位 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 
 
@@ -312,7 +316,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![Youtube](https://shields.io/badge/Youtube-red?logo=youtube&style=flat) 评论区屏蔽工具
+#### ![Youtube](https://shields.io/badge/Youtube-red?logo=youtube&style=flat) 评论区屏蔽工具 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 屏蔽指定Uploader视频下的评论区。
 
@@ -333,7 +337,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![Youtube](https://shields.io/badge/Youtube-red?logo=youtube&style=flat) 移除评论区
+#### ![Youtube](https://shields.io/badge/Youtube-red?logo=youtube&style=flat) 移除评论区 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 屏蔽油管的评论区。
 
@@ -351,7 +355,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 播放器特效
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 播放器特效 ![Abandoned](https://img.shields.io/badge/-Abandoned-inactive)
 **简单介绍**:
 一个简单的视觉增强样式，为网页版哔哩哔哩播放器的控制条、菜单等添加模糊效果。
 
@@ -369,7 +373,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除评论区
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除评论区 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 移除网页版哔哩哔哩的评论区
 
@@ -387,7 +391,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除评分
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 移除评分 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 移除网页版哔哩哔哩的番剧点评和评分
 
@@ -423,7 +427,7 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 ------
 
-#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 高亮视频分区标签
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) 高亮视频分区标签 ![Inactive](https://img.shields.io/badge/-Inactive-inactive)
 **简单介绍**:
 高亮视频页面下方标签中的分区标签
 
