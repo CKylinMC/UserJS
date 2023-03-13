@@ -452,7 +452,12 @@ ckylin-bilibili-comments-filter.user.js](scripts/ckylin-bilibili-comments-filter
 
 否则，默认使用GPLv3协议。
 
-## 其他脚本推荐
+
+## 其他推荐
+
+
+也可以去看看 [收集一些让我们在使用B站时更加方便的浏览器扩展/脚本/程序](https://github.com/HCLonely/awesome-bilibili-extra)
+
 
 这里推荐其他dalao的油猴脚本。
 
