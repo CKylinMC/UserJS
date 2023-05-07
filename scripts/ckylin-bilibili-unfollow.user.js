@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.19
+// @version      0.2.20
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -3477,7 +3477,7 @@
                                             btn.onclick = async e => {
                                                 let list;
                                                 if (datas.checked.length > 0)
-                                                    list = datas.checkedlistdom;
+                                                    list = datas.checked//listdom;
                                                 else
                                                     list = Object.keys(datas.mappings);
                                                 const mapToObj = (uid)=>{
@@ -3507,6 +3507,66 @@
                                                 `, "确定");
                                                 resetInfoBar();
                                             }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            refreshChecked();
+                                            if (datas.checked.length > 0)
+                                                btn.innerHTML = "导出所有被选中的UP的当前缓存数据..."
+                                            else
+                                                btn.innerHTML = "导出所有关注的UP的当前缓存数据...";
+                                            btn.onclick = async e => {
+                                                    console.log(111)
+                                                    let list;
+                                                    if (datas.checked.length > 0)
+                                                        list = datas.checked;//listdom;
+                                                    else
+                                                        list = Object.keys(datas.mappings);
+                                                    console.log(222)
+                                                    const mapToObj = (uid) => {
+                                                        try {
+                                                            console.log(1001,{uid})
+                                                            if (datas.mappings.hasOwnProperty(+uid)) {
+                                                                console.log(1002)
+                                                                console.log(datas.mappings);
+                                                                const full = datas.mappings[+uid];
+                                                                console.log(1003)
+                                                                console.log({ full })
+                                                                let tags = full.tag?.map(t => datas.tags[t]?.name ?? null).filter(t => !!t);
+                                                                console.log(1004)
+                                                                console.log({ tags })
+                                                                return { ...full, tag: tags ?? [] };
+                                                            } else return null;
+                                                        } catch (err) {
+                                                            console.log(2001)
+                                                            console.error('e!!',err);
+                                                            return null;
+                                                        }
+                                                    }
+                                                    console.log(333,list)
+                                                    let infoList = list.map(it=>mapToObj(it)).filter(it=>!!it);
+                                                    console.log(444)
+                                                    let copyList = JSON.stringify(infoList);
+                                                    console.log(555)
+                                                    let mtitle = "";
+                                                    if(await copy(copyList)){
+                                                        mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                    }else{
+                                                        mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                    }
+                                                    unsafeWindow.CKFOMAN_EXPORTUIDS = copyList;
+                                                    unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
+                                                        download("export_userdetails.json",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                    }
+                                                    mtitle+=`，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
+                                                    await alertModal("导出完整缓存数据", `
+                                                    ${mtitle}
+                                                    <br>
+                                                    <textarea readonly style="width: 400px;" onclick="this.select()" >${copyList}</textarea>
+                                                    `, "确定");
+                                                    resetInfoBar();
+                                                }
                                         }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
