@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.20
+// @version      0.2.21
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -28,7 +28,7 @@
             if (typeof (val) == 'undefined' || val === null) return def;
             return val;
         },
-        set(key, val) { 
+        set(key, val) {
             GM_setValue('autoExtendInfo', val);
         },
         del(key) {
@@ -83,7 +83,7 @@
         debug: false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.18 Beta",
+        VERSION: "0.2.21",
         infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
 
@@ -129,12 +129,12 @@
         var element = document.createElement('a');
         element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
         element.setAttribute('download', filename);
-      
+
         element.style.display = 'none';
         document.body.appendChild(element);
-      
+
         element.click();
-      
+
         document.body.removeChild(element);
       }
     const makeDom = async (domname, func = () => {
@@ -428,24 +428,24 @@
                 return mdi('youtube')+"视频投稿";
             case 16:
                 return mdi('video-box')+"小视频";
-            case 64: 
+            case 64:
                 return mdi('newspaper-variant-outline')+"专栏文章";
-            case 128: 
+            case 128:
                 return fallback;
-            case 256: 
+            case 256:
                 return mdi('playlist-music')+"音频投稿";
-            case 512: 
+            case 512:
                 return mdi('filmstrip-box-multiple')+"番剧更新";
             case 1024:
-                return fallback; 
-            case 2048: 
+                return fallback;
+            case 2048:
                 return mdi('playlist-play')+"歌单分享";
             case 4300:
                 return mdi('playlist-star')+"收藏夹";
             default: return fallback;
         }
     }
-    const getContentFromDynamic = (card) => { 
+    const getContentFromDynamic = (card) => {
         if (!card) return '无法解析内容(空内容)';
         if (card.item?.content) return card.item.content;
         if (card.aid) return 'av'+card.aid+' | <b>'+card.title + "</b><br>简介: " + card.desc;
@@ -1298,11 +1298,11 @@
             justify-content: space-between;
             align-items: stretch;
         }
-        .CKFOMAN-modal-content button, 
-        .CKFOMAN-modal-content input, 
-        .CKFOMAN-modal-content keygen, 
-        .CKFOMAN-modal-content optgroup, 
-        .CKFOMAN-modal-content select, 
+        .CKFOMAN-modal-content button,
+        .CKFOMAN-modal-content input,
+        .CKFOMAN-modal-content keygen,
+        .CKFOMAN-modal-content optgroup,
+        .CKFOMAN-modal-content select,
         .CKFOMAN-modal-content textarea
         {
             border-width: 2px;
@@ -1311,11 +1311,11 @@
             border-radius: 3px;
             transition: all .3s;
         }
-        .CKFOMAN-modal-content button:hover, 
-        .CKFOMAN-modal-content input:hover, 
-        .CKFOMAN-modal-content keygen:hover, 
-        .CKFOMAN-modal-content optgroup:hover, 
-        .CKFOMAN-modal-content select:hover, 
+        .CKFOMAN-modal-content button:hover,
+        .CKFOMAN-modal-content input:hover,
+        .CKFOMAN-modal-content keygen:hover,
+        .CKFOMAN-modal-content optgroup:hover,
+        .CKFOMAN-modal-content select:hover,
         .CKFOMAN-modal-content textarea:hover
         {
             border-color: grey;
@@ -1442,6 +1442,10 @@
                 }
                 //resetInfoBar();
             }
+            item.oncontextmenu = e => {
+                e.preventDefault();
+                open("https://space.bilibili.com/" + data.mid);
+            }
             item.setAttribute("data-special", data.special);
             item.setAttribute("data-invalid", data.invalid ? "1" : "0");
             item.setAttribute("data-fans", data.attribute === 6 ? "1" : "0");
@@ -1504,7 +1508,7 @@
                     if (data.vip.vipType !== 0) {
                         name.style.color = "#e91e63";
                     }
-                    if (data.official_verify.type === 1) {
+                    if (data.official_verify.type > -1) {
                         name.style.textDecoration = "underline";
                         name.style.color = "#c67927";
                         title += " | 认证账号";
@@ -1563,8 +1567,9 @@
                     if (data.special === 1) {
                         mark.innerHTML = "特别关注&nbsp;&nbsp;";
                     }
-                    if (data.official_verify.type === 1) {
-                        mark.innerText = data.official_verify.desc.substring(0, 15);
+                    if (data.official_verify.type > -1) {
+                        mark.innerText = data.official_verify.desc.substring(0, 25);
+                        mark.title = data.official_verify.desc;
                     } else if (data.vip.vipType !== 0) {
                         mark.innerText = data.vip.vipType === 1 ? "大会员" : "年费大会员"
                         title += " | " + mark.innerText;
@@ -1580,6 +1585,7 @@
                 }
             }));
             log(info, title);
+            title+= "\n简介: "+data.sign+(data.official_verify.type>-1?"\n认证: "+data.official_verify.desc:"")
             item.setAttribute("title", title);
         });
     }
@@ -2045,7 +2051,7 @@
                                 }
                             }
                         }))
-                        container.appendChild(await makeDom("button", btn => {
+                        /*container.appendChild(await makeDom("button", btn => {
                             btn.className = "CKFOMAN-toolbar-btns blue";
                             btn.style.margin = "4px 0";
                             btn.innerHTML = "悄悄关注";
@@ -2065,7 +2071,7 @@
                                     addBtn(datas.mappings[info.mid],container);
                                 }
                             }
-                        }))
+                        }))*/
                     }else{
                         container.appendChild(await makeDom("button", btn => {
                             btn.className = "CKFOMAN-toolbar-btns red";
@@ -2088,7 +2094,7 @@
                                 }
                             }
                         }))
-                        if(info.attribute===1){
+                        /*if(info.attribute===1){
                             container.appendChild(await makeDom("button", btn => {
                                 btn.className = "CKFOMAN-toolbar-btns blue";
                                 btn.style.margin = "4px 0";
@@ -2142,7 +2148,7 @@
                                     }
                                 }
                             }))
-                        }
+                        }*/
                     }
                 }
                 container.appendChild(await makeDom("button", btn => {
@@ -2329,79 +2335,6 @@
             }
         });
     }
-    const openNewFilterGuideScreen = async () => {
-        const dom = CKTools.domHelper;
-        hideModal();
-        await wait(300);
-        let newFilterModuleInstalled = unsafeWindow.FoManPlugins && unsafeWindow.FoManPlugins.FilterReborn;
-        openModal("全新的筛选模块", dom('div', {
-            childs: [
-                dom('p', {
-                    text: "新的筛选模块支持更多、更灵活的筛选方式，配置方式更加直观，选择器组合方式更加自由，可以实现更高级的批量筛选。"
-                }),
-                dom('p', {
-                    text: "但是新版本选择器并非完美，目前还在初步测试中，不能保证稳定性。"
-                }),
-                dom('p', {
-                    text:"正在检测...",
-                    init: el => {
-                        if (newFilterModuleInstalled) {
-                            el.innerText = "你已安装新模块，点击启动立刻打开使用新模块";
-                        } else {
-                            el.innerText = "新模块是可选附加模块之一，你需要前往页面点击安装，然后刷新页面生效。点击前往安装立刻打开安装页面。";
-                        }
-                    }
-                }),
-                makeButtons([
-                    {
-                        text: newFilterModuleInstalled?"启动":"前往安装",
-                        onclick: async e => {
-                            hideModal();
-                            if (newFilterModuleInstalled) {
-                                hideModal();
-                                await wait(300);
-                                unsafeWindow.FoManPlugins.FilterReborn({
-                                    datas,
-                                    info: cfg,
-                                    domHelper:CKTools.domHelper,
-                                    mdi,
-                                    get, getAll, wait, log,
-                                    addStyle, clearStyles,
-                                    alertModal, hideModal,
-                                    checkers: {
-                                        isNearly, isLongAgo, isInvalid,
-                                        isFans, isWhisper, isHardCoreMember,
-                                        isSpecial: d=>d.special === 1,
-                                        isVerified: d=>d.official_verify.type>0,
-                                        isVIP: d => d.vip.vipType === 0,
-                                        isNormalVIP: d => d.vip.vipType === 1,
-                                        isYearVIP: d=>d.vip.vipType!==1&&d.vip.vipType!==0,
-                                    },
-                                    getGroups: () => [...datas.tags],
-                                    select: (uid, status = true) => toggleSwitch(uid, status),
-                                    getSelected: () => refreshChecked().filter(id => !isNaN(id)).map(id => datas.followings[+id]).filter(el => !!el),
-                                    clearSelected: () => {
-                                        datas.checked = [];
-                                        [...getAll(`input.CKFOMAN-data-inforow-toggle[checked]`)].map(el => el.checked = false);
-                                    }
-                                }).catch(e => {
-                                    alertModal("模块加载失败", "出现了一个错误，不能加载模块。", "确定");
-                                    console.error(e);
-                                });
-                            } else {
-                                // open('about:blank');
-                                if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("很抱歉","此模块尚未发布，请等待下个版本更新。","确定");
-                            }
-                        }
-                    },
-                    {
-                        text: "取消",
-                        onclick: e => hideModal()
-                    }
-                ])
-            ]
-        }))
-    }
     const createBlockOrFollowModal = async (isBlock = true) => {
         hideModal();
         await wait(300);
@@ -2547,8 +2480,25 @@
             aftertime: {
                 enabled: config.aftertime.enabled || false,
                 after: config.aftertime.after || 0
-            }
+            },
+            nickKeywordInclude: {
+                enabled: config.nickKeywordInclude.enabled || false,
+                keyword: config.nickKeywordInclude.keyword || ""
+            },
+            nickKeywordExclude: {
+                enabled: config.nickKeywordExclude.enabled || false,
+                keyword: config.nickKeywordExclude.keyword || ""
+            },
+            verifyKeywordInclude: {
+                enabled: config.verifyKeywordInclude.enabled || false,
+                keyword: config.verifyKeywordInclude.keyword || ""
+            },
+            verifyKeywordExclude: {
+                enabled: config.verifyKeywordExclude.enabled || false,
+                keyword: config.verifyKeywordExclude.keyword || ""
+            },
         };
+        log("filter",{cfg});
         if (
             cfg.clear === "0"
             && cfg.invalid === "-2"
@@ -2559,6 +2509,10 @@
             && cfg.special === "-2"
             && cfg.beforetime.enabled === false
             && cfg.aftertime.enabled === false
+            && cfg.nickKeywordInclude.enabled === false
+            && cfg.nickKeywordExclude.enabled === false
+            && cfg.verifyKeywordInclude.enabled === false
+            && cfg.verifyKeywordExclude.enabled === false
         ) {
             resetInfoBar();
             return;
@@ -2590,6 +2544,18 @@
         }
         if (cfg.aftertime.enabled) {
             filters.aftertime = parseInt(cfg.aftertime.after);
+        }
+        if (cfg.nickKeywordInclude.enabled && cfg.nickKeywordInclude.keyword.length) {
+            filters.nickKeywordInclude = cfg.nickKeywordInclude.keyword;
+        }
+        if (cfg.nickKeywordExclude.enabled && cfg.nickKeywordExclude.keyword.length) {
+            filters.nickKeywordExclude = cfg.nickKeywordExclude.keyword;
+        }
+        if (cfg.verifyKeywordInclude.enabled && cfg.verifyKeywordInclude.keyword.length) {
+            filters.verifyKeywordInclude = cfg.verifyKeywordInclude.keyword;
+        }
+        if (cfg.verifyKeywordExclude.enabled && cfg.verifyKeywordExclude.keyword.length) {
+            filters.verifyKeywordExclude = cfg.verifyKeywordExclude.keyword;
         }
         let checked = [];
         try {
@@ -2632,6 +2598,19 @@
                             break;
                         case "aftertime":
                             if (parseInt(user.mtime + "000") < value) continue userloop;
+                            break;
+                        case "nickKeywordInclude":
+                            log("NickKwInc finding",value.toLowerCase(),"in",user.uname.toLowerCase(),"and",user.sign.toLowerCase());
+                            if (!user.uname.toLowerCase().includes(value.toLowerCase()) && !user.sign.toLowerCase().includes(value.toLowerCase())) continue userloop;
+                            break;
+                        case "nickKeywordExclude":
+                            if (user.uname.toLowerCase().includes(value.toLowerCase()) || user.sign.toLowerCase().includes(value.toLowerCase())) continue userloop;
+                            break;
+                        case "verifyKeywordInclude":
+                            if (!user.official_verify?.desc.toLowerCase().includes(value.toLowerCase())) continue userloop;
+                            break;
+                        case "verifyKeywordExclude":
+                            if (user.official_verify?.desc.toLowerCase().includes(value.toLowerCase())) continue userloop;
                             break;
                     }
                 }
@@ -2806,11 +2785,6 @@
                                         await makeDom("div", async tip => {
                                             tip.innerHTML = "勾选要生效的筛选器"
                                         }),
-                                        cfg.enableNewModules?await makeDom("div", async tip => {
-                                            tip.innerHTML = "👉尝鲜新版筛选器";
-                                            tip.style.color = "#00a0e9";
-                                            tip.onclick = () => openNewFilterGuideScreen();
-                                        }):null,
                                         divider(),
                                         await makeDom("form", async filters => {
                                             filters.id = filtersid;
@@ -2973,24 +2947,49 @@
                                                     }
                                                 }),
                                                 divider(),
+                                                await makeDom("input", async ipt => {
+                                                    ipt.id = filtersid + "-keyword-nick-include";
+                                                    ipt.name = "val-keyword-nick-include";
+                                                    ipt.setAttribute("type", "text");
+                                                    ipt.setAttribute("placeholder", "昵称或简介包含关键词");
+                                                }),
+                                                await makeDom("input", async ipt => {
+                                                    ipt.id = filtersid + "-keyword-nick-exclude";
+                                                    ipt.name = "val-keyword-nick-exclude";
+                                                    ipt.setAttribute("type", "text");
+                                                    ipt.setAttribute("placeholder", "昵称或简介排除关键词");
+                                                }),
+                                                await makeDom("input", async ipt => {
+                                                    ipt.id = filtersid + "-keyword-verify-include";
+                                                    ipt.name = "val-keyword-verify-include";
+                                                    ipt.setAttribute("type", "text");
+                                                    ipt.setAttribute("placeholder", "认证包含关键词");
+                                                }),
+                                                await makeDom("input", async ipt => {
+                                                    ipt.id = filtersid + "-keyword-verify-exclude";
+                                                    ipt.name = "val-keyword-verify-exclude";
+                                                    ipt.setAttribute("type", "text");
+                                                    ipt.setAttribute("placeholder", "认证排除关键词");
+                                                }),
+                                                divider(),
                                                 await makeDom("label", async label => {
                                                     label.setAttribute("for", filtersid + "-beforetime");
-                                                    label.innerHTML = "在什么时间前关注：";
+                                                    label.innerHTML = "在什么日期前关注：";
                                                 }),
                                                 await makeDom("input", async choose => {
                                                     choose.id = filtersid + "-beforetime";
                                                     choose.name = "val-beforetime";
-                                                    choose.setAttribute("type", "datetime-local");
+                                                    choose.setAttribute("type", "date");
                                                 }),
                                                 divider(),
                                                 await makeDom("label", async label => {
                                                     label.setAttribute("for", filtersid + "-aftertime");
-                                                    label.innerHTML = "在什么时间后关注：";
+                                                    label.innerHTML = "在什么日期后关注：";
                                                 }),
                                                 await makeDom("input", async choose => {
                                                     choose.id = filtersid + "-aftertime";
                                                     choose.name = "val-aftertime";
-                                                    choose.setAttribute("type", "datetime-local");
+                                                    choose.setAttribute("type", "date");
                                                 }),
                                             ].forEach(el => filters.appendChild(el));
                                         }),
@@ -3023,7 +3022,23 @@
                                                             aftertime: {
                                                                 enabled: form['val-aftertime'].value.length > 0,
                                                                 after: form['val-aftertime'].valueAsNumber
-                                                            }
+                                                            },
+                                                            nickKeywordInclude: {
+                                                                enabled: form['val-keyword-nick-include'].value.length > 0,
+                                                                keyword: form['val-keyword-nick-include'].value
+                                                            },
+                                                            nickKeywordExclude: {
+                                                                enabled: form['val-keyword-nick-exclude'].value.length > 0,
+                                                                keyword: form['val-keyword-nick-exclude'].value
+                                                            },
+                                                            verifyKeywordInclude: {
+                                                                enabled: form['val-keyword-verify-include'].value.length > 0,
+                                                                keyword: form['val-keyword-verify-include'].value
+                                                            },
+                                                            verifyKeywordExclude: {
+                                                                enabled: form['val-keyword-verify-exclude'].value.length > 0,
+                                                                keyword: form['val-keyword-verify-exclude'].value
+                                                            },
                                                         };
                                                         await applyFilters(config);
                                                         hideModal();
@@ -3049,6 +3064,30 @@
                                     select.style.flexDirection = "row";
                                     select.id = "CKFOMAN-sortbtns-container";
                                     [
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
+                                            btn.innerHTML = "反向当前排序";
+                                            btn.onclick = async e => {
+                                                setInfoBar("正在反转当前排序...");
+                                                await alertModal("正在排序...", "请稍等...");
+                                                refreshChecked();
+                                                datas.followings.reverse();
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                hideModal();
+                                            }
+                                        }),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
+                                            btn.innerHTML = "按昵称排序";
+                                            btn.onclick = async e => {
+                                                setInfoBar("正在按昵称排序...");
+                                                await alertModal("正在排序...", "请稍等...");
+                                                refreshChecked();
+                                                datas.followings.sort((x, y) => x.uname.localeCompare(y.uname, "zh-u-kf-lower-kn-true"));
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                hideModal();
+                                            }
+                                        }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
                                             btn.innerHTML = "已选中优先";
