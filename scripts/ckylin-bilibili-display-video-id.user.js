@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩自定义视频信息条
 // @namespace    ckylin-bilibili-display-video-id
-// @version      1.19.2
+// @version      1.19.3
 // @description  完全自定义你的视频标题下方信息栏，排序，增加，删除！
 // @author       CKylinMC
 // @match        https://www.bilibili.com/video*
@@ -668,7 +668,7 @@
         ct_span.innerHTML = config.defaultTextTime ? txttime : rawtime
         if (config.hideTime) ct_span.innerHTML += `
         <style>
-        .video-data>span:nth-child(3),.video-data>span.pupdate{
+        .video-info-detail span:nth-child(3),.video-info-detail span.pupdate{
             display:none!important;
         }
         </style>`;
@@ -687,7 +687,7 @@
         })();
         v_span.innerHTML += `
         <style>
-        .video-data>span.view{
+        .video-info-detail span.view{
             display:none!important;
         }
         </style>`;
@@ -706,7 +706,7 @@
         })();
         dmk_span.innerHTML += `
         <style>
-        .video-data>span.dm{
+        .video-info-detail span.dm{
             display:none!important;
         }
         </style>`;
@@ -722,7 +722,7 @@
         top_span.innerHTML = ''
         top_span.innerHTML += `
         <style>
-        .video-data>span.rank,.video-data>a.honor{
+        .video-info-detail span.rank,.video-info-detail a.honor{
             display:none!important;
         }
         </style>`;
@@ -996,7 +996,7 @@
         }
         console.log('ShowAV start inject')
         
-        CKTools.addStyle(`.video-container-v1>.copyright.item{display:none!important;}.video-container-v1>.video-data{flex-wrap: wrap!important;}`,"showav_patchNewPlayer","update",document.head);
+        CKTools.addStyle(`.video-container-v1 .copyright.item{display:none!important;}.video-container-v1 .video-info-detail{flex-wrap: wrap!important;}`,"showav_patchNewPlayer","update",document.head);
 
         if (config.forceGap) {
             CKTools.addStyle(`#bilibiliShowInfos{margin-left: 12px!important;}`,"showav_forceGapCss","update",document.head);
@@ -1005,7 +1005,7 @@
         }
         
         if(config.forceRemoveAllItem){
-            CKTools.addStyle(`.video-container-v1 .video-data>.item{display:none!important}.video-data>span:not(#bilibiliShowInfos){display:none!important}`,"showav_hideall", "update", document.head);
+            CKTools.addStyle(`.video-container-v1 .video-info-detail>.item{display:none!important}.video-info-detail>span:not(#bilibiliShowInfos){display:none!important}`,"showav_hideall", "update", document.head);
         }else{
             CKTools.addStyle(``,"showav_hideall", "update", document.head);
         }
@@ -1032,7 +1032,8 @@
         }
         globalinfos.p = getUrlParam("p") || getPageFromCid(unsafeWindow.cid, globalinfos);
 
-        const av_infobar = await waitForDom(".video-data");
+        //const av_infobar = await waitForDom(".video-data");
+        const av_infobar = await waitForDom(".video-info-detail");
         if (!av_infobar) return log('Can not load info-bar in time.');
         let av_root;
         if (config.showInNewLine) {
@@ -2489,7 +2490,7 @@
     `, 'showav_dragablecss', "unique", document.head);
 
     CKTools.addStyle(`
-    .video-data-list{
+    .video-info-detail-list{
         display: none!important;
     }
     #bilibiliShowInfos{
