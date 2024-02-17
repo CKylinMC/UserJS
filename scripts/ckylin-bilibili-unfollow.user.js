@@ -195,6 +195,7 @@
         }
     };
     const getUInfoURL = () => `https://api.bilibili.com/x/space/wbi/acc/info`;//wbi,mid
+    const getUserCardInfo = uid => `https://api.bilibili.com/x/web-interface/card?mid=${uid}`; 
     const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
     const getWhispersURL = (pn, ps = 50) => `https://api.bilibili.com/x/relation/whispers?pn=${pn}&ps=${ps}&order=desc&order_type=attention`;// removed
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
@@ -521,14 +522,15 @@
             return null;
         }
     }
-    const getUserStats = async (uid, withraw = false) => {
+    const getUserStats = async (uid, withraw = false, fast = false) => {
         try {
-            const jsonData = await (await fetch(getRequest(getUInfoURL()+"?"+await getWbiSignedParams({mid:uid})))).json();
+            const jsonData = fast? (await (await fetch(getRequest(getUserCardInfo(uid)))).json()) : (await (await fetch(getRequest(getUInfoURL()+"?"+await getWbiSignedParams({mid:uid})))).json());
             if (jsonData && jsonData.code === 0) {
-                const udata = jsonData.data;
+                // const udata = jsonData.data;
+                const udata = fast? jsonData.data.card : jsonData.data;
                 const parsedData = {
                     ok: true,
-                    level: udata.level,
+                    level: udata.level ?? udata.level_info.current_level,
                     banned: udata.silence === 1,
                     RIP: udata.sys_notice === 20,
                     disputed: udata.sys_notice === 8,
@@ -537,6 +539,7 @@
                     cates: udata.tags,
                     lives: udata.live_room,
                     official_verify: udata.official_verify ?? udata.official,
+                    follower: udata.stats?.follower ?? udata.fans ?? jsonData.data?.follower
                 };
                 if (withraw) {
                     return Object.assign({}, udata, parsedData);
@@ -548,7 +551,7 @@
         }
         return { ok: false }
     }
-    const fillUserStatus = async (uid, refresh = false) => {
+    const fillUserStatus = async (uid, refresh = false, fast = false) => {
         setInfoBar(`正在为${uid}填充用户信息`)
         uid = parseInt(uid);
         if (datas.mappings[uid] && datas.mappings[uid].filled) {
@@ -556,7 +559,7 @@
             resetInfoBar();
             return datas.mappings[uid];
         }
-        const userinfo = await getUserStats(uid, refresh);
+        let userinfo = await getUserStats(uid, refresh, fast);
         if (userinfo.ok) {
             if (refresh) datas.mappings[uid] = userinfo;
             datas.mappings[uid].level = userinfo.level;
@@ -567,7 +570,8 @@
             datas.mappings[uid].sign = userinfo.sign;
             datas.mappings[uid].cates = userinfo.cates;
             datas.mappings[uid].lives = userinfo.lives;
-            datas.mappings[uid].filled = true;
+            datas.mappings[uid].follower = userinfo.follower;
+            datas.mappings[uid].filled = !fast;
             if (!userinfo.banned && !userinfo.RIP) {
                 const lastUpdate = await getLatestVideoPublishDate(uid);
                 log(uid, lastUpdate)
@@ -852,6 +856,16 @@
                         datas.mappings[parseInt(it.mid)] = it;
                     });
                     setInfoBar(`正在查询悄悄关注数据：已获取 ${fetched} 条数据`);
+                }
+            }
+            console.error("expermentals:",datas.settings.enableExpermentals);
+            if(datas.settings.enableExpermentals){
+                setInfoBar("正在填充更多信息");
+                // let testcount = 5;
+                for(let fo of datas.followings){
+                    // if(testcount--<0) break;
+                    let id = fo.mid ?? fo.uid;
+                    await fillUserStatus(id, false, true);
                 }
             }
             CacheManager.save();
@@ -1737,7 +1751,7 @@
         openModal("启用实验性功能", await makeDom("div", async container => {
             [
                 await makeDom("span", span => {
-                    span.innerHTML = "你正在启用实验性功能。<br /><br />实验性功能意味着不稳定、不安全、结果可能非预期，并且有可能导致你的账号出现异常的功能。这些功能默认都是关闭的。<br /><br />如果你打开这些功能，就意味着你决定承担使用这些功能所导致的风险。<br /><br />你可以选择随时关闭实验性功能开关。";
+                    span.innerHTML = "你正在启用实验性功能。<br /><br />实验性功能意味着不稳定、不安全、结果可能非预期，并且有可能导致你的账号出现异常的功能。这些功能默认都是关闭的。<br /><br />如果你打开这些功能，就意味着你决定承担使用这些功能所导致的风险。<br /><br />你可以选择随时关闭实验性功能开关。<br /><br />启用后会立刻重新进行数据获取。<br /><br />当前支持的功能：根据粉丝数和最后投稿时间排序";
                 }),
                 await makeDom("div", async btns => {
                     btns.style.display = "flex";
@@ -1748,6 +1762,7 @@
                             btn.onclick = () => {
                                 datas.settings.enableExpermentals = true;
                                 hideModal();
+                                createMainWindow(true);
                             }
                         }),
                         await makeDom("button", btn => {
@@ -3104,6 +3119,54 @@
                                     select.style.flexDirection = "row";
                                     select.id = "CKFOMAN-sortbtns-container";
                                     [
+                                        datas.settings.enableExpermentals && 
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
+                                            btn.innerHTML = "按粉丝数排序 (实验)";
+                                            btn.onclick = async e => {
+                                                setInfoBar("正在按粉丝数排序...");
+                                                await alertModal("正在排序...", "请稍等...");
+                                                refreshChecked();
+                                                datas.followings.sort((a, b)=>{
+                                                    const followerA = a.follower || 0;
+                                                    const followerB = b.follower || 0;
+                                                  
+                                                    if (followerA > followerB) {
+                                                      return -1;
+                                                    } else if (followerA < followerB) {
+                                                      return 1;
+                                                    } else {
+                                                      return 0;
+                                                    }
+                                                  });
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
+                                                hideModal();
+                                            }
+                                        }),
+                                        datas.settings.enableExpermentals && 
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
+                                            btn.innerHTML = "按最后投稿日期排序 (实验)";
+                                            btn.onclick = async e => {
+                                                setInfoBar("正在按最后投稿日期排序...");
+                                                await alertModal("正在排序...", "请稍等...");
+                                                refreshChecked();
+                                                datas.followings.sort((a, b)=>{
+                                                    const upA = a.lastUpdate || 0;
+                                                    const upB = b.lastUpdate || 0;
+                                                  
+                                                    if (upA > upB) {
+                                                      return -1;
+                                                    } else if (upA < upB) {
+                                                      return 1;
+                                                    } else {
+                                                      return 0;
+                                                    }
+                                                  });
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
+                                                hideModal();
+                                            }
+                                        }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
                                             btn.innerHTML = "反向当前排序";
@@ -3262,7 +3325,7 @@
                                             btn.innerHTML = "不修改 | 取消";
                                             btn.onclick = e => hideModal();
                                         })
-                                    ].forEach(el => select.appendChild(el));
+                                    ].forEach(el => el && select.appendChild(el));
                                 }));
                             }
                         }))
