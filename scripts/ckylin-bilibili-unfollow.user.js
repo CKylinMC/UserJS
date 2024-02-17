@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.21
+// @version      0.2.22
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
 // @supportURL   https://github.com/CKylinMC/UserJS
 // @require      https://greasyfork.org/scripts/429720-cktools/code/CKTools.js?version=1034581
+// @require      https://update.greasyfork.org/scripts/470305/1216506/md5-func.js
 // @include      http://space.bilibili.com/*
 // @include      https://space.bilibili.com/*
 // @connect      api.bilibili.com
@@ -20,16 +21,16 @@
 // @compatible   chrome 80+
 // @compatible   firefox 74+
 // ==/UserScript==
-(function () {
+;(function () {
     'use strict';
     const s = {
         get(key, def) {
-            const val = GM_getValue('autoExtendInfo');
+            const val = GM_getValue(key);
             if (typeof (val) == 'undefined' || val === null) return def;
             return val;
         },
         set(key, val) {
-            GM_setValue('autoExtendInfo', val);
+            GM_setValue(key, val);
         },
         del(key) {
             if (typeof (GM_removeValue) == 'function') GM_removeValue(key);
@@ -77,15 +78,21 @@
             set batchOperationDelay(val) {
                 s.set('batchOperationDelay', val);
             },
+            get enableExpermentals() {
+                return s.get('enableExpermentals', false);
+            },
+            set enableExpermentals(val) {
+                return s.set('enableExpermentals', val);
+            },
         }
     };
     const cfg = {
-        debug: false,
+        debug: !false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.21",
-        infobarTemplate: ()=>`共读取 ${datas.fetched} 条关注`,
-        titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small></h1>`,
+        VERSION: "0.2.22",
+        infobarTemplate: () => `共读取 ${datas.fetched} 条关注`,
+        titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small> ${datas.settings.enableExpermentals ? "!" : ""}</h1>`,
 
         // Turn this on will abort all alerts.
         I_KNOW_WHAT_IM_DOING: false
@@ -93,12 +100,12 @@
     const get = q => document.querySelector(q);
     const getAll = q => document.querySelectorAll(q);
     const wait = t => new Promise(r => setTimeout(r, t));
-    const batchDelay = async () => await wait(datas.settings.batchOperationDelay*1000);
-    const log = (...m) => cfg.debug && console.log('[FoMan]', ...m);
-    const mdi = (name, asHTML=true, px = '10', extras = []) => {
+    const batchDelay = async () => await wait(datas.settings.batchOperationDelay * 1000);
+    const log = (...m) => cfg.debug && console.warn('[FoMan]', ...m);
+    const mdi = (name, asHTML = true, px = '10', extras = []) => {
         const i = CKTools.domHelper('i', {
-            classnames: ['mdi',`mdi-${name}`, `mdi-${px}px`, ...extras],
-            text:' '
+            classnames: ['mdi', `mdi-${name}`, `mdi-${px}px`, ...extras],
+            text: ' '
         });
         return asHTML ? i.outerHTML : i;
     };
@@ -136,15 +143,15 @@
         element.click();
 
         document.body.removeChild(element);
-      }
+    }
     const makeDom = async (domname, func = () => {
     }) => {
-        if(CKTools.domHelper) return CKTools.domHelper(domname, func);
+        if (CKTools.domHelper) return CKTools.domHelper(domname, func);
         const d = document.createElement(domname);
-        if(typeof(func)=='function') func.constructor.name=='AsyncFunction' ? await func(d) : func(d);
+        if (typeof (func) == 'function') func.constructor.name == 'AsyncFunction' ? await func(d) : func(d);
         return d;
     };
-    const isHardCoreMember = d => d.is_senior_member ===1;
+    const isHardCoreMember = d => d.is_senior_member === 1;
     const isFans = d => d.attribute === 6;
     const isWhisper = d => d.attribute === 1;
     const isNearly = d => {
@@ -182,25 +189,25 @@
     const getHeaders = () => {
         return {
             "user-agent": unsafeWindow.navigator.userAgent,
-            "cookie": unsafeWindow.document.cookie.split('; ').map(it=>it.split("=")).map(it=>it.map(i=>i.match(/[^\x00-\x7F]/gm)?encodeURIComponent(i):i)).map(it=>it.join("=")).join(", "),
+            "cookie": unsafeWindow.document.cookie.split('; ').map(it => it.split("=")).map(it => it.map(i => i.match(/[^\x00-\x7F]/gm) ? encodeURIComponent(i) : i)).map(it => it.join("=")).join(", "),
             "origin": "space.bilibili.com",
             "referer": "https://www.bilibili.com/"
         }
     };
-    const getUInfoURL = uid => `https://api.bilibili.com/x/space/acc/info?mid=${uid}`;
+    const getUInfoURL = () => `https://api.bilibili.com/x/space/wbi/acc/info`;//wbi,mid
     const getGroupURL = () => `https://api.bilibili.com/x/relation/tags`;
-    const getWhispersURL = (pn,ps=50) => `https://api.bilibili.com/x/relation/whispers?pn=${pn}&ps=${ps}&order=desc&order_type=attention`;
+    const getWhispersURL = (pn, ps = 50) => `https://api.bilibili.com/x/relation/whispers?pn=${pn}&ps=${ps}&order=desc&order_type=attention`;// removed
     const getFetchURL = (uid, pn) => `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${pn}&ps=50&order=desc&order_type=attention`;
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
-    const getLatestVidURL = uid => `https://api.bilibili.com/x/space/arc/search?mid=${uid}&ps=1&pn=1`
+    const getLatestVidURL = () => `https://api.bilibili.com/x/space/wbi/arc/search`;//wbi,?mid=${uid}&ps=1&pn=1`;
     const getSubInfoURL = uid => `https://api.bilibili.com/x/relation/stat?vmid=${uid}`;
-    const getCreateGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/create`;
-    const getRenameGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/update`;
-    const getRemoveGroupURL = ()=> `https://api.bilibili.com/x/relation/tag/del`;
-    const getMoveToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/addUsers`;
-    const getCopyToGroupURL = ()=> `https://api.bilibili.com/x/relation/tags/copyUsers`;
-    const getDynamicURL = (selfid,hostid)=>`https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?visitor_uid=${selfid}&host_uid=${hostid}&offset_dynamic_id=0&need_top=1&platform=web`;
+    const getCreateGroupURL = () => `https://api.bilibili.com/x/relation/tag/create`;
+    const getRenameGroupURL = () => `https://api.bilibili.com/x/relation/tag/update`;
+    const getRemoveGroupURL = () => `https://api.bilibili.com/x/relation/tag/del`;
+    const getMoveToGroupURL = () => `https://api.bilibili.com/x/relation/tags/addUsers`;
+    const getCopyToGroupURL = () => `https://api.bilibili.com/x/relation/tags/copyUsers`;
+    const getDynamicURL = (selfid, hostid) => `https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?visitor_uid=${selfid}&host_uid=${hostid}&offset_dynamic_id=0&need_top=1&platform=web`;
     const getRequest = path => new Request(path, {
         method: 'GET',
         headers: getHeaders(),
@@ -236,13 +243,13 @@
         try {
             const jsonData = await (await fetch(
                 getPostRequest(getCreateGroupURL(),
-                new URLSearchParams({
-                    tag: tagname,
-                    csrf: getCSRFToken()
-            }))));
+                    new URLSearchParams({
+                        tag: tagname,
+                        csrf: getCSRFToken()
+                    }))));
             if (jsonData.code === 0) return true;
             else throw new Error(jsonData.message);
-        }catch(err){
+        } catch (err) {
             log(err);
             return false;
         } finally {
@@ -255,20 +262,20 @@
         try {
             const jsonData = await (await fetch(
                 getPostRequest(getRenameGroupURL(),
-                new URLSearchParams({
-                    tagid,
-                    name: tagname,
-                    csrf: getCSRFToken()
-            }))));
+                    new URLSearchParams({
+                        tagid,
+                        name: tagname,
+                        csrf: getCSRFToken()
+                    }))));
             if (jsonData.code === 0) return true;
             else throw new Error(jsonData.message);
-        }catch(err){
+        } catch (err) {
             log(err);
             return false;
         } finally {
             await cacheGroupList();
             CacheManager.save();
-            await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+            await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
             resetInfoBar();
         }
     }
@@ -277,19 +284,19 @@
         try {
             const jsonData = await (await fetch(
                 getPostRequest(getRemoveGroupURL(),
-                new URLSearchParams({
-                    tagid,
-                    csrf: getCSRFToken()
-            }))));
+                    new URLSearchParams({
+                        tagid,
+                        csrf: getCSRFToken()
+                    }))));
             if (jsonData.code === 0) return true;
             else throw new Error(jsonData.message);
-        }catch(err){
+        } catch (err) {
             log(err);
             return false;
         } finally {
             await cacheGroupList();
             CacheManager.save();
-            await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+            await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
             resetInfoBar();
         }
     }
@@ -299,11 +306,11 @@
         try {
             const jsonData = await (await fetch(
                 getPostRequest(getMoveToGroupURL(),
-                new URLSearchParams({
-                    fids: uids.join(','),
-                    tagids: tagids.join(','),
-                    csrf: getCSRFToken()
-            }))).json());
+                    new URLSearchParams({
+                        fids: uids.join(','),
+                        tagids: tagids.join(','),
+                        csrf: getCSRFToken()
+                    }))).json());
             if (jsonData.code === 0) {
                 for (let uid of uids) {
                     const u = parseInt(uid);
@@ -315,12 +322,12 @@
                     } else {
                         //TODO: need reload
                     }
-                    targetUser.tag = tagids.map(i=>parseInt(i))
+                    targetUser.tag = tagids.map(i => parseInt(i))
                 }
                 return true;
             }
             else throw new Error(jsonData.message);
-        }catch(err){
+        } catch (err) {
             log(err);
             return false;
         }
@@ -330,12 +337,12 @@
         try {
             const jsonData = await (await fetch(
                 getPostRequest(getCopyToGroupURL(),
-                new URLSearchParams({
-                    fids: uids.join(','),
-                    tagids: tagids.join(','),
-                    csrf: getCSRFToken()
-            }))).json());
-            log(jsonData,jsonData.code,jsonData.code===0);//TODO:BUG
+                    new URLSearchParams({
+                        fids: uids.join(','),
+                        tagids: tagids.join(','),
+                        csrf: getCSRFToken()
+                    }))).json());
+            log(jsonData, jsonData.code, jsonData.code === 0);//TODO:BUG
             if (jsonData.code == 0) {
                 for (let uid of uids) {
                     const u = parseInt(uid);
@@ -351,7 +358,7 @@
                         const tag = [];
                         for (const tid of [...targetUser.tag, ...tagids]) {
                             const ntid = parseInt(tid);
-                            if(!tag.includes(ntid)) tag.push(ntid)
+                            if (!tag.includes(ntid)) tag.push(ntid)
                         }
                         return tag;
                     })()
@@ -359,7 +366,7 @@
                 return true;
             }
             else throw new Error(jsonData.message);
-        }catch(err){
+        } catch (err) {
             log(err);
             return false;
         }
@@ -380,7 +387,9 @@
     }
     const getLatestVideoPublishDate = async uid => {
         try {
-            const jsonData = await (await fetch(getRequest(getLatestVidURL(uid)))).json();
+            const jsonData = await (await fetch(getRequest(getLatestVidURL() + "?" + await getWbiSignedParams({
+                mid: uid, ps: 1, pn: 1
+            })))).json();
             if (jsonData && jsonData.code === 0) {
                 if (
                     jsonData.data
@@ -388,77 +397,77 @@
                 ) {
                     let mostCates = "";
                     if (jsonData.data.list.tlist.length !== 0) {
-                        let max = 0, name="";
-                        for(let itemname of Object.keys(jsonData.data.list.tlist)){
+                        let max = 0, name = "";
+                        for (let itemname of Object.keys(jsonData.data.list.tlist)) {
                             const item = jsonData.data.list.tlist[itemname];
-                            if(item.count>max){
+                            if (item.count > max) {
                                 max = item.count;
-                                name= item.name;
-                            }else if(item.count===max){
-                                name+= "、"+item.name;
+                                name = item.name;
+                            } else if (item.count === max) {
+                                name += "、" + item.name;
                             }
                         }
                         mostCates = name;
                     }
                     if (jsonData.data.list.vlist.length === 0) {
-                        return {ok: false,mostCates:mostCates}
+                        return { ok: false, mostCates: mostCates }
                     }
                     const vid = jsonData.data.list.vlist[0];
-                    return {ok: true, value: vid.created,vinfo: {aid:vid.aid,title:vid.title,pic:vid.pic,play:vid.play},mostCates:mostCates}
+                    return { ok: true, value: vid.created, vinfo: { aid: vid.aid, title: vid.title, pic: vid.pic, play: vid.play }, mostCates: mostCates }
                 } else {
-                    return {ok: false}
+                    return { ok: false }
                 }
             } else {
-                return {ok: false}
+                return { ok: false }
             }
         } catch (e) {
-            log(uid,e)
-            return {ok: false}
+            log(uid, e)
+            return { ok: false }
         }
     };
-    const getTypeNameFromDynamicTypeID = (id,fallback='?') => {
+    const getTypeNameFromDynamicTypeID = (id, fallback = '?') => {
         switch (+id) {
             case 1:
-                return mdi('share')+"转发动态";
+                return mdi('share') + "转发动态";
             case 2:
-                return mdi('image-multiple')+"相册图片";
+                return mdi('image-multiple') + "相册图片";
             case 4:
                 return mdi('text');//文字动态
             case 8:
-                return mdi('youtube')+"视频投稿";
+                return mdi('youtube') + "视频投稿";
             case 16:
-                return mdi('video-box')+"小视频";
+                return mdi('video-box') + "小视频";
             case 64:
-                return mdi('newspaper-variant-outline')+"专栏文章";
+                return mdi('newspaper-variant-outline') + "专栏文章";
             case 128:
                 return fallback;
             case 256:
-                return mdi('playlist-music')+"音频投稿";
+                return mdi('playlist-music') + "音频投稿";
             case 512:
-                return mdi('filmstrip-box-multiple')+"番剧更新";
+                return mdi('filmstrip-box-multiple') + "番剧更新";
             case 1024:
                 return fallback;
             case 2048:
-                return mdi('playlist-play')+"歌单分享";
+                return mdi('playlist-play') + "歌单分享";
             case 4300:
-                return mdi('playlist-star')+"收藏夹";
+                return mdi('playlist-star') + "收藏夹";
             default: return fallback;
         }
     }
     const getContentFromDynamic = (card) => {
         if (!card) return '无法解析内容(空内容)';
         if (card.item?.content) return card.item.content;
-        if (card.aid) return 'av'+card.aid+' | <b>'+card.title + "</b><br>简介: " + card.desc;
+        if (card.aid) return 'av' + card.aid + ' | <b>' + card.title + "</b><br>简介: " + card.desc;
         if (card.item?.pictures) return card.item.pictures_count + '张图片';
         if (card.origin) return `转发自${card?.user?.uname}: ${card.item?.content}`;
         if (card.item?.description) return card.item.description;
-        if(card.summary) return `cv${card.id} | <b>${card.title}</b><br>简介: ${card.summary}`
+        if (card.summary) return `cv${card.id} | <b>${card.title}</b><br>简介: ${card.summary}`
         return '无法解析内容(未知特征)';
     }
-    const parseDynamic = (d)=>{
+    const parseDynamic = (d) => {
         const dynamic = {
             id: d.desc.dynamic_id_str,
-            sender:d.desc.user_profile,
+            sender: d.desc.user_profile,
             like: d.desc.like,
             comment: d.desc.comment,
             repost: d.desc.repost,
@@ -469,9 +478,9 @@
             origin: (d.desc.orig_dy_id && d.desc.orig_dy_id !== 0) ? (
                 d.card.origin = JSON.parse(d.card.origin),
                 getContentFromDynamic(d.card.origin)
-            ):null,
-            istop: d.extra.is_space_top===1,
-            isrepost: d.desc.orig_dy_id&&d.desc.orig_dy_id!==0,
+            ) : null,
+            istop: d.extra.is_space_top === 1,
+            isrepost: d.desc.orig_dy_id && d.desc.orig_dy_id !== 0,
             publisher: d.desc.orig_dy_id ? (d.desc.orig_dy_id === 0 ? d.card.user : d.card.origin_user.info) : d.card.user,
             prefix: getTypeNameFromDynamicTypeID(d.desc.type),
             origprefix: getTypeNameFromDynamicTypeID(d.desc.orig_type)
@@ -480,26 +489,26 @@
     }
     const getDynamic = async uid => {
         try {
-            const jsonData = await (await fetch(getRequest(getDynamicURL(datas.self,uid)))).json();
+            const jsonData = await (await fetch(getRequest(getDynamicURL(datas.self, uid)))).json();
             if (jsonData && jsonData.code === 0) {
                 const data = jsonData.data.cards;
                 const dynamics = {
-                    top:null,
-                    next:null,
+                    top: null,
+                    next: null,
                 }
-                if(!data || data.length === 0) {
+                if (!data || data.length === 0) {
                     return dynamics;
                 }
                 let d = data.shift();
                 d.card = JSON.parse(d.card);
                 let obj = parseDynamic(d);
-                if(obj.istop){
+                if (obj.istop) {
                     dynamics.top = obj;
                     let nd = data.shift();
                     nd.card = JSON.parse(nd.card);
                     let nobj = parseDynamic(nd);
                     dynamics.next = nobj;
-                }else{
+                } else {
                     dynamics.next = obj;
                 }
                 return dynamics;
@@ -512,9 +521,9 @@
             return null;
         }
     }
-    const getUserStats = async (uid, withraw=false) => {
+    const getUserStats = async (uid, withraw = false) => {
         try {
-            const jsonData = await (await fetch(getRequest(getUInfoURL(uid)))).json();
+            const jsonData = await (await fetch(getRequest(getUInfoURL()+"?"+await getWbiSignedParams({mid:uid})))).json();
             if (jsonData && jsonData.code === 0) {
                 const udata = jsonData.data;
                 const parsedData = {
@@ -527,29 +536,29 @@
                     sign: udata.sign,
                     cates: udata.tags,
                     lives: udata.live_room,
-                    official_verify: udata.official_verify??udata.official,
+                    official_verify: udata.official_verify ?? udata.official,
                 };
-                if(withraw){
-                    return Object.assign({},udata,parsedData);
+                if (withraw) {
+                    return Object.assign({}, udata, parsedData);
                 }
                 return parsedData
             }
         } catch (e) {
-
+            log("UINFO failed:",e.message)
         }
-        return {ok: false}
+        return { ok: false }
     }
-    const fillUserStatus = async (uid, refresh=false) => {
+    const fillUserStatus = async (uid, refresh = false) => {
         setInfoBar(`正在为${uid}填充用户信息`)
         uid = parseInt(uid);
-        if(datas.mappings[uid]&&datas.mappings[uid].filled){
-            log(uid,"already filled")
+        if (datas.mappings[uid] && datas.mappings[uid].filled) {
+            log(uid, "already filled")
             resetInfoBar();
             return datas.mappings[uid];
         }
-        const userinfo = await getUserStats(uid,refresh);
+        const userinfo = await getUserStats(uid, refresh);
         if (userinfo.ok) {
-            if(refresh) datas.mappings[uid] = userinfo;
+            if (refresh) datas.mappings[uid] = userinfo;
             datas.mappings[uid].level = userinfo.level;
             datas.mappings[uid].banned = userinfo.banned;
             datas.mappings[uid].RIP = userinfo.RIP;
@@ -561,12 +570,12 @@
             datas.mappings[uid].filled = true;
             if (!userinfo.banned && !userinfo.RIP) {
                 const lastUpdate = await getLatestVideoPublishDate(uid);
-                log(uid,lastUpdate)
+                log(uid, lastUpdate)
                 if (lastUpdate.ok) {
                     datas.mappings[uid].lastUpdate = lastUpdate.value;
                     datas.mappings[uid].lastUpdateInfo = lastUpdate.vinfo;
                 }
-                if(lastUpdate.mostCates) datas.mappings[uid].mostCates = lastUpdate.mostCates;
+                if (lastUpdate.mostCates) datas.mappings[uid].mostCates = lastUpdate.mostCates;
             }
             log(uid, datas.mappings[uid]);
         } else {
@@ -576,68 +585,68 @@
         return datas.mappings[uid];
     }
     const RELE_ACTION = {
-        FOLLOW:1,
-        UNFOLLOW:2,
-        WHISPER:3,
-        UNWHISPER:4,
-        BLOCK:5,
-        UNBLOCK:6,
-        KICKFANS:7
+        FOLLOW: 1,
+        UNFOLLOW: 2,
+        WHISPER: 3,
+        UNWHISPER: 4,
+        BLOCK: 5,
+        UNBLOCK: 6,
+        KICKFANS: 7
     }
     const batchOperateUser = async (uids = [], actCode) => {
-        if (uids.length === 0) return {ok: false, res: "UIDS is empty"};
-        if(!Object.values(RELE_ACTION).includes(actCode)){
-            if(Object.keys(RELE_ACTION).includes(actCode)){
+        if (uids.length === 0) return { ok: false, res: "UIDS is empty" };
+        if (!Object.values(RELE_ACTION).includes(actCode)) {
+            if (Object.keys(RELE_ACTION).includes(actCode)) {
                 actCode = RELE_ACTION[actCode];
-            }else{
-                return {ok: false, res: "Unknown action code"};
+            } else {
+                return { ok: false, res: "Unknown action code" };
             }
         }
         const act = actCode;
-        log("Batch Operating with Action Code",act);
-        const operate = async(_uids,_act)=>{
+        log("Batch Operating with Action Code", act);
+        const operate = async (_uids, _act) => {
             try {
                 const jsonData = await (await fetch(getPostRequest(getFollowURL(), new URLSearchParams(`fids=${_uids.join(',')}&act=${_act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
-                if (jsonData && jsonData.code === 0) return {ok: true, uids, res: ""};
-                return {ok: false, uids, res: jsonData.message, data: jsonData.data};
+                if (jsonData && jsonData.code === 0) return { ok: true, uids, res: "" };
+                return { ok: false, uids, res: jsonData.message, data: jsonData.data };
             } catch (e) {
-                return {ok: false, uids, res: e.message};
+                return { ok: false, uids, res: e.message };
             }
         }
         const list = [...uids];
-        const results = {ok:true,uids,res:"",data:{failed_fids:[],failed_results:[]}};//failed_fids
-        if(list.length>50) log("WARNING: Operating with more than 50 items, it may cause some issues.");
-        while(list.length){
-            const currents = list.splice(0,50);
-            const result = await operate(currents,act);
-            if(!result.ok){
+        const results = { ok: true, uids, res: "", data: { failed_fids: [], failed_results: [] } };//failed_fids
+        if (list.length > 50) log("WARNING: Operating with more than 50 items, it may cause some issues.");
+        while (list.length) {
+            const currents = list.splice(0, 50);
+            const result = await operate(currents, act);
+            if (!result.ok) {
                 results.ok = false;
-                results.res="部分请求出现错误";
+                results.res = "部分请求出现错误";
                 results.data.failed_fids.concat(result.data.failed_fids);
                 results.data.failed_results.push(result);
             }
         }
-        log("Results:",results);
+        log("Results:", results);
         return results;
     }
-    const convertToWhisper = async (uids)=>{
-        log("Unfollowing",uids);
-        let unfo = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNFOLLOW):await batchOperateUser(uids,RELE_ACTION.UNFOLLOW);
-        log("Unfollowed:",unfo);
-        if(!unfo.ok) return unfo;
-        log("Whispering",uids);
-        let whis = uids.length===1?await operateUser(uids[0],RELE_ACTION.WHISPER):await batchOperateUser(uids,RELE_ACTION.WHISPER);
-        log("Whispered:",whis);
+    const convertToWhisper = async (uids) => {
+        log("Unfollowing", uids);
+        let unfo = uids.length === 1 ? await operateUser(uids[0], RELE_ACTION.UNFOLLOW) : await batchOperateUser(uids, RELE_ACTION.UNFOLLOW);
+        log("Unfollowed:", unfo);
+        if (!unfo.ok) return unfo;
+        log("Whispering", uids);
+        let whis = uids.length === 1 ? await operateUser(uids[0], RELE_ACTION.WHISPER) : await batchOperateUser(uids, RELE_ACTION.WHISPER);
+        log("Whispered:", whis);
         return whis;
     }
-    const convertToFollow = async (uids)=>{
-        log("Unwhispering",uids);
-        let unwh = uids.length===1?await operateUser(uids[0],RELE_ACTION.UNWHISPER):await batchOperateUser(uids,RELE_ACTION.UNWHISPER);
-        log("Unwhispered:",unwh);
-        if(!unwh.ok) return unwh;
-        log("Following",uids);
-        let foll = uids.length===1?await operateUser(uids[0],RELE_ACTION.FOLLOW):await batchOperateUser(uids,RELE_ACTION.FOLLOW);
-        log("Followed:",foll);
+    const convertToFollow = async (uids) => {
+        log("Unwhispering", uids);
+        let unwh = uids.length === 1 ? await operateUser(uids[0], RELE_ACTION.UNWHISPER) : await batchOperateUser(uids, RELE_ACTION.UNWHISPER);
+        log("Unwhispered:", unwh);
+        if (!unwh.ok) return unwh;
+        log("Following", uids);
+        let foll = uids.length === 1 ? await operateUser(uids[0], RELE_ACTION.FOLLOW) : await batchOperateUser(uids, RELE_ACTION.FOLLOW);
+        log("Followed:", foll);
         return foll;
     }
     // CSDN https://blog.csdn.net/namechenfl/article/details/91968396
@@ -657,31 +666,31 @@
         return param;
     }
     const operateUser = async (uid, actCode) => {
-        if(!Object.values(RELE_ACTION).includes(actCode)){
-            if(Object.keys(RELE_ACTION).includes(actCode)){
+        if (!Object.values(RELE_ACTION).includes(actCode)) {
+            if (Object.keys(RELE_ACTION).includes(actCode)) {
                 actCode = RELE_ACTION[actCode];
-            }else{
-                return {ok: false, res: "Unknown action code"};
+            } else {
+                return { ok: false, res: "Unknown action code" };
             }
         }
         const act = actCode;
-        log("Operating with Action Code",act);
+        log("Operating with Action Code", act);
         try {
             const jsonData = await (await fetch(getPostRequest(getUnfolURL(), new URLSearchParams(`fid=${uid}&act=${act}&re_src=11&jsonp=jsonp&csrf=${getCSRFToken()}`)))).json()
-            if (jsonData && jsonData.code === 0) return {ok: true, uid, res: ""};
-            return {ok: false, uid, res: jsonData.message};
+            if (jsonData && jsonData.code === 0) return { ok: true, uid, res: "" };
+            return { ok: false, uid, res: jsonData.message };
         } catch (e) {
-            return {ok: false, uid, res: e.message};
+            return { ok: false, uid, res: e.message };
         }
     }
-    const unfollowUser = async (uid,iswhisper=false) => {
+    const unfollowUser = async (uid, iswhisper = false) => {
         try {
-            if(datas.isSelf){
-                iswhisper = datas.mappings[uid].attribute===1 || datas.mappings[uid].isWhisper;
+            if (datas.isSelf) {
+                iswhisper = datas.mappings[uid].attribute === 1 || datas.mappings[uid].isWhisper;
             }
-            return operateUser(uid,iswhisper?RELE_ACTION.UNWHISPER:RELE_ACTION.UNFOLLOW);
+            return operateUser(uid, iswhisper ? RELE_ACTION.UNWHISPER : RELE_ACTION.UNFOLLOW);
         } catch (e) {
-            return {ok: false, uid, res: e.message};
+            return { ok: false, uid, res: e.message };
         }
     }
     const unfollowUsers = async uids => {
@@ -716,7 +725,7 @@
                         datas.fetchstat = "GUEST-LIMIT";
                         throw "Not the owner of uid " + uid;
                     }
-                    if(jsonData.code === 22115) {
+                    if (jsonData.code === 22115) {
                         retry = -1;
                         datas.fetchstat = "PERMS-DENIED";
                         throw "Permission denied.";
@@ -724,21 +733,21 @@
                 }
                 log("Unexcept fetch result", "retry:", retry, "uid:", uid, "p:", page, "data", jsonData)
             } catch (e) {
-                if(datas.fetchstat==="OK")datas.fetchstat = "ERRORED";
+                if (datas.fetchstat === "OK") datas.fetchstat = "ERRORED";
                 log("Errored while fetching followings", "retry:", retry, "uid:", uid, "p:", page, "e:", e);
             }
         }
         return null;
     }
     const fetchWhisperFollowings = async (uid, page = 1) => {
-        if(!datas.isSelf) return null;
+        if (!datas.isSelf) return null;
         let retry = cfg.retrial;
         while (retry-- > 0) {
             try {
                 const jsonData = await (await fetch(getRequest(getWhispersURL(page)))).json();
                 if (jsonData) {
                     if (jsonData.code === 0) {
-                        for(let item of jsonData.data.list){
+                        for (let item of jsonData.data.list) {
                             item.isWhisper = true;
                         }
                         return jsonData;
@@ -748,7 +757,7 @@
                         datas.fetchstat = "GUEST-LIMIT";
                         throw "Not the owner of uid " + uid;
                     }
-                    if(jsonData.code === 22115) {
+                    if (jsonData.code === 22115) {
                         retry = -1;
                         datas.fetchstat = "PERMS-DENIED";
                         throw "Permission denied.";
@@ -756,7 +765,7 @@
                 }
                 log("Unexcept fetch result", "retry:", retry, "uid:", uid, "p:", page, "data", jsonData)
             } catch (e) {
-                if(datas.fetchstat==="OK")datas.fetchstat = "ERRORED";
+                if (datas.fetchstat === "OK") datas.fetchstat = "ERRORED";
                 log("Errored while fetching followings", "retry:", retry, "uid:", uid, "p:", page, "e:", e);
             }
         }
@@ -767,8 +776,8 @@
             log("Task canceled due to busy");
             return;
         }
-        log("Fetching followings with param force =",force?"true":"false");
-        cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注`;
+        log("Fetching followings with param force =", force ? "true" : "false");
+        cfg.infobarTemplate = () => `共读取 ${datas.fetched} 条关注`;
         datas.status = 1;
         datas.checked = [];
         let currentPageNum = 1;
@@ -777,19 +786,19 @@
         datas.currUid = uid;
         datas.self = self;
         if (self === -1) {
-            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
+            if (!cfg.I_KNOW_WHAT_IM_DOING) alertModal("没有登录", "你没有登录，部分功能可能无法正常工作。", "确定");
             log("Not login");
         } else if (self === 0) {
-            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
+            if (!cfg.I_KNOW_WHAT_IM_DOING) alertModal("获取当前用户信息失败", "无法得知当前页面是否为你的个人空间，因此部分功能可能无法正常工作。", "确定");
             log("Failed fetch current user");
         } else if (self + "" !== uid) {
-            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
+            if (!cfg.I_KNOW_WHAT_IM_DOING) alertModal("他人的关注列表", "这不是你的个人空间，因此获取的关注列表也不是你的列表。<br>非本人关注列表最多显示前250个关注。<br>你仍然可以对其进行筛选，但是不能进行操作。", "确定");
             log("Other's space.");
         } else if (self + "" === uid) {
             datas.isSelf = true;
         }
-        unsafeWindow.FoMan_CurrentUser = ()=>createUserInfoCardFromOthers(datas.currUid);
-        cfg.titleTemplate = ()=>`<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug?"debug":""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf?"(你)":`(${document.title.replace("的个人空间_哔哩哔哩_bilibili","").replace("的个人空间_哔哩哔哩_Bilibili","")})`} <a href='javascript:void(0)' onclick='FoMan_CurrentUser()'>👁️‍🗨️</a></span></small></h1>`
+        unsafeWindow.FoMan_CurrentUser = () => createUserInfoCardFromOthers(datas.currUid);
+        cfg.titleTemplate = () => `<h1>关注管理器 <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""} ${datas.settings.enableExpermentals ? "!" : ""} <span style="color:grey;font-size:x-small;margin-right:12px;float:right">当前展示: UID:${datas.currUid} ${datas.isSelf ? "(你)" : `(${document.title.replace("的个人空间_哔哩哔哩_bilibili", "").replace("的个人空间_哔哩哔哩_Bilibili", "")})`} <a href='javascript:void(0)' onclick='FoMan_CurrentUser()'>👁️‍🗨️</a></span></small></h1>`
         setTitle();
         let needreload = force || !CacheManager.load();
         const currInfo = await getCurrSubStat(uid);
@@ -797,8 +806,8 @@
             if (force === false && datas.currInfo.following === currInfo.following && datas.currInfo.whisper === currInfo.whisper) {
                 if (datas.fetched > 0)
                     needreload = false;
-            } else if(!needreload && (datas.currInfo.following !== currInfo.following || datas.currInfo.whisper !== currInfo.whisper)){
-                alertModal("自动重新加载","检测到数据变化，已经自动重新加载。","确定");
+            } else if (!needreload && (datas.currInfo.following !== currInfo.following || datas.currInfo.whisper !== currInfo.whisper)) {
+                alertModal("自动重新加载", "检测到数据变化，已经自动重新加载。", "确定");
                 needreload = true;
             }
         }
@@ -827,13 +836,13 @@
                 });
                 setInfoBar(`正在查询关注数据：已获取 ${datas.fetched} 条数据`);
             }
-            log("isSelf? ",datas.isSelf);
-            if(datas.isSelf){
+            log("isSelf? ", datas.isSelf);
+            if (datas.isSelf) {
                 setInfoBar(`正在查询悄悄关注数据`);
-                let whisperPageNum =1;
+                let whisperPageNum = 1;
                 let fetched = 0;
                 const whisperPages = Math.floor(datas.currInfo.whisper / 50) + (datas.currInfo.whisper % 50 ? 1 : 0);
-                for(; whisperPageNum<=whisperPages;whisperPageNum++){
+                for (; whisperPageNum <= whisperPages; whisperPageNum++) {
                     const currentData = await fetchWhisperFollowings(whisperPageNum);
                     log(currentData);
                     if (!currentData) break;
@@ -846,16 +855,16 @@
                 }
             }
             CacheManager.save();
-        }else{
+        } else {
             log("Using last result.");
-            cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注(缓存,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`
+            cfg.infobarTemplate = () => `共读取 ${datas.fetched} 条关注(缓存,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`
             setInfoBar("使用上次数据");
         }
         datas.status = 2;
         log("fetch completed.");
         autoCacheCleaner();
     }
-    const autoCacheCleaner = (force=false) => {
+    const autoCacheCleaner = (force = false) => {
         let size = CacheManager.getSize();
         if (force || size >= 2) {
             setInfoBar("正在整理缓存空间...");
@@ -871,127 +880,127 @@
             resetInfoBar();
         }
     }
-    unsafeWindow.FoManCleaner = (force=false)=>autoCacheCleaner(force);
+    unsafeWindow.FoManCleaner = (force = false) => autoCacheCleaner(force);
     const CacheProvider = {
         storage: window.localStorage,
         prefix: "Unfollow_",
-        expire: 1000*60*60*2,
-        getKey:(key)=>CacheProvider.prefix+key,
-        valueWrapper: (value='',no=false)=>{
+        expire: 1000 * 60 * 60 * 2,
+        getKey: (key) => CacheProvider.prefix + key,
+        valueWrapper: (value = '', no = false) => {
             log(JSON.stringify({
-                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                et: no ? (new Date('2999/1/1')).getTime() : (new Date()).getTime() + CacheProvider.expire,
                 vl: value
             }));
             return JSON.stringify({
-                et: no?(new Date('2999/1/1')).getTime():(new Date()).getTime()+CacheProvider.expire,
+                et: no ? (new Date('2999/1/1')).getTime() : (new Date()).getTime() + CacheProvider.expire,
                 vl: value
             });
         },
-        getValue: (value="{}",key=null,noprefix=false)=>{
-            try{
+        getValue: (value = "{}", key = null, noprefix = false) => {
+            try {
                 const itemArc = JSON.parse(value);
-                if(itemArc.hasOwnProperty('et')&&itemArc.et>=(new Date()).getTime()){
+                if (itemArc.hasOwnProperty('et') && itemArc.et >= (new Date()).getTime()) {
                     return itemArc.vl;
                 }
-                if(key)CacheProvider.del(key,noprefix);
+                if (key) CacheProvider.del(key, noprefix);
                 return null;
-            }catch(e){
-                if(key)CacheProvider.del(key,noprefix);
+            } catch (e) {
+                if (key) CacheProvider.del(key, noprefix);
                 return null;
             }
         },
-        list: ()=>Object.keys(CacheProvider.storage).filter(el=>el.startsWith(CacheProvider.prefix)),
-        has: (key,noprefix=false)=>{
-            if(!noprefix){
+        list: () => Object.keys(CacheProvider.storage).filter(el => el.startsWith(CacheProvider.prefix)),
+        has: (key, noprefix = false) => {
+            if (!noprefix) {
                 key = CacheProvider.getKey(key);
             }
-            return CacheProvider.storage.getItem(key)===null;
+            return CacheProvider.storage.getItem(key) === null;
         },
-        valid: (key,noprefix=false)=>{
-            if(!noprefix){
+        valid: (key, noprefix = false) => {
+            if (!noprefix) {
                 key = CacheProvider.getKey(key);
             }
-            if(CacheProvider.has(key,true)){
+            if (CacheProvider.has(key, true)) {
                 const value = CacheProvider.storage.getItem(key);
-                return CacheProvider.getValue(value,key,true)!==null;
-            }else return false;
+                return CacheProvider.getValue(value, key, true) !== null;
+            } else return false;
         },
-        set: (key,val,noexpire=false,noprefix = false)=>{
-            if(!noprefix){
+        set: (key, val, noexpire = false, noprefix = false) => {
+            if (!noprefix) {
                 key = CacheProvider.getKey(key);
             }
-            CacheProvider.storage.setItem(key,CacheProvider.valueWrapper(val,noexpire));
+            CacheProvider.storage.setItem(key, CacheProvider.valueWrapper(val, noexpire));
         },
-        get: (key,fallback=null,noprefix=false)=>{
-            if(!noprefix){
+        get: (key, fallback = null, noprefix = false) => {
+            if (!noprefix) {
                 key = CacheProvider.getKey(key);
             }
             const result = CacheProvider.storage.getItem(key);
-            log('Cache-get-with-key',key,result);
-            if(result===null) return fallback;
-            log('Cache-get-parsed-value',key,CacheProvider.getValue(result,key,true));
-            return CacheProvider.getValue(result,key,true);
+            log('Cache-get-with-key', key, result);
+            if (result === null) return fallback;
+            log('Cache-get-parsed-value', key, CacheProvider.getValue(result, key, true));
+            return CacheProvider.getValue(result, key, true);
         },
-        del: (key,noprefix=false)=>{
-            if(!noprefix){
+        del: (key, noprefix = false) => {
+            if (!noprefix) {
                 key = CacheProvider.getKey(key);
             }
             delete CacheProvider.storage[key];
         },
-        prune: ()=>{
+        prune: () => {
             const count = {
-                valid:0,expired:0
+                valid: 0, expired: 0
             };
-            CacheProvider.list().forEach(it=>{
-                if(!it) return;
-                if(CacheProvider.valid(it,true)){
+            CacheProvider.list().forEach(it => {
+                if (!it) return;
+                if (CacheProvider.valid(it, true)) {
                     count.valid++;
-                }else{
+                } else {
                     count.expired++;
                 }
             })
             return;
         },
         getSize: (filter = (key) => key.startsWith(CacheProvider.prefix)) => {
-            const sum = (...args)=>args.reduce((a,b)=>a+b,0);
-            return sum(...Object.keys(CacheProvider.storage).filter(filter).map(it=>CacheProvider.storage.getItem(it).length));
+            const sum = (...args) => args.reduce((a, b) => a + b, 0);
+            return sum(...Object.keys(CacheProvider.storage).filter(filter).map(it => CacheProvider.storage.getItem(it).length));
         }
     }
     const CacheManager = {
         version: 1,
-        save:(uid=datas.currUid)=>{
-            const {total,fetched,pages,followings,tags,currInfo} = datas;
+        save: (uid = datas.currUid) => {
+            const { total, fetched, pages, followings, tags, currInfo } = datas;
             const tagclone = {};
-            for(let tn of Object.keys(tags)){
-                tagclone[tn+''] = tags[tn];
+            for (let tn of Object.keys(tags)) {
+                tagclone[tn + ''] = tags[tn];
             }
             /*log({
                 total,fetched,pages,followings,mappings,tagclone,currInfo
             });*/
-            CacheProvider.set(`cache_${uid}`,{
-                total,fetched,pages,followings,tagclone,currInfo,cacheVersion:CacheManager.version
+            CacheProvider.set(`cache_${uid}`, {
+                total, fetched, pages, followings, tagclone, currInfo, cacheVersion: CacheManager.version
             });
         },
-        load:(uid=datas.currUid)=>{
-            if(!datas.isSelf) return false;
+        load: (uid = datas.currUid) => {
+            if (!datas.isSelf) return false;
             const cached = CacheProvider.get(`cache_${uid}`);
-            if(cached===null) return false;
-            else{
+            if (cached === null) return false;
+            else {
                 const { total, fetched, pages, followings, tagclone, currInfo } = cached;
                 if (!cached.cacheVersion || cached.cacheVersion < CacheManager.version) {
                     CacheProvider.del(`cache_${uid}`);
                     return false;
                 }
                 const tags = {};
-                for(let tn of Object.keys(tagclone)){
+                for (let tn of Object.keys(tagclone)) {
                     tags[parseInt(tn)] = tagclone[tn];
                 }
                 const mappings = {};
                 for (const follow of followings) {
                     mappings[+follow.mid] = follow;
                 }
-                const cdata = {total,fetched,pages,followings,mappings,tags,currInfo};
-                for(let n of Object.keys(cdata)){
+                const cdata = { total, fetched, pages, followings, mappings, tags, currInfo };
+                for (let n of Object.keys(cdata)) {
                     datas[n] = cdata[n];
                 }
                 return true;
@@ -999,28 +1008,28 @@
         },
         prune: () => {
             CacheProvider.prune();
-            try{
+            try {
                 CacheProvider.list().forEach(el => {
                     const value = CacheProvider.get(el, null, true);
-                    if (!value.cacheVersion||value.cacheVersion < CacheManager.version) CacheProvider.del(el, true);
+                    if (!value.cacheVersion || value.cacheVersion < CacheManager.version) CacheProvider.del(el, true);
                 });
                 return true;
-            }catch(e){
+            } catch (e) {
                 log(e);
                 return false;
             }
         },
-        clean:()=>{
-            try{
-                CacheProvider.list().forEach(el=>CacheProvider.del(el,true));
+        clean: () => {
+            try {
+                CacheProvider.list().forEach(el => CacheProvider.del(el, true));
                 return true;
-            }catch(e){
+            } catch (e) {
                 log(e);
                 return false;
             }
         },
         getSize: () => {
-            return (CacheProvider.getSize()/1024/1024).toFixed(2);
+            return (CacheProvider.getSize() / 1024 / 1024).toFixed(2);
         }
     }
     const clearStyles = (className = "CKFOMAN") => {
@@ -1044,9 +1053,9 @@
         style.innerHTML = s;
         document.body.appendChild(style);
     }
-    const setTitle = (val = null)=>{
+    const setTitle = (val = null) => {
         const title = get("#CKFOMAN-titledom");
-        if(val!=null) title.innerHTML = val;
+        if (val != null) title.innerHTML = val;
         else title.innerHTML = cfg.titleTemplate();
     }
     const getFloatWindow = () => {
@@ -1179,12 +1188,12 @@
         const closebtn = document.createElement("div");
         closebtn.innerHTML = `<i class="mdi mdi-18px mdi-close"></i>`
         closebtn.style.float = "right";
-        closebtn.style.color = (getBgColor()==="white")?"black":"white";
+        closebtn.style.color = (getBgColor() === "white") ? "black" : "white";
         closebtn.onclick = hidePanel;
         win.appendChild(closebtn);
 
         const titleText = document.createElement("div");
-        titleText.id="CKFOMAN-titledom";
+        titleText.id = "CKFOMAN-titledom";
         titleText.innerHTML = cfg.titleTemplate();
         win.appendChild(titleText);
 
@@ -1421,13 +1430,13 @@
         //unsafeWindow.postMessage(`CKFOMANSTATUSCHANGES|${mid}|${status ? 1 : 0}`)
     }
     const isAliasPluginInstalled = () => unsafeWindow.FoManPlugins?.UpAlias ?? false;
-    const getAliasPlugin = ()=>unsafeWindow.FoManPlugins.UpAlias;
+    const getAliasPlugin = () => unsafeWindow.FoManPlugins.UpAlias;
     const upinfoline = async data => {
         let invalid = isInvalid(data);
         let info = datas.mappings[parseInt(data.mid)] || {};
         return await makeDom("li", async item => {
             item.className = "CKFOMAN-data-inforow";
-            if(datas.settings.lazyRenderForList)item.style.contentVisibility = "auto";
+            if (datas.settings.lazyRenderForList) item.style.contentVisibility = "auto";
             item.onclick = e => {
                 if (e.target.classList.contains("CKFOMAN-data-inforow-name")) {
                     //open("https://space.bilibili.com/" + data.mid);
@@ -1493,7 +1502,7 @@
                     name.style.textDecoration = "line-through 3px red";
                 } else {
                     name.style.fontWeight = "bold";
-                    if (data.isWhisper === true || data.attribute=== 1) {
+                    if (data.isWhisper === true || data.attribute === 1) {
                         name.innerHTML = `<i class="mdi mdi-18px mdi-eye-off" style="vertical-align: middle;color:gray!important" title="悄悄关注"></i>` + name.innerHTML;
                         title += " | 悄悄关注";
                     }
@@ -1585,26 +1594,26 @@
                 }
             }));
             log(info, title);
-            title+= "\n简介: "+data.sign+(data.official_verify.type>-1?"\n认证: "+data.official_verify.desc:"")
+            title += "\n简介: " + data.sign + (data.official_verify.type > -1 ? "\n认证: " + data.official_verify.desc : "")
             item.setAttribute("title", title);
         });
     }
-    const taginfoline = (data,clickCallback=()=>{},selected = false,showExtras = true,hideOptions = false) => {
+    const taginfoline = (data, clickCallback = () => { }, selected = false, showExtras = true, hideOptions = false) => {
         return makeDom("li", async item => {
             let couldRename = true;
             item.className = "CKFOMAN-data-inforow";
             item.onclick = e => {
-                if(e.path.filter(el=>el.tagName==="BUTTON"||el.tagName==="INPUT").length){
+                if (e.path.filter(el => el.tagName === "BUTTON" || el.tagName === "INPUT").length) {
                     return;
-                }else{
-                    clickCallback(e,data);
+                } else {
+                    clickCallback(e, data);
                 }
             }
             item.setAttribute("data-id", data.tagid);
             item.setAttribute("data-name", data.name);
             item.setAttribute("data-count", data.count);
             item.setAttribute("data-tip", data.tip);
-            if(!hideOptions)item.appendChild(await makeDom("input", toggle => {
+            if (!hideOptions) item.appendChild(await makeDom("input", toggle => {
                 toggle.className = "CKFOMAN-data-inforow-toggle";
                 toggle.type = "checkbox";
                 toggle.checked = selected;
@@ -1612,7 +1621,7 @@
             }));
             item.appendChild(await makeDom("span", name => {
                 name.className = "CKFOMAN-data-inforow-name";
-                switch(data.tagid){
+                switch (data.tagid) {
                     case 0:
                     case '0':
                         couldRename = false;
@@ -1639,26 +1648,26 @@
                 subtime.style.flex = "1";
                 subtime.innerHTML = `包含 ${data.count} 个内容`;
             }));
-            if(showExtras)item.appendChild(await makeDom("button", renamebtn => {
+            if (showExtras) item.appendChild(await makeDom("button", renamebtn => {
                 renamebtn.style.flex = ".4";
                 renamebtn.innerHTML = `更名`;
                 renamebtn.style.height = "23px";
                 renamebtn.style.margin = "0";
                 renamebtn.style.padding = "2px";
                 renamebtn.classList.add("CKFOMAN-toolbar-btns");
-                if(!couldRename){
-                    renamebtn.setAttribute("disabled",true);
+                if (!couldRename) {
+                    renamebtn.setAttribute("disabled", true);
                     renamebtn.classList.add("grey");
                 }
-                renamebtn.onclick = async ()=>{
-                    let newname = prompt("请输入新的分类名字",data.name).trim();
-                    if(newname.length!==0){
-                        if(newname!=data.name){
-                            const result = await renameGroup(data.tagid,newname);
-                            if(result){
-                                await alertModal("分组重命名","分组重命名成功，重新打开窗口以显示修改后的数据。","确定");
-                            }else{
-                                await alertModal("分组重命名","分组重命名完成，但是不能确定结果。请刷新页面，然后查看是否生效。","确定");
+                renamebtn.onclick = async () => {
+                    let newname = prompt("请输入新的分类名字", data.name).trim();
+                    if (newname.length !== 0) {
+                        if (newname != data.name) {
+                            const result = await renameGroup(data.tagid, newname);
+                            if (result) {
+                                await alertModal("分组重命名", "分组重命名成功，重新打开窗口以显示修改后的数据。", "确定");
+                            } else {
+                                await alertModal("分组重命名", "分组重命名完成，但是不能确定结果。请刷新页面，然后查看是否生效。", "确定");
                             }
                         }
                     }
@@ -1711,9 +1720,9 @@
         await wait(300);
         const size = CacheManager.getSize();
         let content = "本地缓存空间已占用 " + size + " MB。";
-        if(size < 1.8){
+        if (size < 1.8) {
             content += "无需处理。定期整理缓存可以减少空间占用。";
-        }else if (size < 2.5) {
+        } else if (size < 2.5) {
             content += "<b>建议整理缓存。</b>";
         } else {
             content += "<b>建议整理或清理缓存以避免缓存空间超出配额。</b>";
@@ -1721,19 +1730,50 @@
         content += "<br><br>FoMan使用本地存储空间保存缓存，本地存储在不同浏览器中有不同的限额，最小的为2.5MB(Opera)，最大的为10MB(Chromium)。请注意此空间非FoMan独占，B站自身和其他插件也会占用此空间，因此建议经常进行整理。";
         content += "<br><br><b>整理缓存</b>仅会清理过期和过时的缓存。<br><br>默认情况下，FoMan存储的缓存有效期为2小时，超过2小时的缓存和数据总数发生变化时都会触发强制放弃缓存重新加载。"
         content += "<br><br><b>清空缓存</b>会清理所有由FoMan产生的缓存。若配额达到上限，或经常查看其他人关注列表，则建议使用此功能。"
-        alertModal("缓存使用说明",content,"确定");
+        alertModal("缓存使用说明", content, "确定");
     }
-    const createUserInfoCardFromOthers = async(uid)=>{
-        if(!uid) return;
+    const enableExpermentalFeaturesModal = async () => {
+        hideModal();
+        openModal("启用实验性功能", await makeDom("div", async container => {
+            [
+                await makeDom("span", span => {
+                    span.innerHTML = "你正在启用实验性功能。<br /><br />实验性功能意味着不稳定、不安全、结果可能非预期，并且有可能导致你的账号出现异常的功能。这些功能默认都是关闭的。<br /><br />如果你打开这些功能，就意味着你决定承担使用这些功能所导致的风险。<br /><br />你可以选择随时关闭实验性功能开关。";
+                }),
+                await makeDom("div", async btns => {
+                    btns.style.display = "flex";
+                    [
+                        await makeDom("button", btn => {
+                            btn.classList.add("CKFOMAN-toolbar-btns", "red");
+                            btn.innerText = "启用";
+                            btn.onclick = () => {
+                                datas.settings.enableExpermentals = true;
+                                hideModal();
+                            }
+                        }),
+                        await makeDom("button", btn => {
+                            btn.classList.add("CKFOMAN-toolbar-btns");
+                            btn.innerText = "禁用";
+                            btn.onclick = () => {
+                                datas.settings.enableExpermentals = false;
+                                hideModal();
+                            }
+                        })
+                    ].forEach(el => btns.appendChild(el));
+                })
+            ].forEach(el => container.appendChild(el));
+        }));
+    }
+    const createUserInfoCardFromOthers = async (uid) => {
+        if (!uid) return;
         const i = await fillUserStatus(uid, true).catch(err => log(err));
         await createUserInfoCard(i, false, true);
     };
-    const createUserInfoCard = async (info, refilldata = true, noactions = false)=>{
-        if(datas.preventUserCard) return;
+    const createUserInfoCard = async (info, refilldata = true, noactions = false) => {
+        if (datas.preventUserCard) return;
         log(info);
-        if(datas.settings.autoExtendInfo){
+        if (datas.settings.autoExtendInfo) {
             alertModal("请稍后...");
-            if(refilldata) await fillUserStatus(info.mid).catch(err => log(err));
+            if (refilldata) await fillUserStatus(info.mid).catch(err => log(err));
             info.dynamics = await getDynamic(info.mid).catch(err => log(err));
             info['stats'] = await getCurrSubStat(info.mid);
         }
@@ -1786,7 +1826,7 @@
                                 const aliasdom = document.querySelector("#CKFOMAN-showalias");
                                 aliasdom.innerHTML = '';
                                 if (!aliasdom) return;
-                                [...document.querySelectorAll(`.alias-content-${info.mid}`)].map(el=>el.innerText=getAliasPlugin().provider.getAlias(+info.mid, ""))
+                                [...document.querySelectorAll(`.alias-content-${info.mid}`)].map(el => el.innerText = getAliasPlugin().provider.getAlias(+info.mid, ""))
                                 if (getAliasPlugin().provider.hasAlias(+info.mid)) {
                                     aliasdom.innerHTML += `别名: <span class="alias-content-${info.mid}">` + getAliasPlugin().provider.getAlias(+info.mid, "无别名") + "</span> ";
                                     aliasdom.appendChild(await makeDom("a", async a => {
@@ -1814,240 +1854,240 @@
                                     }))
                                 }
                             }
-                            setTimeout(()=>refreshAlias(), 20);
+                            setTimeout(() => refreshAlias(), 20);
                         }
-                        if(info.stats){
-                            const { follower, following }=info.stats;
-                            const [fans,subs] = [numberFormat(follower), numberFormat(following)];
-                            upinfo.innerHTML+= `<div style="color:gray">${fans.value}${fans.unit}粉丝 / ${subs.value}${subs.unit}关注</div>`;
+                        if (info.stats) {
+                            const { follower, following } = info.stats;
+                            const [fans, subs] = [numberFormat(follower), numberFormat(following)];
+                            upinfo.innerHTML += `<div style="color:gray">${fans.value}${fans.unit}粉丝 / ${subs.value}${subs.unit}关注</div>`;
                         }
-                        if(info.tag){
+                        if (info.tag) {
                             let folders = "分类:";
-                            for(let t of info.tag){
-                                if(t in datas.tags){
-                                    folders +=" "+datas.tags[t].name;
+                            for (let t of info.tag) {
+                                if (t in datas.tags) {
+                                    folders += " " + datas.tags[t].name;
                                 }
                             }
-                            upinfo.innerHTML+= `<div style="color:gray;font-weight:bold">${folders}</div>`;
+                            upinfo.innerHTML += `<div style="color:gray;font-weight:bold">${folders}</div>`;
                         }
                         let subinfo = "";
-                        if(info.special===1){
-                            subinfo+= `<span style="color:deeppink;margin-right:6px;">特别关注</span>`;
+                        if (info.special === 1) {
+                            subinfo += `<span style="color:deeppink;margin-right:6px;">特别关注</span>`;
                         }
-                        if(info.attribute===6){
-                            subinfo+= `<span style="color:indianred;margin-right:6px;">互相关注</span>`;
+                        if (info.attribute === 6) {
+                            subinfo += `<span style="color:indianred;margin-right:6px;">互相关注</span>`;
                         }
-                        if(info.isWhisper === true || info.attribute=== 1){
-                            subinfo+= `<span style="color:yellowgreen;margin-right:6px;">悄悄关注</span>`;
+                        if (info.isWhisper === true || info.attribute === 1) {
+                            subinfo += `<span style="color:yellowgreen;margin-right:6px;">悄悄关注</span>`;
                         }
-                        if(subinfo.length){
-                            upinfo.innerHTML+= `<div>${subinfo}</div>`
+                        if (subinfo.length) {
+                            upinfo.innerHTML += `<div>${subinfo}</div>`
                         }
-                        if(info.notice && info.notice.id){
-                            upinfo.innerHTML+= `<div style="border-radius:6px;padding:3px;background:${info.notice.bg_color};color:${info.notice.text_color};"><a href="${info.notice.url}">${info.notice.content}</a></div>`;
+                        if (info.notice && info.notice.id) {
+                            upinfo.innerHTML += `<div style="border-radius:6px;padding:3px;background:${info.notice.bg_color};color:${info.notice.text_color};"><a href="${info.notice.url}">${info.notice.content}</a></div>`;
                         }
-                        if(info.banned){
-                            upinfo.innerHTML+= `<div style="border-radius:6px;padding:3px;background:black;color:white;">账号已封禁</div>`;
+                        if (info.banned) {
+                            upinfo.innerHTML += `<div style="border-radius:6px;padding:3px;background:black;color:white;">账号已封禁</div>`;
                         }
-                        if(info.cates && info.cates.length){
-                            upinfo.innerHTML+= `<div style="color:gray">标签: ${info.cates.join(", ")}</div>`;
+                        if (info.cates && info.cates.length) {
+                            upinfo.innerHTML += `<div style="color:gray">标签: ${info.cates.join(", ")}</div>`;
                         }
-                        if(info.mostCates && info.mostCates.length){
-                            upinfo.innerHTML+= `<div style="color:gray">主要投稿分区: ${info.mostCates}</div>`;
+                        if (info.mostCates && info.mostCates.length) {
+                            upinfo.innerHTML += `<div style="color:gray">主要投稿分区: ${info.mostCates}</div>`;
                         }
-                        if(info.mid){
-                            upinfo.innerHTML+= `<div style="color:gray">UID: ${info.mid}</div>`;
+                        if (info.mid) {
+                            upinfo.innerHTML += `<div style="color:gray">UID: ${info.mid}</div>`;
                         }
-                        if(info.mtime){
-                            const regdate = new Date(info.mtime*1000);
-                            upinfo.innerHTML+= `<div style="color:gray">关注于 ${regdate.getFullYear()}年${regdate.getMonth()+1}月${regdate.getDate()}日</div>`;
+                        if (info.mtime) {
+                            const regdate = new Date(info.mtime * 1000);
+                            upinfo.innerHTML += `<div style="color:gray">关注于 ${regdate.getFullYear()}年${regdate.getMonth() + 1}月${regdate.getDate()}日</div>`;
                         }
                     })
-                ].forEach(el=>card.appendChild(el));
+                ].forEach(el => card.appendChild(el));
             })
             container.appendChild(infocard);
-            if(unsafeWindow.FoManPlugins&&unsafeWindow.FoManPlugins.RememberFollows){
+            if (unsafeWindow.FoManPlugins && unsafeWindow.FoManPlugins.RememberFollows) {
                 const followinfo = unsafeWindow.FoManPlugins.RememberFollows.get(+info.mid);
-                if(followinfo){
+                if (followinfo) {
                     const fodate = new Date(followinfo.timestamp);
                     [
                         divider(),
-                        await makeDom("div",async post=>{
+                        await makeDom("div", async post => {
                             post.innerHTML = "<h3 style='padding: 6px 0;'>关注记录</h3>";
-                            post.appendChild(await makeDom("div",async vidcard=>{
+                            post.appendChild(await makeDom("div", async vidcard => {
                                 vidcard.style.display = "flex";
                                 vidcard.style.flexDirection = "row";
                                 vidcard.style.minHeight = "80px";
                                 vidcard.style.minWidth = "400px";
                                 [
-                                    await makeDom("div",async vidinfo=>{
+                                    await makeDom("div", async vidinfo => {
                                         vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${followinfo.videoName}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey">${fodate.getFullYear()}年${fodate.getMonth()+1}月${fodate.getDate()}日 · 当时UP名: <a href="https://space.bilibili.com/${followinfo.mid}">${followinfo.upName}</a></div>`;
+                                        vidinfo.innerHTML += `<div style="color:grey">${fodate.getFullYear()}年${fodate.getMonth() + 1}月${fodate.getDate()}日 · 当时UP名: <a href="https://space.bilibili.com/${followinfo.mid}">${followinfo.upName}</a></div>`;
                                     })
-                                ].forEach(el=>vidcard.appendChild(el));
-                                vidcard.onclick = ()=>open(`https://www.bilibili.com/video/${followinfo.videoId}`)
+                                ].forEach(el => vidcard.appendChild(el));
+                                vidcard.onclick = () => open(`https://www.bilibili.com/video/${followinfo.videoId}`)
                             }))
                         })
-                    ].forEach(el=>container.appendChild(el));
+                    ].forEach(el => container.appendChild(el));
                 }
             }
-            if(info.dynamics){
-                if(info.dynamics.top){
+            if (info.dynamics) {
+                if (info.dynamics.top) {
                     let dynamic = info.dynamics.top;
-                    let content = (()=>{
-                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
-                        let short = dynamic.content.substring(0,300);
-                        short = short.split("\n").slice(0,4).join("\n");
-                        if(short!=dynamic.content) short+="...";
+                    let content = (() => {
+                        if (!dynamic.content || dynamic.content.length === 0) return "无内容";
+                        let short = dynamic.content.substring(0, 300);
+                        short = short.split("\n").slice(0, 4).join("\n");
+                        if (short != dynamic.content) short += "...";
 
-                        return short.replaceAll("\n","<br>");
+                        return short.replaceAll("\n", "<br>");
                     })();
-                    const pushdate = new Date(dynamic.timestamp*1000);
+                    const pushdate = new Date(dynamic.timestamp * 1000);
                     [
                         divider(),
-                        await makeDom("div",async post=>{
+                        await makeDom("div", async post => {
                             post.innerHTML = "<h3 style='padding: 6px 0;'>置顶动态</h3>";
-                            post.appendChild(await makeDom("div",async vidcard=>{
+                            post.appendChild(await makeDom("div", async vidcard => {
                                 vidcard.style.display = "flex";
                                 vidcard.style.flexDirection = "row";
                                 vidcard.style.minHeight = "80px";
                                 vidcard.style.minWidth = "400px";
                                 [
-                                    await makeDom("div",async vidinfo=>{
+                                    await makeDom("div", async vidinfo => {
                                         vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">[${dynamic.prefix}] ${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like??'?'}点赞 ${dynamic.repost??'?'}转发 ${dynamic.comment??'?'}评论</div>`;
-                                        if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0,100)}...</div></div>`;
+                                        vidinfo.innerHTML += `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth() + 1}月${pushdate.getDate()}日 - ${dynamic.like ?? '?'}点赞 ${dynamic.repost ?? '?'}转发 ${dynamic.comment ?? '?'}评论</div>`;
+                                        if (dynamic.isrepost) {
+                                            vidinfo.innerHTML += `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0, 100)}...</div></div>`;
                                         }
                                     })
-                                ].forEach(el=>vidcard.appendChild(el));
-                                vidcard.onclick = ()=>open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
+                                ].forEach(el => vidcard.appendChild(el));
+                                vidcard.onclick = () => open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
                             }))
                         })
-                    ].forEach(el=>container.appendChild(el));
+                    ].forEach(el => container.appendChild(el));
                 }
-                if(info.dynamics.next){
+                if (info.dynamics.next) {
                     let dynamic = info.dynamics.next;
-                    let content = (()=>{
-                        if(!dynamic.content || dynamic.content.length===0) return "无内容";
-                        let short = dynamic.content.substring(0,300);
-                        short = short.split("\n").slice(0,4).join("\n");
-                        if(short!=dynamic.content) short+="...";
-                        return short.replaceAll("\n","<br>");
+                    let content = (() => {
+                        if (!dynamic.content || dynamic.content.length === 0) return "无内容";
+                        let short = dynamic.content.substring(0, 300);
+                        short = short.split("\n").slice(0, 4).join("\n");
+                        if (short != dynamic.content) short += "...";
+                        return short.replaceAll("\n", "<br>");
                     })();
-                    const pushdate = new Date(dynamic.timestamp*1000);
+                    const pushdate = new Date(dynamic.timestamp * 1000);
                     [
                         divider(),
-                        await makeDom("div",async post=>{
+                        await makeDom("div", async post => {
                             post.innerHTML = "<h3 style='padding: 6px 0;'>最新动态</h3>";
-                            post.appendChild(await makeDom("div",async vidcard=>{
+                            post.appendChild(await makeDom("div", async vidcard => {
                                 vidcard.style.display = "flex";
                                 vidcard.style.flexDirection = "row";
                                 vidcard.style.minHeight = "80px";
                                 vidcard.style.minWidth = "400px";
                                 [
-                                    await makeDom("div",async vidinfo=>{
+                                    await makeDom("div", async vidinfo => {
                                         vidinfo.innerHTML = `<div style="font-weight:normal;font-size:smaller;color:#858585">[${dynamic.prefix}] ${content}</div>`;
-                                        vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日 - ${dynamic.like??'?'}点赞 ${dynamic.repost??'?'}转发 ${dynamic.comment??'?'}评论</div>`;
-                                        if(dynamic.isrepost){
-                                            vidinfo.innerHTML+= `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0,100)}...</div></div>`;
+                                        vidinfo.innerHTML += `<div style="color:grey"><i class="mdi mdi-10px mdi-chevron-double-right"></i> ${pushdate.getFullYear()}年${pushdate.getMonth() + 1}月${pushdate.getDate()}日 - ${dynamic.like ?? '?'}点赞 ${dynamic.repost ?? '?'}转发 ${dynamic.comment ?? '?'}评论</div>`;
+                                        if (dynamic.isrepost) {
+                                            vidinfo.innerHTML += `<div style="color:grey"><i class="mdi mdi-10px mdi-share"></i> 转发自<b onclick="open('https://space.bilibili.com/${dynamic.publisher.uid}')">${dynamic.publisher.uname}</b> 的 [${dynamic.origprefix}]:<div style='border-left: 2px solid gray;padding-left:6px'>${dynamic.origin.substr(0, 100)}...</div></div>`;
                                         }
                                     })
-                                ].forEach(el=>vidcard.appendChild(el));
-                                vidcard.onclick = ()=>open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
+                                ].forEach(el => vidcard.appendChild(el));
+                                vidcard.onclick = () => open(`https://t.bilibili.com/${dynamic.id}?tab=2`)
                             }))
                         })
-                    ].forEach(el=>container.appendChild(el));
+                    ].forEach(el => container.appendChild(el));
                 }
             }
-            if(info.lastUpdate && info.lastUpdateInfo){
-                const pushdate = new Date(info.lastUpdate*1000);
+            if (info.lastUpdate && info.lastUpdateInfo) {
+                const pushdate = new Date(info.lastUpdate * 1000);
                 [
                     divider(),
-                    await makeDom("div",async post=>{
+                    await makeDom("div", async post => {
                         post.innerHTML = "<h3 style='padding: 6px 0;'>最新投稿</h3>";
-                        post.appendChild(await makeDom("div",async vidcard=>{
+                        post.appendChild(await makeDom("div", async vidcard => {
                             vidcard.style.display = "flex";
                             vidcard.style.flexDirection = "row";
                             vidcard.style.minHeight = "80px";
                             vidcard.style.minWidth = "400px";
                             [
-                                await makeDom("img", img=>{
+                                await makeDom("img", img => {
                                     img.style.flex = "1";
                                     img.style.maxWidth = "80px";
                                     img.style.height = "50px";
-                                    img.setAttribute("loading","lazy");
+                                    img.setAttribute("loading", "lazy");
                                     img.src = info.lastUpdateInfo.pic;
                                     img.style.borderRadius = "6px";
                                     img.style.margin = "0px 12px 0px 10px";
                                 }),
-                                await makeDom("div",async vidinfo=>{
+                                await makeDom("div", async vidinfo => {
                                     vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${info.lastUpdateInfo.title}</div>`;
-                                    vidinfo.innerHTML+= `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth()+1}月${pushdate.getDate()}日</div>`;
+                                    vidinfo.innerHTML += `<div style="color:grey">${pushdate.getFullYear()}年${pushdate.getMonth() + 1}月${pushdate.getDate()}日</div>`;
                                 })
-                            ].forEach(el=>vidcard.appendChild(el));
-                            vidcard.onclick = ()=>open(`https://www.bilibili.com/av${info.lastUpdateInfo.aid}`)
+                            ].forEach(el => vidcard.appendChild(el));
+                            vidcard.onclick = () => open(`https://www.bilibili.com/av${info.lastUpdateInfo.aid}`)
                         }))
                     })
-                ].forEach(el=>container.appendChild(el));
+                ].forEach(el => container.appendChild(el));
             }
-            if(info.lives && info.lives.liveStatus!==0){
+            if (info.lives && info.lives.liveStatus !== 0) {
                 [
                     divider(),
-                    await makeDom("div",async post=>{
+                    await makeDom("div", async post => {
                         post.innerHTML = "<h3 style='padding: 6px 0;'>直播间</h3>";
-                        post.appendChild(await makeDom("div",async vidcard=>{
+                        post.appendChild(await makeDom("div", async vidcard => {
                             vidcard.style.display = "flex";
                             vidcard.style.flexDirection = "row";
                             vidcard.style.minHeight = "80px";
                             vidcard.style.minWidth = "400px";
                             [
-                                await makeDom("img", img=>{
+                                await makeDom("img", img => {
                                     img.style.flex = "1";
                                     img.style.maxWidth = "80px";
                                     img.style.height = "50px";
-                                    img.setAttribute("loading","lazy");
+                                    img.setAttribute("loading", "lazy");
                                     img.src = info.lives.cover;
                                     img.style.borderRadius = "6px";
                                     img.style.margin = "0px 12px 0px 10px";
                                 }),
-                                await makeDom("div",async vidinfo=>{
+                                await makeDom("div", async vidinfo => {
                                     vidinfo.innerHTML = `<div style="font-weight:bold;font-size:larger;color:grey">${info.lives.title}</div>`;
-                                    vidinfo.innerHTML+= `<div style="color:grey">正在${info.lives.liveStatus===2?'轮':'直'}播 - 房间号: ${info.lives.roomid}</div>`;
+                                    vidinfo.innerHTML += `<div style="color:grey">正在${info.lives.liveStatus === 2 ? '轮' : '直'}播 - 房间号: ${info.lives.roomid}</div>`;
                                 })
-                            ].forEach(el=>vidcard.appendChild(el));
-                            vidcard.onclick = ()=>open(`https://live.bilibili.com/${info.lives.roomid}`)
+                            ].forEach(el => vidcard.appendChild(el));
+                            vidcard.onclick = () => open(`https://live.bilibili.com/${info.lives.roomid}`)
                         }))
                     })
-                ].forEach(el=>container.appendChild(el));
+                ].forEach(el => container.appendChild(el));
             }
-            async function addBtn(info,container){
-                container.style.display="flex";
+            async function addBtn(info, container) {
+                container.style.display = "flex";
                 container.style.flexDirection = "column";
                 container.style.position = "sticky";
                 container.style.bottom = 0;
                 container.style.background = getBgColor();
                 container.innerHTML = "";
-                if(!noactions){
-                    if(info.attribute===0){
+                if (!noactions) {
+                    if (info.attribute === 0) {
                         container.appendChild(await makeDom("button", btn => {
                             btn.className = "CKFOMAN-toolbar-btns red";
                             btn.style.margin = "4px 0";
                             btn.innerHTML = "立刻关注";
                             btn.onclick = async e => {
                                 btn.innerHTML = "正在关注...";
-                                btn.setAttribute("disabled",true)
+                                btn.setAttribute("disabled", true)
                                 btn.classList.add("grey");
-                                const res = await batchOperateUser([info.mid],RELE_ACTION.FOLLOW);
-                                if(!res.ok){
+                                const res = await batchOperateUser([info.mid], RELE_ACTION.FOLLOW);
+                                if (!res.ok) {
                                     log(res)
                                     btn.innerHTML = "关注失败";
                                     btn.removeAttribute("disabled")
                                     btn.classList.remove("grey");
-                                }else{
+                                } else {
                                     datas.mappings[info.mid].attribute = 1;
                                     btn.remove();
-                                    addBtn(datas.mappings[info.mid],container);
+                                    addBtn(datas.mappings[info.mid], container);
                                 }
                             }
                         }))
@@ -2072,25 +2112,25 @@
                                 }
                             }
                         }))*/
-                    }else{
+                    } else {
                         container.appendChild(await makeDom("button", btn => {
                             btn.className = "CKFOMAN-toolbar-btns red";
                             btn.style.margin = "4px 0";
                             btn.innerHTML = "立刻取关(谨慎)";
                             btn.onclick = async e => {
                                 btn.innerHTML = "正在取关...";
-                                btn.setAttribute("disabled",true)
+                                btn.setAttribute("disabled", true)
                                 btn.classList.add("grey");
                                 const res = await unfollowUser(info.mid);
-                                if(!res.ok){
+                                if (!res.ok) {
                                     log(res);
                                     btn.innerHTML = "取关失败";
                                     btn.removeAttribute("disabled")
                                     btn.classList.remove("grey");
-                                }else{
+                                } else {
                                     datas.mappings[info.mid].attribute = 0;
                                     btn.remove();
-                                    addBtn(datas.mappings[info.mid],container);
+                                    addBtn(datas.mappings[info.mid], container);
                                 }
                             }
                         }))
@@ -2165,14 +2205,14 @@
                 }))
             }
             const btns = document.createElement("div");
-            await addBtn(info,btns);
+            await addBtn(info, btns);
             container.appendChild(btns);
         }));
     }
     const createGroupInfoModal = async () => {
         hideModal();
         await wait(300);
-        openModal("分组管理", await makeDom("div", async container=>{
+        openModal("分组管理", await makeDom("div", async container => {
             container.appendChild(await makeDom("div", tip => {
                 tip.style.fontWeight = "bold";
                 tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
@@ -2182,30 +2222,30 @@
             taglistdom.className = "CKFOMAN-scroll-list";
             taglistdom.style.width = "100%";
             taglistdom.style.maxHeight = "calc(50vh - 100px)";
-            const refreshList = async ()=>renderTagListTo(taglistdom,[],async (e,data)=>{
-                if(e.target.tagName==="INPUT") return;
-                if(['0','-10'].includes(data.tagid+'')) return;
-                let dom = e.path.filter(it=>it['classList']&&it.classList.contains('CKFOMAN-data-inforow'))[0];
-                if(!dom) return log('no target');
-                if(dom.hasAttribute('data-del-pending')){
-                    if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
-                    removeGroup(data.tagid).then(()=>refreshList());
+            const refreshList = async () => renderTagListTo(taglistdom, [], async (e, data) => {
+                if (e.target.tagName === "INPUT") return;
+                if (['0', '-10'].includes(data.tagid + '')) return;
+                let dom = e.path.filter(it => it['classList'] && it.classList.contains('CKFOMAN-data-inforow'))[0];
+                if (!dom) return log('no target');
+                if (dom.hasAttribute('data-del-pending')) {
+                    if (dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                    removeGroup(data.tagid).then(() => refreshList());
                     //cfg.infobarTemplate = `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
-                    await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                    await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                     resetInfoBar();
-                }else{
-                    dom.setAttribute('data-del-pending','waiting');
+                } else {
+                    dom.setAttribute('data-del-pending', 'waiting');
                     let namedom = dom.querySelector('.CKFOMAN-data-inforow-name');
-                    if(!namedom) return;
+                    if (!namedom) return;
                     let text = namedom.innerHTML;
                     namedom.innerHTML = '再次点击以移除'.fontcolor('red');
-                    dom.removePendingTimer = setTimeout(()=>{
-                        if(dom.hasAttribute('data-del-pending')) dom.removeAttribute('data-del-pending');
-                        if(dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
+                    dom.removePendingTimer = setTimeout(() => {
+                        if (dom.hasAttribute('data-del-pending')) dom.removeAttribute('data-del-pending');
+                        if (dom.removePendingTimer) clearTimeout(dom.removePendingTimer);
                         namedom.innerHTML = text;
-                    },5000);
+                    }, 5000);
                 }
-            },true);
+            }, true);
             container.appendChild(taglistdom);
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
@@ -2216,8 +2256,8 @@
                         btn.style.height = "30px";
                         btn.onclick = async () => {
                             const tagname = prompt("请输入新分组的标题");
-                            if(!tagname) return;
-                            createGroup(tagname).then(()=>refreshList());
+                            if (!tagname) return;
+                            createGroup(tagname).then(() => refreshList());
                         };
                     }),
                     await makeDom("button", btn => {
@@ -2231,21 +2271,21 @@
             refreshList();
         }))
     }
-    const createGroupChangeModal = async (mode='copy'/*move*/) => {
+    const createGroupChangeModal = async (mode = 'copy'/*move*/) => {
         hideModal();
         await wait(300);
         refreshChecked();
         let uids = datas.checked;
         let users = [];
         let groups = [];
-        let act = mode==='copy'?'复制':'移动';
-        for(let uid of uids){
+        let act = mode === 'copy' ? '复制' : '移动';
+        for (let uid of uids) {
             users.push(datas.mappings[uid]);
             let tags = datas.mappings[uid].tag;
-            tags && tags.forEach(t=>groups.includes(t)||groups.push(t))
+            tags && tags.forEach(t => groups.includes(t) || groups.push(t))
         }
-        log(users,groups);
-        openModal("分组修改:"+act, await makeDom("div", async container=>{
+        log(users, groups);
+        openModal("分组修改:" + act, await makeDom("div", async container => {
             container.appendChild(await makeDom("div", tip => {
                 tip.style.fontWeight = "bold";
                 tip.innerHTML = `若修改过分组信息，建议刷新页面再进行其他操作。`;
@@ -2255,13 +2295,13 @@
             taglistdom.className = "CKFOMAN-scroll-list";
             taglistdom.style.width = "100%";
             taglistdom.style.maxHeight = "calc(50vh - 100px)";
-            const refreshList = async ()=>renderTagListTo(taglistdom,mode==='copy'?[]:groups,async (e,data)=>{
-                const row = e.path.filter(el=>el.classList?.contains('CKFOMAN-data-inforow'));
-                if(row.length){
+            const refreshList = async () => renderTagListTo(taglistdom, mode === 'copy' ? [] : groups, async (e, data) => {
+                const row = e.path.filter(el => el.classList?.contains('CKFOMAN-data-inforow'));
+                if (row.length) {
                     const cb = row[0].querySelector("input[type='checkbox']");
-                    if(cb) cb.checked = !cb.checked
+                    if (cb) cb.checked = !cb.checked
                 }
-            },false);
+            }, false);
             container.appendChild(taglistdom);
             container.appendChild(await makeDom("div", async btns => {
                 btns.style.display = "flex";
@@ -2284,25 +2324,25 @@
                         btn.innerHTML = "确定";
                         btn.onclick = async () => {
                             const allOptions = [...document.querySelectorAll('.CKFOMAN-data-inforow-toggle[data-tagid]')]
-                            const selections = allOptions.map((option)=>{
-                                return {tagid:parseInt(option.getAttribute('data-tagid')),checked:option.checked}
+                            const selections = allOptions.map((option) => {
+                                return { tagid: parseInt(option.getAttribute('data-tagid')), checked: option.checked }
                             })
                             const checked = selections.filter((selection) => selection.checked)
                             await alertModal("正在处理...", `正在${act}成员到新分组，请稍候`);
-                            if(checked.length===0) checked.push({tagid:0,checked:true});
-                            switch(mode){
+                            if (checked.length === 0) checked.push({ tagid: 0, checked: true });
+                            switch (mode) {
                                 case 'copy':
-                                    copyUserToGroup(uids,checked.map(c=>c.tagid));
+                                    copyUserToGroup(uids, checked.map(c => c.tagid));
                                     break;
                                 case 'move':
-                                    moveUserToGroup(uids,checked.map(c=>c.tagid));
+                                    moveUserToGroup(uids, checked.map(c => c.tagid));
                                     break;
                                 // default:
                                 //     moveUserToDefaultGroup(uids);
                             }
-                            await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                            await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                             hideModal();
-                            cfg.infobarTemplate = ()=>`共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
+                            cfg.infobarTemplate = () => `共读取 ${datas.fetched} 条关注 (已修改分组,<a href="javascript:void(0)" onclick="openFollowManager(true)">点此重新加载</a>)`;
                             resetInfoBar();
                         }
                     }),
@@ -2340,7 +2380,7 @@
         await wait(300);
         refreshChecked();
         if (datas.checked.length === 0) {
-            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("无法继续", "你没有选中任何项，请选中一些项然后再进行操作。", "确认");
+            if (!cfg.I_KNOW_WHAT_IM_DOING) alertModal("无法继续", "你没有选中任何项，请选中一些项然后再进行操作。", "确认");
             return;
         }
         const ui = {
@@ -2373,10 +2413,10 @@
                         btn.innerHTML = "确认";
                         btn.onclick = async e => {
                             if (datas.checked.length === 0)
-                            if(!cfg.I_KNOW_WHAT_IM_DOING)return alertModal("无需继续", "你没有选中任何项。", "确定");
+                                if (!cfg.I_KNOW_WHAT_IM_DOING) return alertModal("无需继续", "你没有选中任何项。", "确定");
                             const finalList = datas.checked;
                             await alertModal("正在" + ui.action, `正在${ui.action}${finalList.length}个关注...`);
-                            const result = await batchOperateUser(finalList, isBlock?RELE_ACTION.BLOCK:RELE_ACTION.FOLLOW);
+                            const result = await batchOperateUser(finalList, isBlock ? RELE_ACTION.BLOCK : RELE_ACTION.FOLLOW);
                             if (result.ok) {
                                 await alertModal(ui.action + "完成", `${finalList.length}个关注全部${ui.action}成功！`, "确定");
                                 return createMainWindow(true);
@@ -2405,11 +2445,11 @@
             }))
         }))
     }
-    const createOtherSpaceAlert = () => cfg.I_KNOW_WHAT_IM_DOING||alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
+    const createOtherSpaceAlert = () => cfg.I_KNOW_WHAT_IM_DOING || alertModal("无法执行操作", "此功能只能在你的个人空间使用，当前是在别人的空间。", "确定");
     const createUnfollowModal = async () => {
         refreshChecked();
         if (datas.checked.length === 0) {
-            if(!cfg.I_KNOW_WHAT_IM_DOING)alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
+            if (!cfg.I_KNOW_WHAT_IM_DOING) alertModal("取消关注", `你没有勾选任何人，所以无法取关。请勾选后再点击取关按钮。`, "知道了")
         } else
             hideModal();
         await wait(300);
@@ -2444,11 +2484,11 @@
                         btn.innerHTML = "确认";
                         btn.onclick = e => {
                             const delayDom = get("#CKFOMAN-form-delay");
-                            if(delayDom) {
-                                try{
+                            if (delayDom) {
+                                try {
                                     let delay = parseFloat(delayDom.value);
-                                    datas.settings.batchOperationDelay = Math.max(delay,0);
-                                }catch{}
+                                    datas.settings.batchOperationDelay = Math.max(delay, 0);
+                                } catch { }
                             }
                             doUnfollowChecked()
                         }
@@ -2498,7 +2538,7 @@
                 keyword: config.verifyKeywordExclude.keyword || ""
             },
         };
-        log("filter",{cfg});
+        log("filter", { cfg });
         if (
             cfg.clear === "0"
             && cfg.invalid === "-2"
@@ -2600,7 +2640,7 @@
                             if (parseInt(user.mtime + "000") < value) continue userloop;
                             break;
                         case "nickKeywordInclude":
-                            log("NickKwInc finding",value.toLowerCase(),"in",user.uname.toLowerCase(),"and",user.sign.toLowerCase());
+                            log("NickKwInc finding", value.toLowerCase(), "in", user.uname.toLowerCase(), "and", user.sign.toLowerCase());
                             if (!user.uname.toLowerCase().includes(value.toLowerCase()) && !user.sign.toLowerCase().includes(value.toLowerCase())) continue userloop;
                             break;
                         case "nickKeywordExclude":
@@ -2621,7 +2661,7 @@
             }
             setInfoBar("正在将筛选应用到列表...");
             await wait(1);
-            datas.followings.forEach(it=>toggleSwitch(it.mid,datas.checked.includes(parseInt(it.mid))));
+            datas.followings.forEach(it => toggleSwitch(it.mid, datas.checked.includes(parseInt(it.mid))));
             setInfoBar("正在按已选中优先排序...");
             await wait(1);
             datas.followings.sort((x, y) => {
@@ -2629,7 +2669,7 @@
                 const yint = (datas.checked.includes(y.mid + "") || datas.checked.includes(parseInt(y.mid))) ? 1 : 0;
                 return yint - xint;
             })
-            await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+            await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
             hideModal();
         } catch (e) {
             alertModal("抱歉", "筛选时出现错误，未能完成筛选。");
@@ -2663,24 +2703,24 @@
                                 await openModal("批量操作", await makeDom("div", async container => {
                                     container.style.alignContent = "stretch";
                                     [
-                                        datas.isSelf?await makeDom("button", async btn => {
+                                        datas.isSelf ? await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '取关选中';
                                             btn.onclick = () => createUnfollowModal();
-                                        }):null,
-                                        datas.isSelf?await makeDom("button", async btn => {
+                                        }) : null,
+                                        datas.isSelf ? await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '复制到分组';
                                             btn.onclick = () => createGroupChangeModal('copy');
-                                        }):null,
-                                        datas.isSelf?await makeDom("button", async btn => {
+                                        }) : null,
+                                        datas.isSelf ? await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
                                             btn.innerHTML = '修改分组';
                                             btn.onclick = () => createGroupChangeModal('move');
-                                        }):null,
+                                        }) : null,
                                         await makeDom("button", async btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
@@ -2841,12 +2881,12 @@
                                                         await makeDom("option", opt => {
                                                             opt.value = "0";
                                                             opt.innerHTML = "非特别关注"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
                                                             opt.value = "1";
                                                             opt.innerHTML = "特别关注"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
                                                 }),
@@ -2904,12 +2944,12 @@
                                                         await makeDom("option", opt => {
                                                             opt.value = "2";
                                                             opt.innerHTML = "单项关注的用户"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
                                                             opt.value = "6";
                                                             opt.innerHTML = "互粉用户"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
                                                 }),
@@ -2925,12 +2965,12 @@
                                                         await makeDom("option", opt => {
                                                             opt.value = "-3";
                                                             opt.innerHTML = "没有分组的用户"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                         await makeDom("option", opt => {
                                                             opt.value = "-2";
                                                             opt.innerHTML = "已有分组的用户"
-                                                            if(!datas.isSelf) opt.disabled = true;
+                                                            if (!datas.isSelf) opt.disabled = true;
                                                         }),
                                                     ].forEach(s => select.appendChild(s));
                                                     if (datas.isSelf && Object.keys(datas.tags).length > 0) {
@@ -3051,7 +3091,7 @@
                                                 }),
                                             ].forEach(el => btns.appendChild(el));
                                         })
-                                    ].forEach(el => el&&container.appendChild(el));
+                                    ].forEach(el => el && container.appendChild(el));
                                 }))
                             }
                         }))
@@ -3072,7 +3112,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.reverse();
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3084,7 +3124,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => x.uname.localeCompare(y.uname, "zh-u-kf-lower-kn-true"));
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3100,7 +3140,7 @@
                                                     const yint = (datas.checked.includes(y.mid + "") || datas.checked.includes(parseInt(y.mid))) ? 1 : 0;
                                                     return yint - xint;
                                                 })
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3112,7 +3152,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.mtime) - parseInt(x.mtime))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3136,7 +3176,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.vip.vipType) - parseInt(x.vip.vipType))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3148,7 +3188,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(x.vip.vipType) - parseInt(y.vip.vipType))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3160,7 +3200,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.official_verify.type) - parseInt(x.official_verify.type))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3172,7 +3212,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(x.official_verify.type) - parseInt(y.official_verify.type))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3188,7 +3228,7 @@
                                                     const yint = isInvalid(y) ? 1 : 0;
                                                     return yint - xint;
                                                 })
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3200,7 +3240,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.special) - parseInt(x.special))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3212,7 +3252,7 @@
                                                 await alertModal("正在排序...", "请稍等...");
                                                 refreshChecked();
                                                 datas.followings.sort((x, y) => parseInt(y.attribute) - parseInt(x.attribute))
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,true);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
                                                 hideModal();
                                             }
                                         }),
@@ -3251,7 +3291,7 @@
                                                                 setInfoBar("正在处理加选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (d.attribut===1||d.isWhisper) {
+                                                                    if (d.attribut === 1 || d.isWhisper) {
                                                                         toggleSwitch(d.mid, true);
                                                                     }
                                                                 }
@@ -3316,7 +3356,7 @@
                                                                 setInfoBar("正在处理减选");
                                                                 await alertModal("正在处理...", "请稍等...");
                                                                 for (let d of datas.followings) {
-                                                                    if (d.attribute===1||d.isWhisper) {
+                                                                    if (d.attribute === 1 || d.isWhisper) {
                                                                         toggleSwitch(d.mid, false);
                                                                     }
                                                                 }
@@ -3487,16 +3527,16 @@
                                                 else
                                                     list = Object.keys(datas.mappings).join(',');
                                                 let mtitle = "";
-                                                if(await copy(list)){
-                                                    mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
-                                                }else{
-                                                    mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                if (await copy(list)) {
+                                                    mtitle += "✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                } else {
+                                                    mtitle += "请单击列表并按Ctrl+C手动复制";
                                                 }
                                                 unsafeWindow.CKFOMAN_EXPORTUIDS = list;
-                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
-                                                    download("export_uids.txt",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = () => {
+                                                    download("export_uids.txt", unsafeWindow.CKFOMAN_EXPORTUIDS);
                                                 }
-                                                mtitle+=`，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
+                                                mtitle += `，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
                                                 await alertModal("导出UID", `
                                                 ${mtitle}
                                                 <br>
@@ -3519,26 +3559,26 @@
                                                     list = datas.checked//listdom;
                                                 else
                                                     list = Object.keys(datas.mappings);
-                                                const mapToObj = (uid)=>{
-                                                    if(datas.mappings.hasOwnProperty(+uid)){
-                                                        const {mid,name,uname,tag} = datas.mappings[+uid];
-                                                        let tags = tag?.map(t=>datas.tags[t]?.name??null).filter(t=>!!t);
-                                                        return {mid,name:name??uname??'',tag:tags??[]};
-                                                    }else return null;
+                                                const mapToObj = (uid) => {
+                                                    if (datas.mappings.hasOwnProperty(+uid)) {
+                                                        const { mid, name, uname, tag } = datas.mappings[+uid];
+                                                        let tags = tag?.map(t => datas.tags[t]?.name ?? null).filter(t => !!t);
+                                                        return { mid, name: name ?? uname ?? '', tag: tags ?? [] };
+                                                    } else return null;
                                                 }
-                                                let infoList = list.map(it=>mapToObj(it)).filter(it=>!!it);
+                                                let infoList = list.map(it => mapToObj(it)).filter(it => !!it);
                                                 let copyList = JSON.stringify(infoList);
                                                 let mtitle = "";
-                                                if(await copy(copyList)){
-                                                    mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
-                                                }else{
-                                                    mtitle+="请单击列表并按Ctrl+C手动复制";
+                                                if (await copy(copyList)) {
+                                                    mtitle += "✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                } else {
+                                                    mtitle += "请单击列表并按Ctrl+C手动复制";
                                                 }
                                                 unsafeWindow.CKFOMAN_EXPORTUIDS = copyList;
-                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
-                                                    download("export_uids.json",unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = () => {
+                                                    download("export_uids.json", unsafeWindow.CKFOMAN_EXPORTUIDS);
                                                 }
-                                                mtitle+=`，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
+                                                mtitle += `，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
                                                 await alertModal("导出UID结构数据", `
                                                 ${mtitle}
                                                 <br>
@@ -3556,44 +3596,44 @@
                                             else
                                                 btn.innerHTML = "导出所有关注的UP的当前缓存数据...";
                                             btn.onclick = async e => {
-                                                    let list;
-                                                    if (datas.checked.length > 0)
-                                                        list = datas.checked;//listdom;
-                                                    else
-                                                        list = Object.keys(datas.mappings);
-                                                    const mapToObj = (uid) => {
-                                                        try {
-                                                            console.log(1001,{uid})
-                                                            if (datas.mappings.hasOwnProperty(+uid)) {
-                                                                const full = datas.mappings[+uid];
-                                                                let tags = full.tag?.map(t => datas.tags[t]?.name ?? null).filter(t => !!t);
-                                                                return { ...full, tag: tags ?? [] };
-                                                            } else return null;
-                                                        } catch (err) {
-                                                            console.error('e!!',err);
-                                                            return null;
-                                                        }
+                                                let list;
+                                                if (datas.checked.length > 0)
+                                                    list = datas.checked;//listdom;
+                                                else
+                                                    list = Object.keys(datas.mappings);
+                                                const mapToObj = (uid) => {
+                                                    try {
+                                                        console.log(1001, { uid })
+                                                        if (datas.mappings.hasOwnProperty(+uid)) {
+                                                            const full = datas.mappings[+uid];
+                                                            let tags = full.tag?.map(t => datas.tags[t]?.name ?? null).filter(t => !!t);
+                                                            return { ...full, tag: tags ?? [] };
+                                                        } else return null;
+                                                    } catch (err) {
+                                                        console.error('e!!', err);
+                                                        return null;
                                                     }
-                                                    let infoList = list.map(it=>mapToObj(it)).filter(it=>!!it);
-                                                    let copyList = JSON.stringify(infoList);
-                                                    let mtitle = "";
-                                                    if(await copy(copyList)){
-                                                        mtitle+="✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
-                                                    }else{
-                                                        mtitle+="请单击列表并按Ctrl+C手动复制";
-                                                    }
-                                                    unsafeWindow.CKFOMAN_EXPORTUIDS = copyList;
-                                                    unsafeWindow.CKFOMAN_EXPORTTOFILE = ()=>{
-                                                        download("export_userdetails.json",unsafeWindow.CKFOMAN_EXPORTUIDS);
-                                                    }
-                                                    mtitle+=`，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
-                                                    await alertModal("导出完整缓存数据", `
+                                                }
+                                                let infoList = list.map(it => mapToObj(it)).filter(it => !!it);
+                                                let copyList = JSON.stringify(infoList);
+                                                let mtitle = "";
+                                                if (await copy(copyList)) {
+                                                    mtitle += "✅ 内容已经自动复制到剪贴板, 你可以粘贴到别处";
+                                                } else {
+                                                    mtitle += "请单击列表并按Ctrl+C手动复制";
+                                                }
+                                                unsafeWindow.CKFOMAN_EXPORTUIDS = copyList;
+                                                unsafeWindow.CKFOMAN_EXPORTTOFILE = () => {
+                                                    download("export_userdetails.json", unsafeWindow.CKFOMAN_EXPORTUIDS);
+                                                }
+                                                mtitle += `，或者：<button class="CKFOMAN-toolbar-btns" onclick="CKFOMAN_EXPORTTOFILE()">保存为文件</button>`
+                                                await alertModal("导出完整缓存数据", `
                                                     ${mtitle}
                                                     <br>
                                                     <textarea readonly style="width: 400px;" onclick="this.select()" >${copyList}</textarea>
                                                     `, "确定");
-                                                    resetInfoBar();
-                                                }
+                                                resetInfoBar();
+                                            }
                                         }),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
@@ -3775,7 +3815,7 @@
                                             btn.onclick = async e => {
                                                 await alertModal("重新载入列表", "正在重新载入列表。此重载不会重新获取数据。");
                                                 datas.dommappings = {};
-                                                await renderListTo(get("#CKFOMAN-MAINLIST"),datas.followings,false);
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, false);
                                                 resetInfoBar();
                                                 hideModal();
                                             }
@@ -3795,9 +3835,9 @@
                                             div.style.margin = "4px 0";
                                             const size = CacheManager.getSize();
                                             div.innerHTML = "ℹ 本地缓存空间已占用 " + size + " MB。";
-                                            if(size < 1.8){
+                                            if (size < 1.8) {
                                                 div.innerHTML += "无需处理。定期整理缓存可以减少空间占用。";
-                                            }else if (size < 2.5) {
+                                            } else if (size < 2.5) {
                                                 div.innerHTML += "<b>建议整理缓存。</b>";
                                             } else {
                                                 div.innerHTML += "<b>建议整理或清理缓存以避免缓存空间超出配额。</b>";
@@ -3830,6 +3870,16 @@
                                                 hideModal();
                                             }
                                         }),
+                                        divider(),
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns";
+                                            btn.style.margin = "4px 0";
+                                            btn.innerHTML = `实验性功能(${datas.settings.enableExpermentals ? "已启用" : "已禁用"})`;
+                                            btn.onclick = async e => {
+                                                enableExpermentalFeaturesModal();
+                                            }
+                                        }),
+                                        divider(),
                                         await makeDom("button", btn => {
                                             btn.className = "CKFOMAN-toolbar-btns";
                                             btn.style.margin = "4px 0";
@@ -3851,8 +3901,8 @@
                                                         document.createElement("br"),
                                                         await makeDom("p", span =>
                                                             span.innerHTML = `版本: v${cfg.VERSION}<br>`
-                                                                + `License: GPLv3<br>`
-                                                                + `作者: CKylinMC`
+                                                            + `License: GPLv3<br>`
+                                                            + `作者: CKylinMC`
                                                         ),
                                                         await makeDom("p", span =>
                                                             span.innerHTML = `脚本首页: <a href="https://greasyfork.org/zh-CN/scripts/428895">GreasyFork</a> | <a href="https://github.com/CKylinMC/UserJS">Github</a>`
@@ -3882,7 +3932,7 @@
                     const list = await makeDom("div", async list => {
                         list.className = "CKFOMAN-scroll-list";
                         list.id = "CKFOMAN-MAINLIST";
-                        await renderListTo(list,datas.followings,!forceRefetch);
+                        await renderListTo(list, datas.followings, !forceRefetch);
                     })
                     screen.appendChild(toolbar);
                     screen.appendChild(list);
@@ -3894,7 +3944,7 @@
                 let errtitle = "获取数据失败";
                 let errdesc = "请尝试刷新页面重试";
                 log(datas.fetchstat);
-                switch(datas.fetchstat){
+                switch (datas.fetchstat) {
                     case "GUEST-LIMIT":
                         errtitle = "访客限制";
                         errdesc = "由于访客限制，获取数据失败。"
@@ -3935,26 +3985,26 @@
     const renderListTo = async (dom, datalist = datas.followings, cacheAndreuse = false) => {
         setInfoBar("正在渲染列表...");
         await wait(1);
-        const isMainList = cacheAndreuse||datalist===datas.followings;
+        const isMainList = cacheAndreuse || datalist === datas.followings;
         dom.innerHTML = '';
-        const getDomForData = async it=>{
-            if(cacheAndreuse&&(datas.dommappings[it.mid+""]&& datas.dommappings[it.mid+""] instanceof HTMLElement)) return datas.dommappings[it.mid+""];
+        const getDomForData = async it => {
+            if (cacheAndreuse && (datas.dommappings[it.mid + ""] && datas.dommappings[it.mid + ""] instanceof HTMLElement)) return datas.dommappings[it.mid + ""];
             return upinfoline(it);
         }
         for (let it of datalist) {
             const upinfolinedom = await getDomForData(it);
             dom.appendChild(upinfolinedom);
-            if(isMainList) datas.dommappings[it.mid+""] = upinfolinedom;
+            if (isMainList) datas.dommappings[it.mid + ""] = upinfolinedom;
         }
         resetInfoBar();
     }
-    const renderTagListTo = async (dom,selectedId=[],cb = ()=>{},inManager = true) => {
+    const renderTagListTo = async (dom, selectedId = [], cb = () => { }, inManager = true) => {
         setInfoBar("正在渲染列表...");
         await wait(100);
         dom.innerHTML = '';
         for (let it of Object.values(datas.tags)) {
             log(it);
-            dom.appendChild(await taginfoline(it,cb,selectedId.includes(it.tagid),inManager,inManager));
+            dom.appendChild(await taginfoline(it, cb, selectedId.includes(it.tagid), inManager, inManager));
         }
         resetInfoBar();
     }
@@ -3974,15 +4024,82 @@
             await CKTools.waitForDom('#CKFOMAN-TIMERPROGRESS');
             const interval = setInterval(() => {
                 const pg = CKTools.get('#CKFOMAN-TIMERPROGRESS');
-                if (!pg) return (log('pg not found',pg??null),clearInterval(interval));
-                pg.value = pg.value + (cfg.debug?1:2);
-                if(pg>100) return (log('pg is full',pg??null),clearInterval(interval));
-            },100);
+                if (!pg) return (log('pg not found', pg ?? null), clearInterval(interval));
+                pg.value = pg.value + (cfg.debug ? 1 : 2);
+                if (pg > 100) return (log('pg is full', pg ?? null), clearInterval(interval));
+            }, 100);
         });
-        wait((waitTimer * 1000)+100).then(() => {
+        wait((waitTimer * 1000) + 100).then(() => {
             cfg.disableCloseModalFromBlockWindow = false;
             hideModal();
         });
+    }
+
+
+    // modified from https://socialsisteryi.github.io/bilibili-API-collect/docs/misc/sign/wbi.html#javascript
+    const mixinKeyEncTab = [
+        46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+        33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,
+        61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11,
+        36, 20, 34, 44, 52
+    ];
+    function getMixinKey(orig) {
+        let temp = ''
+        mixinKeyEncTab.forEach((n) => {
+            temp += orig[n]
+        })
+        return temp.slice(0, 32)
+    }
+    function encWbi(params, img_key, sub_key) {
+        const mixin_key = getMixinKey(img_key + sub_key),
+            curr_time = Math.round(Date.now() / 1000),
+            chr_filter = /[!'()*]/g
+        let query = []
+        Object.assign(params, { wts: curr_time })
+        Object.keys(params).sort().forEach((key) => {
+            query.push(
+                `${encodeURIComponent(key)}=${encodeURIComponent(
+                    params[key].toString().replace(chr_filter, '')
+                )}`
+            )
+        })
+        let querystr = query.join('&')
+        const wbi_sign = md5(querystr + mixin_key)
+        return querystr + '&w_rid=' + wbi_sign
+    }
+    async function getWbiKeys() {
+        if (s.get('wbi.keys')) return s.get('wbi.keys');
+        const resp = await fetch('https://api.bilibili.com/x/web-interface/nav', {
+        }).then(resp => resp.json()).catch(e => { log("Failed to fetch wbi identity:", e) }),
+            json_content = resp,
+            img_url = json_content.data.wbi_img.img_url,
+            sub_url = json_content.data.wbi_img.sub_url
+
+        const keys = {
+            img_key: img_url.slice(
+                img_url.lastIndexOf('/') + 1,
+                img_url.lastIndexOf('.')
+            ),
+            sub_key: sub_url.slice(
+                sub_url.lastIndexOf('/') + 1,
+                sub_url.lastIndexOf('.')
+            )
+        }
+        s.set('wbi.keys', keys);
+        log("Refreshed WBI keys");
+        return keys;
+    }
+    async function getWbiSignedParams(params = {}) {
+        return new Promise(r => {
+            getWbiKeys().then((wbi_keys) => {
+                const query = encWbi(
+                    params,
+                    wbi_keys.img_key,
+                    wbi_keys.sub_key
+                )
+                r(query);
+            })
+        })
     }
 
     const closeModalFromBlockWindow = () => {
@@ -4114,7 +4231,7 @@
     }
 
     const startInject = () => {
-        if(!unsafeWindow.FoManPlugins){
+        if (!unsafeWindow.FoManPlugins) {
             unsafeWindow.FoManPlugins = {}
         }
         initModal();
@@ -4133,7 +4250,7 @@
                 cfg, datas
             }
         }
-        unsafeWindow.openFollowManager = forceRefetch=>createMainWindow(forceRefetch);
+        unsafeWindow.openFollowManager = forceRefetch => createMainWindow(forceRefetch);
     };
 
     startInject();
