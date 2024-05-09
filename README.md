@@ -6,6 +6,13 @@
 
 [![查看我的脚本](https://shields.io/badge/%E7%82%B9%E5%87%BB%E6%9F%A5%E7%9C%8B-%E6%88%91%E7%9A%84Bilibili%E8%84%9A%E6%9C%AC%E5%90%88%E9%9B%86-%23670000?logo=tampermonkey&style=for-the-badge)](https://greasyfork.org/zh-CN/scripts?language=all&set=403506)
 
+> [!IMPORTANT]
+> 最近收到有人直接发过来的捐赠，因为超过7天才看见所以没法直接回复...
+> 首先感谢这位捐赠，然后很抱歉才看见...
+> 然后对于一些脚本，我其实不满意现在的状态，想要完整的重构一下，repo开了好久了，但是现在工作原因不好找到大块的时间来完成这个...
+> 所以现在也只能是修修补补旧版本这样...
+> 另外对于其他想要支持的人，这个脚本做的不是很好，所以就算你找到了我的联系方式也不要捐赠了，有需求的话发在Issues，我看到有空做的话就做了，谢谢各位喜欢我的作品！
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
