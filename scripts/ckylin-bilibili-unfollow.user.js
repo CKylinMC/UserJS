@@ -1118,7 +1118,7 @@
             display: flex;
             flex-wrap: nowrap;
             flex-direction: column;
-            max-height: calc(80vh - 1100px);
+            max-height: calc(80vh - 110px);
         }
         .CKFOMAN-data-inforow{
             border-radius: 6px;
