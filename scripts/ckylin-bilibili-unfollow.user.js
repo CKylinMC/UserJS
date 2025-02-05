@@ -87,7 +87,7 @@
         }
     };
     const cfg = {
-        debug: !false,
+        debug: false,
         retrial: 3,
         enableNewModules: false,
         VERSION: "0.2.22",
