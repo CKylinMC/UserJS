@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.22
+// @version      0.2.23
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -87,10 +87,10 @@
         }
     };
     const cfg = {
-        debug: !false,
+        debug: false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.22",
+        VERSION: "0.2.23",
         infobarTemplate: () => `共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small> ${datas.settings.enableExpermentals ? "!" : ""}</h1>`,
 
@@ -1118,7 +1118,7 @@
             display: flex;
             flex-wrap: nowrap;
             flex-direction: column;
-            max-height: calc(80vh - 80px);
+            max-height: calc(80vh - 110px);
         }
         .CKFOMAN-data-inforow{
             border-radius: 6px;
@@ -1521,11 +1521,11 @@
                         title += " | 悄悄关注";
                     }
                     if (data.special === 1) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="vertical-align: middle;color:orangered!important" title="特别关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<span style="vertical-align: middle;color:orangered!important" title="特别关注">❤️</span>` + name.innerHTML;
                         title += " | 特别关注";
                     }
                     if (data.attribute === 6) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="vertical-align: middle;color:orangered!important" title="互相关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<span style="vertical-align: middle;color:orangered!important" title="互相关注">⇆</span>` + name.innerHTML;
                         title += " | 互相关注";
                     }
                     if (data.vip.vipType !== 0) {
