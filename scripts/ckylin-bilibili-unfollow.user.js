@@ -1521,11 +1521,11 @@
                         title += " | 悄悄关注";
                     }
                     if (data.special === 1) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-heart" style="vertical-align: middle;color:orangered!important" title="特别关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<span style="vertical-align: middle;color:orangered!important" title="特别关注">❤️</span>` + name.innerHTML;
                         title += " | 特别关注";
                     }
                     if (data.attribute === 6) {
-                        name.innerHTML = `<i class="mdi mdi-18px mdi-swap-horizontal" style="vertical-align: middle;color:orangered!important" title="互相关注"></i>` + name.innerHTML;
+                        name.innerHTML = `<span style="vertical-align: middle;color:orangered!important" title="互相关注">⇆</span>` + name.innerHTML;
                         title += " | 互相关注";
                     }
                     if (data.vip.vipType !== 0) {
