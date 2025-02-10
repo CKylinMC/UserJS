@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.23
+// @version      0.2.24
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -2631,7 +2631,7 @@
                             if (user.official_verify.type != value) continue userloop;
                             break;
                         case "fans":
-                            if (user.attribute == value) continue userloop;
+                            if (user.attribute !== value) continue userloop;
                             break;
                         case "special":
                             if (user.special != value) continue userloop;
