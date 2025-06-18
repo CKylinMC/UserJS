@@ -2,43 +2,41 @@
 // @name         [Bilibili] MarkAsRead
 // @name:zh-CN   [Bilibili] 一键已读
 // @namespace    ckylin-script-bilibili-mark-as-read
-// @version      0.6
+// @version      0.7
 // @description  Mark all sessions as read with one click!
 // @description:zh-CN 一键设置所有会话已读！
 // @author       CKylinMC
 // @match        https://message.bilibili.com/*
 // @grant        unsafeWindow
-// @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-mark-as-read.user.js
 // @supportURL   https://github.com/CKylinMC/UserJS
 // @license      GPL-3.0-only
+// @downloadURL https://update.greasyfork.org/scripts/429152/%5BBilibili%5D%20MarkAsRead.user.js
+// @updateURL https://update.greasyfork.org/scripts/429152/%5BBilibili%5D%20MarkAsRead.meta.js
 // ==/UserScript==
+
+/*
+提示：若你的功能现在还正常，请先不要更新。否则，你可能需要去脚本页面下载 0.6 旧版本。
+0.7版本仅适配新页面。
+*/
 
 if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
 (function () {
     'use strict';
     const blacklist_elTitle = ["我的应援团","未关注人消息","疑似不良消息"];
     const wait = t => new Promise(r => setTimeout(r, t));
-    const inBlacklist = el=>{
-        for(let titleItem of blacklist_elTitle){
-            if(el.querySelector(`[title='${titleItem}']`)) return true;
+    const touchList = async () => {
+        for(const item of [...document.querySelectorAll("._SessionItem_dnmx0_1")]){
+            if(item.getAttribute("data-id")?.startsWith("group")) continue;
+            if(blacklist_elTitle.includes(item.querySelector("._SessionItem__Name_dnmx0_67")?.textContent.trim())) continue;
+            item.click();
+            await wait(100);
         }
-        return false;
-    }
-    const touch = async el => {
-        el.click();
-        await wait(100)
+        //document.querySelector("._SessionItem_dnmx0_1").click();
+        location.hash = "#/whisper";
     };
-    const touchList = async div => {
-        let active = div.querySelector(".active");
-        for (let el of [...div.children].splice(1)) {
-            if (el.classList.contains("list-item") && el.querySelector(".notify") && !inBlacklist(el)) await touch(el)
-        }
-        if (active) await touch(active)
-        else location.hash = "#/whisper";
-    };
-    const msgList = () => document.querySelector("div.list");
-    const asRead = async () => await touchList(msgList());
-    const settingList = () => document.querySelector("ul.list");
+    const asRead = async () => await touchList();
+    const settingList = () => document.querySelector("ul.message-sidebar__settings");
+    const msgList = () => document.querySelector("._SessionList_1im8i_1");
     const intervalLog = {
         intervalId: null,
         lastHash: location.hash,
@@ -82,19 +80,22 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
         }
         return false;
     };
+    const settingsBtn = (icon, text)=>{
+        return `<div class="message-sidebar__item-icon">${icon}</div><div class="message-sidebar__item-name">${text}</div>`
+    }
     const injectBtn = async () => {
         if (await waitFor(() => settingList())) {
             let old;
             if (old = document.querySelector("#CKMARKREAD-BTN")) old.remove();
-            const a = document.createElement("a");
-            a.href = "javascript:void(0)";
-            a.innerHTML = "💬 全部标为已读";
-            a.onclick = async (e) => {
-                e.target.innerHTML = "🕓 请稍等...";
+            const item = document.createElement("li");
+            item.classList.add("message-sidebar__item");
+            item.innerHTML = settingsBtn('💬', '全部标为已读');
+            item.onclick = async (e) => {
+                e.target.innerHTML = settingsBtn('🕓', '请稍等...');
                 await waitFor(() => msgList());
                 await asRead();
-                e.target.innerHTML = "✔ 已标为已读";
-                e.target.onclick = e => e.target.innerHTML = "✔ 无需操作";
+                e.target.innerHTML = settingsBtn('✔', '已标为已读');
+                e.target.onclick = ev => ev.target.innerHTML = settingsBtn('✔', '无需操作');
                 setTimeout(()=>{
                     e.target.parentElement.style.transition = "margin .3s .2s, opacity .5s";
                     e.target.parentElement.style.opacity = "0";
@@ -102,20 +103,7 @@ if (typeof (unsafeWindow) === "undefined") var unsafeWindow = window;
                     setTimeout(()=>e.target.parentElement.remove(),300);
                 },3000);
             };
-            const item = document.createElement("li");
-            item.classList.add("item");
-            item.id = "CKMARKREAD-BTN";
-            item.style.opacity = "0";
-            item.style.margin = "0px 0";
-            item.style.transition = "all .3s";
-            item.appendChild(a);
             settingList().appendChild(item);
-            setTimeout(()=>{
-                if(item){
-                    item.style.margin = "15px 0";
-                    item.style.opacity = "1";
-                }
-            },50)
         }
     };
     const delayedInjectTask = async () => {
