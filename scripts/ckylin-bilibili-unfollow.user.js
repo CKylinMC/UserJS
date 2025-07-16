@@ -202,6 +202,7 @@
     const getUnfolURL = () => `https://api.bilibili.com/x/relation/modify`;
     const getFollowURL = () => `https://api.bilibili.com/x/relation/batch/modify`;
     const getLatestVidURL = () => `https://api.bilibili.com/x/space/wbi/arc/search`;//wbi,?mid=${uid}&ps=1&pn=1`;
+    const getLatestFeedURL = () => `https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space`;//wbi,?host_mid=${uid}`;
     const getSubInfoURL = uid => `https://api.bilibili.com/x/relation/stat?vmid=${uid}`;
     const getCreateGroupURL = () => `https://api.bilibili.com/x/relation/tag/create`;
     const getRenameGroupURL = () => `https://api.bilibili.com/x/relation/tag/update`;
@@ -386,6 +387,47 @@
             return null;
         }
     }
+    const getLatestFeedDate = async uid => {
+        try {
+            const url = getLatestFeedURL() + "?offset=&host_mid=" + uid + "&features=itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard";
+            console.log(url)
+            const res = await fetch(getRequest(url));
+            const jsonData = await res.json();
+            console.log(jsonData)
+            if (jsonData && jsonData.code === -352) {
+                await alertModal(
+                    "风控提醒",
+                    "检测到风控，请打开任一用户动态页，完成验证码后点击确认继续获取。",
+                    "确认"
+                );
+                while (isModalShowing()) {
+                    await wait(200);
+                }
+                return await getLatestFeedDate(uid);
+            } 
+
+            if (!(jsonData && jsonData.code === 0 && jsonData.data && Array.isArray(jsonData.data.items))) {
+                return { ok: false };
+            }
+            const items = jsonData.data.items;
+            const count = items.length;
+            if (count === 0) {
+                return { ok: false };
+            }
+            const getTs = item => item?.modules?.module_author?.pub_ts || 0;
+            if (count === 1) {
+                const ts = getTs(items[0]);
+                return { ok: true, value: ts };
+            }
+            const ts0 = getTs(items[0]);
+            const ts1 = getTs(items[1]);
+            const latestTs = Math.max(ts0, ts1);
+            return { ok: true, value: latestTs };
+        } catch (e) {
+            log(uid, e);
+            return { ok: false };
+        }
+    };
     const getLatestVideoPublishDate = async uid => {
         try {
             const jsonData = await (await fetch(getRequest(getLatestVidURL() + "?" + await getWbiSignedParams({
@@ -558,6 +600,10 @@
             log(uid, "already filled")
             resetInfoBar();
             return datas.mappings[uid];
+        }
+        let feedsInfo = await getLatestFeedDate(uid);
+        if (feedsInfo.ok) {
+            datas.mappings[uid].latestFeed = feedsInfo.value;
         }
         let userinfo = await getUserStats(uid, refresh, fast);
         if (userinfo.ok) {
@@ -3154,6 +3200,30 @@
                                                 datas.followings.sort((a, b)=>{
                                                     const upA = a.lastUpdate || 0;
                                                     const upB = b.lastUpdate || 0;
+                                                  
+                                                    if (upA > upB) {
+                                                      return -1;
+                                                    } else if (upA < upB) {
+                                                      return 1;
+                                                    } else {
+                                                      return 0;
+                                                    }
+                                                  });
+                                                await renderListTo(get("#CKFOMAN-MAINLIST"), datas.followings, true);
+                                                hideModal();
+                                            }
+                                        }),
+                                        datas.settings.enableExpermentals && 
+                                        await makeDom("button", btn => {
+                                            btn.className = "CKFOMAN-toolbar-btns CKFOMAN-sortbtns";
+                                            btn.innerHTML = "按最新动态日期排序 (实验)";
+                                            btn.onclick = async e => {
+                                                setInfoBar("正在按最新动态日期排序...");
+                                                await alertModal("正在排序...", "请稍等...");
+                                                refreshChecked();
+                                                datas.followings.sort((a, b)=>{
+                                                    const upA = a.latestFeed || 0;
+                                                    const upB = b.latestFeed || 0;
                                                   
                                                     if (upA > upB) {
                                                       return -1;
