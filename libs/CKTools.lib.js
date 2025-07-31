@@ -267,7 +267,7 @@
 			if (parts.length === 2) return parts.pop().split(';').shift();
 		}
 		static clearAllCookies() {
-			return document.cookie.split(';').forEach(cookie => document.cookie = cookie.replace(/^ +/, '').replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`));
+			return document.cookie.split(';').forEach(cookie => document.cookie = cookie.replace(/^ +/, '').replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/;secure`));
 		}
 		static getUrlParam(key) {
 			return (new URL(location.href)).searchParams.get(key);
