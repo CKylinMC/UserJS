@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.25
+// @version      0.2.26
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -1462,7 +1462,7 @@
     }
     const addMdiBtnStyle = () => {
         if (document.querySelector("#CKFOMAN-MDICSS")) return;
-        document.head.innerHTML += `<link id="CKFOMAN-MDICSS" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`;
+        document.head.innerHTML += `<link id="CKFOMAN-MDICSS" rel="stylesheet" href="https://unpkg.com/@mdi/font@5.9.55/css/materialdesignicons.min.css"/>`;
     }
     const refreshChecked = () => {
         setInfoBar(`正在刷新后台数据...`);
