@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [Bilibili] 关注管理器
 // @namespace    ckylin-bilibili-foman
-// @version      0.2.26
+// @version      0.2.27
 // @description  快速排序和筛选你的关注列表，一键取关不再关注的UP等
 // @author       CKylinMC
 // @updateURL    https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-bilibili-unfollow.user.js
@@ -90,7 +90,7 @@
         debug: false,
         retrial: 3,
         enableNewModules: false,
-        VERSION: "0.2.23",
+        VERSION: "0.2.27",
         infobarTemplate: () => `共读取 ${datas.fetched} 条关注`,
         titleTemplate: () => `<h1>关注管理器 FoMan <small>v${cfg.VERSION} ${cfg.debug ? "debug" : ""}</small> ${datas.settings.enableExpermentals ? "!" : ""}</h1>`,
 
@@ -1622,7 +1622,8 @@
                         if (gid in datas.tags) {
                             name += datas.tags[gid].name;
                         } else {
-                            name += "?";
+                            //name += "?";
+                            log("UP "+data.uname+" have unknown tag id "+gid+".")
                         }
                     }
                     tagsdom.innerHTML = name;
