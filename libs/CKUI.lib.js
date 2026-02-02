@@ -6,7 +6,7 @@
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
-// @license      GPL-3.0-only
+// @license      Apache-2.0
 // @grant        unsafeWindow
 // ==/UserScript==
 
