@@ -13,7 +13,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_listValues
 // @grant        GM_addStyle
-// @license      Apacahe-2.0
+// @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
 // @require https://update.greasyfork.org/scripts/564901/1747637/CKUI.js
