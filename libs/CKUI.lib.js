@@ -6,14 +6,14 @@
 // @match        http://*
 // @match        https://*
 // @author       CKylinMC
-// @license      Apache-2.0
+// @license      GPL-3.0-only
 // @grant        unsafeWindow
 // ==/UserScript==
 
 (function() {
     'use strict';
     
-    // 防止重复加载
+
     if (typeof unsafeWindow === 'undefined') {
         window.unsafeWindow = window;
     }
@@ -23,17 +23,45 @@
         return;
     }
 
-    // ===========================================
-    // 全局配置
-    // ===========================================
     const globalConfig = {
-        zIndexBase: 999990, // 可配置的基础 z-index
-        currentTheme: 'light' // 当前主题
+        zIndexBase: 999990,
+        currentTheme: 'light'
     };
 
-    // ===========================================
-    // 响应式系统
-    // ===========================================
+    class InstanceManager {
+        constructor() {
+            this.modals = new Map();
+            this.floatWindows = new Map();
+            this.forms = new Map();
+        }
+
+        register(type, id, instance) {
+            const map = this[type];
+            if (map) {
+                map.set(id, instance);
+            }
+        }
+
+        unregister(type, id) {
+            const map = this[type];
+            if (map) {
+                map.delete(id);
+            }
+        }
+
+        get(type, id) {
+            const map = this[type];
+            return map ? map.get(id) : null;
+        }
+
+        has(type, id) {
+            const map = this[type];
+            return map ? map.has(id) : false;
+        }
+    }
+
+    const instanceManager = new InstanceManager();
+
     class Reactive {
         constructor(value) {
             this._value = value;
@@ -69,9 +97,6 @@
         }
     }
 
-    // ===========================================
-    // 工具函数
-    // ===========================================
     const utils = {
         uuid() {
             return 'ckui-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -81,7 +106,7 @@
             const el = document.createElement(tag);
             
             Object.entries(props).forEach(([key, value]) => {
-                // 跳过 undefined 和 null 值
+
                 if (value === undefined || value === null) {
                     return;
                 }
@@ -95,7 +120,7 @@
                 } else if (key === 'dataset' && typeof value === 'object') {
                     Object.assign(el.dataset, value);
                 } else if (key === 'disabled' && value === false) {
-                    // disabled 为 false 时不设置属性
+
                     return;
                 } else {
                     el.setAttribute(key, value);
@@ -134,9 +159,6 @@
         }
     };
 
-    // ===========================================
-    // 核心样式
-    // ===========================================
     const coreStyles = `
         /* CKUI Core Styles - Isolated with high specificity */
         .ckui-root {
@@ -833,9 +855,6 @@
         }
     `;
 
-    // ===========================================
-    // 通知系统
-    // ===========================================
     class NotificationManager {
         constructor() {
             this.container = null;
@@ -930,11 +949,9 @@
         }
     }
 
-    // ===========================================
-    // 模态框
-    // ===========================================
     class Modal {
         constructor(options = {}) {
+            this.id = options.id || null;
             this.options = {
                 title: options.title || '提示',
                 content: options.content || '',
@@ -951,9 +968,20 @@
             this.modal = null;
             this.resolvePromise = null;
             this.rejectPromise = null;
+            this.isShowing = false;
+
+            if (this.id) {
+                instanceManager.register('modals', this.id, this);
+            }
         }
 
         show() {
+
+            if (this.isShowing) {
+                this.close(false);
+            }
+            
+            this.isShowing = true;
             return new Promise((resolve, reject) => {
                 this.resolvePromise = resolve;
                 this.rejectPromise = reject;
@@ -961,8 +989,21 @@
             });
         }
 
+        refresh(options = {}) {
+
+            this.options = { ...this.options, ...options };
+            
+
+            if (this.isShowing) {
+                this.close(false);
+                this.show();
+            }
+            
+            return this;
+        }
+
         render() {
-            // Create overlay
+
             const className = globalConfig.currentTheme === 'dark'
                 ? 'ckui-root ckui-dark ckui-overlay'
                 : 'ckui-root ckui-overlay';
@@ -976,7 +1017,6 @@
                 }
             });
 
-            // 弹窗堆叠处理
             const existingOverlays = document.querySelectorAll('.ckui-overlay');
             if (existingOverlays.length > 0) {
                 const maxZ = Math.max(...Array.from(existingOverlays).map(el => parseInt(el.style.zIndex) || 0));
@@ -988,7 +1028,6 @@
                 style: { width: this.options.width }
             });
 
-            // Header
             const header = utils.createElement('div', {
                 class: 'ckui-modal-header'
             }, [
@@ -1001,7 +1040,6 @@
                 }, ['×']) : null
             ].filter(Boolean));
 
-            // Body
             const body = utils.createElement('div', {
                 class: 'ckui-modal-body'
             });
@@ -1012,12 +1050,11 @@
                 body.appendChild(this.options.content);
             }
 
-            // Footer
             let footer;
             if (this.options.footer === null) {
                 footer = null;
             } else if (this.options.footer === 'alert') {
-                // Alert 特殊处理
+
                 footer = utils.createElement('div', {
                     class: 'ckui-modal-footer'
                 }, [
@@ -1050,7 +1087,6 @@
                 ]);
             }
 
-            // Assemble
             [header, body, footer].filter(Boolean).forEach(el => {
                 this.modal.appendChild(el);
             });
@@ -1058,7 +1094,6 @@
             this.overlay.appendChild(this.modal);
             document.body.appendChild(this.overlay);
 
-            // Handle escape key
             this.handleEscape = (e) => {
                 if (e.key === 'Escape') {
                     this.cancel();
@@ -1069,16 +1104,19 @@
 
         async ok() {
             let shouldClose = true;
+            let returnValue = true;
             
             if (this.options.onOk) {
                 const result = await this.options.onOk();
                 if (result === false) {
                     shouldClose = false;
+                } else {
+                    returnValue = result;
                 }
             }
 
             if (shouldClose) {
-                this.close(true);
+                this.close(returnValue);
             }
         }
 
@@ -1091,6 +1129,7 @@
 
         close(result) {
             if (this.overlay && this.overlay.parentNode) {
+                this.isShowing = false;
                 document.removeEventListener('keydown', this.handleEscape);
                 this.overlay.style.animation = 'ckui-fade-out 0.2s ease-out forwards';
                 this.modal.style.animation = 'ckui-modal-out 0.2s ease-out forwards';
@@ -1107,6 +1146,13 @@
             }
         }
 
+        destroy() {
+            this.close(false);
+            if (this.id) {
+                instanceManager.unregister('modals', this.id);
+            }
+        }
+
         static confirm(options) {
             const modal = new Modal(options);
             return modal.show();
@@ -1117,18 +1163,343 @@
                 options = { content: options };
             }
             const modal = new Modal({
+                maskClosable: false,
+                showClose: false,
                 ...options,
-                footer: 'alert' // 特殊标记
+                footer: 'alert'
             });
+            return modal.show().then(() => undefined).catch(() => undefined);
+        }
+
+        static prompt(options) {
+            if (typeof options === 'string') {
+                options = { title: options };
+            }
+            
+            const inputValue = options.defaultValue || '';
+            const input = utils.createElement('input', {
+                class: 'ckui-root ckui-input',
+                type: 'text',
+                placeholder: options.placeholder || '',
+                value: inputValue
+            });
+            
+            const modal = new Modal({
+                title: options.title || '请输入',
+                content: input,
+                width: options.width || '400px',
+                maskClosable: false,
+                ...options,
+                onOk: () => {
+                    return true;
+                }
+            });
+            
+            return modal.show()
+                .then(() => input.value)
+                .catch(() => null);
+        }
+
+        static select(options) {
+            if (!options.options || !Array.isArray(options.options)) {
+                throw new Error('select() requires options array');
+            }
+            
+            let selectedValue = options.defaultValue || null;
+            
+            const container = utils.createElement('div', {
+                class: 'ckui-root',
+                style: { padding: '8px 0' }
+            });
+            
+            const select = utils.createElement('select', {
+                class: 'ckui-select',
+                style: { 
+                    width: '100%', 
+                    fontSize: '15px',
+                    height: '40px',
+                    lineHeight: '1.5',
+                    padding: '8px 12px'
+                }
+            });
+            
+            options.options.forEach(opt => {
+                const option = utils.createElement('option', {
+                    value: opt.value !== undefined ? opt.value : opt
+                });
+                option.textContent = opt.label || opt.toString();
+                option.style.padding = '8px 12px';
+                option.style.lineHeight = '1.8';
+                
+                if (opt.value === options.defaultValue || opt === options.defaultValue) {
+                    option.selected = true;
+                    selectedValue = opt.value !== undefined ? opt.value : opt;
+                }
+                
+                select.appendChild(option);
+            });
+            
+
+            select.onchange = () => {
+                selectedValue = select.value;
+            };
+            
+            container.appendChild(select);
+            
+            const modal = new Modal({
+                title: options.title || '请选择',
+                content: container,
+                width: options.width || '400px',
+                maskClosable: false,
+                onOk: () => {
+                    return selectedValue;
+                }
+            });
+            
+            return modal.show();
+        }
+
+        static sortableList(options) {
+            if (!options.items || !Array.isArray(options.items)) {
+                throw new Error('sortableList() requires items array');
+            }
+            
+            let items = [...options.items];
+            let draggedIndex = null;
+            let dragOverIndex = null;
+            let highlightIndices = new Set();
+            
+            const container = utils.createElement('div', {
+                class: 'ckui-root',
+                style: { minHeight: '200px', maxHeight: '400px', overflowY: 'auto', padding: '8px' }
+            });
+
+            const updateHighlights = () => {
+                const itemElements = container.querySelectorAll('.ckui-item');
+                itemElements.forEach((el, index) => {
+                    const isHighlighted = highlightIndices.has(index);
+                    if (isHighlighted) {
+                        el.style.borderColor = '#10b981';
+                        el.style.background = 'rgba(16, 185, 129, 0.25)';
+                        el.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.3)';
+                    } else {
+                        el.style.borderColor = 'var(--ckui-border, #ccc)';
+                        el.style.background = 'var(--ckui-bg, #fff)';
+                        el.style.boxShadow = '';
+                    }
+                });
+            };
+            
+
+            const blinkHighlight = (...indices) => {
+
+                highlightIndices.clear();
+                indices.forEach(i => highlightIndices.add(i));
+                requestAnimationFrame(() => {
+                    updateHighlights();
+                    
+
+                    setTimeout(() => {
+                        highlightIndices.clear();
+                        requestAnimationFrame(() => {
+                            updateHighlights();
+                            
+
+                            setTimeout(() => {
+                                indices.forEach(i => highlightIndices.add(i));
+                                requestAnimationFrame(() => {
+                                    updateHighlights();
+                                    
+
+                                    setTimeout(() => {
+                                        highlightIndices.clear();
+                                        requestAnimationFrame(() => {
+                                            updateHighlights();
+                                        });
+                                    }, 400);
+                                });
+                            }, 400);
+                        });
+                    }, 400);
+                });
+            };
+
+            const renderList = () => {
+                container.innerHTML = '';
+
+                items.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'ckui-item';
+                    itemEl.draggable = true;
+                    itemEl.dataset.index = index;
+                    
+
+                    const isHighlighted = highlightIndices.has(index);
+                    const isDragging = draggedIndex === index;
+                    itemEl.className = isHighlighted ? 'ckui-item ckui-item-highlight' : 'ckui-item';
+                    itemEl.style.cssText = `
+                        padding: 12px 16px;
+                        margin-bottom: 8px;
+                        border: 2px ${isDragging ? 'dashed' : 'solid'} var(--ckui-border, #ccc);
+                        border-radius: var(--ckui-radius, 4px);
+                        background: var(--ckui-bg, #fff);
+                        cursor: grab;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        user-select: none;
+                        transition: all 0.3s ease-in-out;
+                        opacity: ${isDragging ? '0.6' : '1'};
+                    `;
+                    
+
+                    if (isDragging) {
+                        itemEl.style.borderColor = '#3b82f6';
+                        itemEl.style.background = 'rgba(59, 130, 246, 0.1)';
+                        itemEl.style.cursor = 'grabbing';
+                    }
+                    
+
+                    if (isHighlighted) {
+                        itemEl.style.borderColor = '#10b981';
+                        itemEl.style.borderStyle = 'solid';
+                        itemEl.style.background = 'rgba(16, 185, 129, 0.25)';
+                        itemEl.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.3)';
+                        itemEl.style.opacity = '1';
+                    }
+
+                    const leftContent = document.createElement('div');
+                    leftContent.style.cssText = 'display: flex; align-items: center; gap: 12px; pointer-events: none;';
+                    leftContent.innerHTML = `
+                        <span style="color: #999; font-size: 18px;">☰</span>
+                        <span style="color: #333;">${item.label || item}</span>
+                    `;
+
+                    const controls = document.createElement('div');
+                    controls.style.cssText = 'display: flex; gap: 4px; pointer-events: auto;';
+
+                    const createBtn = (text, onClick) => {
+                        const btn = document.createElement('button');
+                        btn.textContent = text;
+                        btn.style.cssText = `
+                            padding: 4px 10px;
+                            cursor: pointer;
+                            background: var(--ckui-secondary, #f8fafc);
+                            border: 1px solid var(--ckui-border, #e5e7eb);
+                            border-radius: var(--ckui-radius-sm, 4px);
+                            color: var(--ckui-text-secondary, #64748b);
+                            font-size: 16px;
+                            line-height: 1;
+                            transition: all 0.2s ease;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-width: 28px;
+                            height: 28px;
+                        `;
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            onClick();
+                        };
+
+                        btn.onmouseenter = () => {
+                            btn.style.background = 'var(--ckui-primary, #0f172a)';
+                            btn.style.color = 'white';
+                            btn.style.borderColor = 'var(--ckui-primary, #0f172a)';
+                            btn.style.transform = 'scale(1.1)';
+                        };
+                        btn.onmouseleave = () => {
+                            btn.style.background = 'var(--ckui-secondary, #f8fafc)';
+                            btn.style.color = 'var(--ckui-text-secondary, #64748b)';
+                            btn.style.borderColor = 'var(--ckui-border, #e5e7eb)';
+                            btn.style.transform = 'scale(1)';
+                        };
+
+                        btn.onmousedown = (e) => e.stopPropagation();
+                        return btn;
+                    };
+
+                    if (index > 0) {
+                        controls.appendChild(createBtn('↑', () => {
+                            [items[index], items[index - 1]] = [items[index - 1], items[index]];
+
+                            blinkHighlight(index - 1, index);
+                        }));
+                    }
+                    if (index < items.length - 1) {
+                        controls.appendChild(createBtn('↓', () => {
+                            [items[index], items[index + 1]] = [items[index + 1], items[index]];
+
+                            blinkHighlight(index, index + 1);
+                        }));
+                    }
+
+                    itemEl.appendChild(leftContent);
+                    itemEl.appendChild(controls);
+
+                    itemEl.addEventListener('dragstart', (e) => {
+                        draggedIndex = index;
+                        e.dataTransfer.effectAllowed = 'move';
+
+                        e.dataTransfer.setData('text/plain', index);
+                    });
+
+                    itemEl.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        
+                        if (draggedIndex !== null && index !== draggedIndex) {
+
+                            const movedItem = items[draggedIndex];
+                            items.splice(draggedIndex, 1);
+                            items.splice(index, 0, movedItem);
+                            
+
+                            draggedIndex = index;
+                            
+
+                            renderList();
+                        }
+                    });
+
+                    itemEl.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (draggedIndex !== null) {
+
+                            blinkHighlight(index);
+                        }
+                    });
+
+                    itemEl.addEventListener('dragend', () => {
+                        draggedIndex = null;
+                        renderList();
+                    });
+
+                    container.appendChild(itemEl);
+                });
+            };
+
+            renderList();
+            
+            const modal = new Modal({
+                title: options.title || '排序列表',
+                content: container,
+                width: options.width || '500px',
+                maskClosable: false,
+                onOk: () => {
+                    return items;
+                }
+            });
+            
             return modal.show();
         }
     }
 
-    // ===========================================
-    // 浮动窗口
-    // ===========================================
     class FloatWindow {
         constructor(options = {}) {
+            this.id = options.id || null;
             this.options = {
                 title: options.title || '浮动窗口',
                 content: options.content || '',
@@ -1140,25 +1511,146 @@
                 draggable: options.draggable !== false,
                 minimizable: options.minimizable !== false,
                 closable: options.closable !== false,
+                onClose: options.onClose || null,
                 ...options
             };
 
             this.window = null;
             this.isDragging = false;
             this.isMinimized = false;
+            this.isShowing = false;
             this.dragStartX = 0;
             this.dragStartY = 0;
             this.windowStartX = 0;
             this.windowStartY = 0;
+            this.onCloseCallbacks = [];
+            this.onCloseOnceCallbacks = [];
+
+            if (this.id) {
+                instanceManager.register('floatWindows', this.id, this);
+            }
         }
 
         show() {
+            if (this.isShowing && this.window && this.window.parentNode) {
+
+                this.window.style.display = '';
+                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                this.window.style.opacity = '1';
+                this.window.style.transform = 'scale(1)';
+                
+                setTimeout(() => {
+                    if (this.window) {
+                        this.window.style.transition = '';
+                    }
+                }, 200);
+                return this;
+            }
+            
+            this.isShowing = true;
             this.render();
             return this;
         }
 
+        refresh(options = {}) {
+
+            this.options = { ...this.options, ...options };
+            
+
+            if (this.isShowing) {
+                const wasMinimized = this.isMinimized;
+                this.close();
+                this.show();
+                if (wasMinimized) {
+                    this.toggleMinimize();
+                }
+            }
+            
+            return this;
+        }
+
+        moveToMouse(offsetX = 0, offsetY = 0) {
+            return new Promise((resolve) => {
+
+                if (!window.__ckui_lastMouseX) {
+                    window.__ckui_lastMouseX = window.innerWidth / 2;
+                    window.__ckui_lastMouseY = window.innerHeight / 2;
+                    
+
+                    document.addEventListener('mousemove', (e) => {
+                        window.__ckui_lastMouseX = e.clientX;
+                        window.__ckui_lastMouseY = e.clientY;
+                    }, { passive: true });
+                }
+                
+                const mouseX = window.__ckui_lastMouseX;
+                const mouseY = window.__ckui_lastMouseY;
+                
+
+                if (!this.window) {
+                    this.render();
+                }
+                
+
+                const rect = this.window.getBoundingClientRect();
+                
+
+                const centerX = mouseX - (rect.width / 2) + offsetX;
+                const centerY = mouseY - (rect.height / 2) + offsetY;
+                
+
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                
+                let finalX = centerX;
+                let finalY = centerY;
+                
+
+                if (finalX < 20) finalX = 20;
+                if (finalY < 20) finalY = 20;
+                if (finalX + rect.width > viewportWidth - 20) {
+                    finalX = viewportWidth - rect.width - 20;
+                }
+                if (finalY + rect.height > viewportHeight - 20) {
+                    finalY = viewportHeight - rect.height - 20;
+                }
+                
+                this.window.style.left = finalX + 'px';
+                this.window.style.top = finalY + 'px';
+                
+
+                requestAnimationFrame(() => {
+                    this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    this.window.style.opacity = '1';
+                    this.window.style.transform = 'scale(1)';
+                    
+                    setTimeout(() => {
+                        if (this.window) {
+                            this.window.style.transition = '';
+                        }
+                        resolve(this);
+                    }, 200);
+                });
+            });
+        }
+
+        onClose(callback, once = false) {
+            if (once) {
+                this.onCloseOnceCallbacks.push(callback);
+            } else {
+                this.onCloseCallbacks.push(callback);
+            }
+            return this;
+        }
+
+        offClose(callback) {
+            this.onCloseCallbacks = this.onCloseCallbacks.filter(cb => cb !== callback);
+            this.onCloseOnceCallbacks = this.onCloseOnceCallbacks.filter(cb => cb !== callback);
+            return this;
+        }
+
         render() {
-            // Create window
+
             const className = globalConfig.currentTheme === 'dark'
                 ? 'ckui-root ckui-dark ckui-float-window'
                 : 'ckui-root ckui-float-window';
@@ -1169,11 +1661,12 @@
                     top: this.options.y + 'px',
                     width: this.options.width,
                     height: this.options.height,
-                    zIndex: globalConfig.zIndexBase + 7
+                    zIndex: globalConfig.zIndexBase + 7,
+                    opacity: '0',
+                    transform: 'scale(0.95)'
                 }
             });
 
-            // Header
             const header = utils.createElement('div', {
                 class: 'ckui-float-header'
             }, [
@@ -1194,7 +1687,6 @@
                 ].filter(Boolean))
             ]);
 
-            // Body
             this.body = utils.createElement('div', {
                 class: 'ckui-float-body',
                 style: { padding: this.options.padding }
@@ -1206,23 +1698,72 @@
                 this.body.appendChild(this.options.content);
             }
 
-            // Assemble
             this.window.appendChild(header);
             this.window.appendChild(this.body);
 
-            // Setup dragging
             if (this.options.draggable) {
                 this.setupDragging(header);
             }
 
             document.body.appendChild(this.window);
+            
+
+            this.adjustPosition();
+            
+
+            requestAnimationFrame(() => {
+                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                this.window.style.opacity = '1';
+                this.window.style.transform = 'scale(1)';
+                
+
+                setTimeout(() => {
+                    if (this.window) {
+                        this.window.style.transition = '';
+                    }
+                }, 200);
+            });
+        }
+
+        adjustPosition() {
+            if (!this.window) return;
+            
+            const rect = this.window.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            let x = parseInt(this.window.style.left);
+            let y = parseInt(this.window.style.top);
+            
+
+            if (rect.right > viewportWidth) {
+                x = viewportWidth - rect.width - 20;
+            }
+            
+
+            if (rect.bottom > viewportHeight) {
+                y = viewportHeight - rect.height - 20;
+            }
+            
+
+            if (x < 20) {
+                x = 20;
+            }
+            
+
+            if (y < 20) {
+                y = 20;
+            }
+            
+            this.window.style.left = x + 'px';
+            this.window.style.top = y + 'px';
         }
 
         setupDragging(header) {
             header.style.cursor = 'move';
 
             const onMouseDown = (e) => {
-                // 移除 isMinimized 判断，允许最小化状态下仍然可以拖动
+
                 
                 this.isDragging = true;
                 this.dragStartX = e.clientX;
@@ -1260,7 +1801,7 @@
         toggleMinimize() {
             this.isMinimized = !this.isMinimized;
             this.body.style.display = this.isMinimized ? 'none' : 'block';
-            // 最小化时仍然保持可拖动，不需要禁用拖动功能
+
         }
 
         setContent(content) {
@@ -1275,20 +1816,76 @@
 
         close() {
             if (this.window && this.window.parentNode) {
-                this.window.parentNode.removeChild(this.window);
+                this.isShowing = false;
+                
+
+                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.6, -0.28, 0.74, 0.05)';
+                this.window.style.opacity = '0';
+                this.window.style.transform = 'scale(0.95)';
+                
+                setTimeout(() => {
+                    if (this.window && this.window.parentNode) {
+                        this.window.parentNode.removeChild(this.window);
+                    }
+                    
+
+                    if (this.options.onClose) {
+                        try {
+                            this.options.onClose();
+                        } catch (e) {
+                            console.error('[CKUI] onClose callback error:', e);
+                        }
+                    }
+                    
+
+                    this.onCloseCallbacks.forEach(callback => {
+                        try {
+                            callback();
+                        } catch (e) {
+                            console.error('[CKUI] onClose callback error:', e);
+                        }
+                    });
+                    
+
+                    this.onCloseOnceCallbacks.forEach(callback => {
+                        try {
+                            callback();
+                        } catch (e) {
+                            console.error('[CKUI] onClose callback error:', e);
+                        }
+                    });
+                    this.onCloseOnceCallbacks = [];
+                }, 200);
             }
             return this;
         }
+
+        destroy() {
+            this.close();
+            if (this.id) {
+                instanceManager.unregister('floatWindows', this.id);
+            }
+            this.onCloseCallbacks = [];
+            this.onCloseOnceCallbacks = [];
+        }
     }
 
-    // ===========================================
-    // 表单构建器
-    // ===========================================
     class FormBuilder {
         constructor(config = {}) {
+            this.id = config.id || null;
             this.config = config;
             this.fields = [];
             this.values = new Reactive({});
+
+            if (this.id) {
+                instanceManager.register('forms', this.id, this);
+            }
+        }
+
+        destroy() {
+            if (this.id) {
+                instanceManager.unregister('forms', this.id);
+            }
         }
 
         addField(field) {
@@ -1601,22 +2198,32 @@
         }
     }
 
-    // ===========================================
-    // 主 API
-    // ===========================================
     const ckui = {
         __initialized: true,
         version: '2.0.0',
 
-        // 响应式
+        getInstance(type, id) {
+            return instanceManager.get(type, id);
+        },
+
+        getModal(id) {
+            return instanceManager.get('modals', id);
+        },
+
+        getFloatWindow(id) {
+            return instanceManager.get('floatWindows', id);
+        },
+
+        getForm(id) {
+            return instanceManager.get('forms', id);
+        },
+
         reactive(value) {
             return new Reactive(value);
         },
 
-        // 工具
         utils,
 
-        // 通知
         notification: new NotificationManager(),
         notify(options) {
             return this.notification.show(options);
@@ -1634,37 +2241,191 @@
             return this.notification.info(message, title);
         },
 
-        // 模态框
         Modal,
         modal(options) {
+
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    return existing.refresh(options);
+                }
+            }
             return new Modal(options);
         },
-        confirm(options) {
-            return Modal.confirm(options);
-        },
-        alert(options) {
+        async alert(message, title, id) {
+            let options = {};
+            if (typeof message === 'object') {
+                options = message;
+            } else {
+                options = { content: message, title: title || '提示', id: id };
+            }
+            
+
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    existing.refresh(options);
+                    return existing.show().then(() => undefined).catch(() => undefined);
+                }
+            }
             return Modal.alert(options);
         },
+        async confirm(message, title, id) {
+            let options = {};
+            if (typeof message === 'object') {
+                options = message;
+            } else {
+                options = { content: message, title: title || '确认', id: id };
+            }
+            
 
-        // 浮动窗口
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    existing.refresh(options);
+                    return existing.show().then(() => true).catch(() => false);
+                }
+            }
+            return Modal.confirm(options).then(() => true).catch(() => false);
+        },
+        async prompt(message, defaultValue, title, id) {
+            let options = {};
+            if (typeof message === 'object') {
+                options = message;
+            } else {
+                options = {
+                    title: title || message,
+                    placeholder: message,
+                    defaultValue: defaultValue || '',
+                    id: id
+                };
+            }
+            
+
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    existing.refresh(options);
+                    return existing.show().then(() => {
+
+                        const input = existing.modal.querySelector('.ckui-input');
+                        return input ? input.value : null;
+                    }).catch(() => null);
+                }
+            }
+            return Modal.prompt(options);
+        },
+        async select(options) {
+
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    existing.destroy();
+                }
+            }
+            return Modal.select(options);
+        },
+        async sortableList(options) {
+
+            if (options.id) {
+                const existing = instanceManager.get('modals', options.id);
+                if (existing) {
+                    existing.destroy();
+                }
+            }
+            return Modal.sortableList(options);
+        },
+
         FloatWindow,
         floatWindow(options) {
+
+            if (options.id) {
+                const existing = instanceManager.get('floatWindows', options.id);
+                if (existing) {
+                    return existing.refresh(options);
+                }
+            }
             return new FloatWindow(options);
         },
 
-        // 表单构建器
         FormBuilder,
-        form() {
-            return new FormBuilder();
+        form(options) {
+
+            if (options && options.fields) {
+                const builderId = options.formId || null;
+                
+
+                let builder = builderId ? instanceManager.get('forms', builderId) : null;
+                if (!builder) {
+                    builder = new FormBuilder({ id: builderId });
+                }
+                
+
+                builder.fields = [];
+                options.fields.forEach(field => {
+                    switch (field.type) {
+                        case 'input':
+                            builder.input(field);
+                            break;
+                        case 'textarea':
+                            builder.textarea(field);
+                            break;
+                        case 'select':
+                            builder.select(field);
+                            break;
+                        case 'checkbox':
+                            builder.checkbox(field);
+                            break;
+                        case 'radio':
+                            builder.radio(field);
+                            break;
+                    }
+                });
+                
+                const modalId = options.id || null;
+                const modal = modalId ? instanceManager.get('modals', modalId) : null;
+                
+                if (modal) {
+                    modal.refresh({
+                        title: options.title || '表单',
+                        content: builder.render(),
+                        width: options.width || '500px',
+                        onOk: () => true
+                    });
+                    return modal.show()
+                        .then(() => builder.getValues())
+                        .catch(() => null);
+                } else {
+                    const newModal = new Modal({
+                        id: modalId,
+                        title: options.title || '表单',
+                        content: builder.render(),
+                        width: options.width || '500px',
+                        onOk: () => true
+                    });
+                    
+                    return newModal.show()
+                        .then(() => builder.getValues())
+                        .catch(() => null);
+                }
+            }
+            
+
+            const builderId = options?.id || null;
+            if (builderId) {
+                const existing = instanceManager.get('forms', builderId);
+                if (existing) {
+                    return existing;
+                }
+            }
+            return new FormBuilder(options || {});
         },
 
-        // 创建元素
         createElement: utils.createElement,
         h: utils.createElement,
 
-        // 布局组件
         row(options, ...children) {
-            // 如果第一个参数不是配置对象，则视为子元素
+
             if (!options || options instanceof Node || typeof options === 'string') {
                 children = [options, ...children].filter(Boolean);
                 options = {};
@@ -1730,7 +2491,6 @@
             return utils.createElement('div', { class: 'ckui-root ckui-divider' });
         },
 
-        // 按钮
         button(options = {}) {
             const className = ['ckui-root', 'ckui-btn'];
             if (options.primary) className.push('ckui-btn-primary');
@@ -1744,7 +2504,6 @@
             }, [options.label || 'Button']);
         },
 
-        // 输入框
         input(options = {}) {
             const input = utils.createElement('input', {
                 class: 'ckui-root ckui-input',
@@ -1768,7 +2527,7 @@
                         input.value = value;
                     }
                 });
-                // 触发初始订阅以确保同步
+
                 setTimeout(() => {
                     if (options.reactive.value !== input.value) {
                         input.value = options.reactive.value;
@@ -1779,7 +2538,6 @@
             return input;
         },
 
-        // 文本域
         textarea(options = {}) {
             const textarea = utils.createElement('textarea', {
                 class: 'ckui-root ckui-textarea',
@@ -1802,7 +2560,7 @@
                         textarea.value = value;
                     }
                 });
-                // 触发初始订阅以确保同步
+
                 setTimeout(() => {
                     if (options.reactive.value !== textarea.value) {
                         textarea.value = options.reactive.value;
@@ -1813,43 +2571,6 @@
             return textarea;
         },
 
-        // 选择框
-        select(options = {}) {
-            const select = utils.createElement('select', {
-                class: 'ckui-root ckui-select',
-                disabled: options.disabled
-            });
-
-            (options.options || []).forEach(opt => {
-                const option = utils.createElement('option', {
-                    value: opt.value
-                }, [opt.label || opt.value]);
-                
-                if (opt.value === options.value) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-
-            if (options.onChange) {
-                select.addEventListener('change', (e) => options.onChange(e.target.value));
-            }
-
-            if (options.reactive) {
-                select.value = options.reactive.value;
-                select.addEventListener('change', (e) => {
-                    options.reactive.value = e.target.value;
-                });
-                options.reactive.subscribe((value) => {
-                    select.value = value;
-                });
-            }
-
-            return select;
-        },
-
-        // 标签
         label(text, options = {}) {
             return utils.createElement('label', {
                 class: 'ckui-root ckui-label',
@@ -1857,12 +2578,10 @@
             }, [text]);
         },
 
-        // 加载动画
         loading() {
             return utils.createElement('div', { class: 'ckui-root ckui-loading' });
         },
 
-        // 主题切换
         setTheme(theme) {
             globalConfig.currentTheme = theme;
             const containers = document.querySelectorAll('.ckui-root');
@@ -1875,7 +2594,6 @@
             });
         },
 
-        // HTML 渲染
         html(htmlString) {
             const container = document.createElement('div');
             container.className = 'ckui-root';
@@ -1883,7 +2601,6 @@
             return container;
         },
 
-        // 配置 z-index 基础值
         setZIndexBase(base) {
             globalConfig.zIndexBase = base;
         },
@@ -1892,7 +2609,6 @@
             return globalConfig.zIndexBase;
         },
 
-        // 设置CSS变量（自定义主题）
         setCSSVars(vars, target = null) {
             const root = target || document.querySelector('.ckui-root') || document.documentElement;
             Object.entries(vars).forEach(([key, value]) => {
@@ -1902,12 +2618,8 @@
         }
     };
 
-    // ===========================================
-    // 初始化
-    // ===========================================
     utils.injectStyles(coreStyles, 'ckui-core-styles');
 
-    // 导出到全局
     unsafeWindow.ckui = ckui;
     
     console.log('[CKUI] Initialized successfully! Version:', ckui.version);
