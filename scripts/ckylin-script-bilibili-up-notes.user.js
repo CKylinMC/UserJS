@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      v0.1
+// @version      v0.2
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
-// @require https://update.greasyfork.org/scripts/564901/1747637/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1747744/CKUI.js
 // ==/UserScript==
 
 
@@ -103,6 +103,7 @@
         },
         profile: {
             sidebarBox: 'div.aside',
+            dynamicSidebarBox: 'div.space-dynamic__right'
         }
     };
     class Utils{
@@ -286,19 +287,18 @@
             const floatWindow = Utils.ui.floatWindow({
                 title: `编辑 UP 备注 (UID: ${uid})`,
                 content: form.render(),
-                x: 200,
-                y: 150,
-                width: '450px'
+                width: '450px',
+                shadow: true
             });
             
             floatWindow.show();
+            floatWindow.moveToMouse?.();
         }
 
         static callUIForRemoving(uid) {
-            Utils.ui.confirm({
-                title: '确认删除 UP 备注',
-                content: `确定要删除 UID 为 ${uid} 的 UP 备注吗？`,
-            }).then(res => {
+            Utils.ui.confirm(
+                `确定要删除 UID 为 ${uid} 的 UP 备注吗？`,'确认删除 UP 备注'
+            ).then(res => {
                 if (res) {
                     this.deleteAliasForUID(uid);
                     this.deleteNotesForUID(uid);
@@ -753,6 +753,7 @@
         logger.log('Registering User Profile Page observer...');
         injectCssOnUserProfilePage();
         Utils.waitForElementFirstAppearForever(selectors.profile.sidebarBox).then(injectOnSidebarBox);
+        Utils.waitForElementFirstAppearForever(selectors.profile.dynamicSidebarBox).then(injectOnDynamicSidebarBox);
     }
 
     async function injectOnSidebarBox(sidebarBox) {
@@ -800,6 +801,55 @@
 
         const wrap = document.createElement('div');
         wrap.classList.add('home-aside-section');
+        wrap.appendChild(card);
+        sidebarBox.prepend(wrap);
+    }
+
+    async function injectOnDynamicSidebarBox(sidebarBox) {
+        logger.log('User Profile Page sidebar box appeared.');
+        await Utils.wait(200); // wait for content load
+        const uid = Utils.currentUid;
+        if (!uid) {
+            logger.warn('Cannot extract UID on profile page, aborting.');
+            return;
+        }
+        const alias = UPNotesManager.getAliasForUID(uid) || '';
+        const notes = UPNotesManager.getNotesForUID(uid) || '';
+
+        const existingCard = Utils.$('.ckupnotes-profile-aside-card', sidebarBox);
+        if (existingCard) {
+            existingCard.remove();
+        }
+
+        const card = document.createElement('div');
+        card.classList.add('ckupnotes-profile-aside-card');
+
+        const title = document.createElement('div');
+        title.textContent = 'UP 备注信息';
+        title.style.fontSize = '16px';
+        title.style.fontWeight = 'bold';
+        card.appendChild(title);
+
+        const aliasLine = document.createElement('div');
+        aliasLine.classList.add('ckupnotes-profile-aside-card-line');
+        aliasLine.textContent = `别名: ${alias || '无'}`;
+        card.appendChild(aliasLine);
+
+        const notesLine = document.createElement('div');
+        notesLine.classList.add('ckupnotes-profile-aside-card-line');
+        notesLine.textContent = `备注: ${notes || '无'}`;
+        card.appendChild(notesLine);
+
+        const editButton = document.createElement('button');
+        editButton.classList.add('ckupnotes-profile-aside-card-button');
+        editButton.textContent = '编辑备注';
+        editButton.addEventListener('click', () => {
+            UPNotesManager.callUIForEditing(uid, ()=>injectOnDynamicSidebarBox(sidebarBox));
+        });
+        card.appendChild(editButton);
+
+        const wrap = document.createElement('div');
+        wrap.classList.add('dynamic-aside-section');
         wrap.appendChild(card);
         sidebarBox.prepend(wrap);
     }
