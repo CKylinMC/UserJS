@@ -1,21 +1,17 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.1.0
+// @version      2.1.1
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
+// @grant        unsafeWindow
 // @author       CKylinMC
 // @license      GPL-3.0-only
-// @grant        unsafeWindow
 // ==/UserScript==
 
-(function() {
+(function(unsafeWindow, document) {
     'use strict';
-
-    if (typeof unsafeWindow === 'undefined') {
-        window.unsafeWindow = window;
-    }
     
     if (unsafeWindow.ckui && unsafeWindow.ckui.__initialized) {
         console.log('[CKUI] Already initialized, skipping...');
@@ -26,6 +22,13 @@
         zIndexBase: 999990,
         currentTheme: 'light'
     };
+
+    // 全局鼠标追踪状态
+    if (!unsafeWindow.__ckui_mouseTrackingEnabled) {
+        unsafeWindow.__ckui_mouseTrackingEnabled = false;
+        unsafeWindow.__ckui_lastMouseX = null;
+        unsafeWindow.__ckui_lastMouseY = null;
+    }
 
     class InstanceManager {
         constructor() {
@@ -1641,19 +1644,30 @@
 
         moveToMouse(offsetX = 0, offsetY = 0) {
             return new Promise((resolve) => {
-
-                if (!window.__ckui_lastMouseX) {
-                    window.__ckui_lastMouseX = window.innerWidth / 2;
-                    window.__ckui_lastMouseY = window.innerHeight / 2;
-
-                    document.addEventListener('mousemove', (e) => {
-                        window.__ckui_lastMouseX = e.clientX;
-                        window.__ckui_lastMouseY = e.clientY;
-                    }, { passive: true });
-                }
+                let mouseX, mouseY;
                 
-                const mouseX = window.__ckui_lastMouseX;
-                const mouseY = window.__ckui_lastMouseY;
+                // 如果已启用全局追踪且有数据，直接使用
+                if (unsafeWindow.__ckui_mouseTrackingEnabled && unsafeWindow.__ckui_lastMouseX !== null) {
+                    mouseX = unsafeWindow.__ckui_lastMouseX;
+                    mouseY = unsafeWindow.__ckui_lastMouseY;
+                } else if (!unsafeWindow.__ckui_mouseTrackingEnabled) {
+                    // 未启用追踪，fallback 到旧行为：首次调用时初始化
+                    if (unsafeWindow.__ckui_lastMouseX === null) {
+                        unsafeWindow.__ckui_lastMouseX = unsafeWindow.innerWidth / 2;
+                        unsafeWindow.__ckui_lastMouseY = unsafeWindow.innerHeight / 2;
+
+                        document.addEventListener('mousemove', (e) => {
+                            unsafeWindow.__ckui_lastMouseX = e.clientX;
+                            unsafeWindow.__ckui_lastMouseY = e.clientY;
+                        }, { passive: true });
+                    }
+                    mouseX = unsafeWindow.__ckui_lastMouseX;
+                    mouseY = unsafeWindow.__ckui_lastMouseY;
+                } else {
+                    // 已启用追踪但还没有数据，使用页面中心
+                    mouseX = unsafeWindow.innerWidth / 2;
+                    mouseY = unsafeWindow.innerHeight / 2;
+                }
 
                 if (!this.window) {
                     this.render();
@@ -1664,8 +1678,8 @@
                 const centerX = mouseX - (rect.width / 2) + offsetX;
                 const centerY = mouseY - (rect.height / 2) + offsetY;
 
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
+                const viewportWidth = unsafeWindow.innerWidth;
+                const viewportHeight = unsafeWindow.innerHeight;
                 
                 let finalX = centerX;
                 let finalY = centerY;
@@ -1795,8 +1809,8 @@
             if (!this.window) return;
             
             const rect = this.window.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
+            const viewportWidth = unsafeWindow.innerWidth;
+            const viewportHeight = unsafeWindow.innerHeight;
             
             let x = parseInt(this.window.style.left);
             let y = parseInt(this.window.style.top);
@@ -2684,6 +2698,22 @@
                 const varName = key.startsWith('--') ? key : `--ckui-${key}`;
                 root.style.setProperty(varName, value);
             });
+        },
+
+        trackMouseEvent() {
+            if (!unsafeWindow.__ckui_mouseTrackingEnabled) {
+                unsafeWindow.__ckui_mouseTrackingEnabled = true;
+                unsafeWindow.__ckui_lastMouseX = null;
+                unsafeWindow.__ckui_lastMouseY = null;
+                
+                document.addEventListener('mousemove', (e) => {
+                    unsafeWindow.__ckui_lastMouseX = e.clientX;
+                    unsafeWindow.__ckui_lastMouseY = e.clientY;
+                }, { passive: true });
+                
+                console.log('[CKUI] 全局鼠标追踪已启用');
+            }
+            return ckui;
         }
     };
 
@@ -2692,4 +2722,4 @@
     unsafeWindow.ckui = ckui;
     
     console.log('[CKUI] Initialized successfully! Version:', ckui.version);
-})();
+})(unsafeWindow, document);
