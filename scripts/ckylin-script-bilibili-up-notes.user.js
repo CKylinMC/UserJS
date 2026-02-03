@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      v0.3
+// @version      v0.4
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
-// @require https://update.greasyfork.org/scripts/564901/1747744/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1747775/CKUI.js
 // ==/UserScript==
 
 
@@ -237,7 +237,7 @@
             GM_deleteValue(`upnotes_${uid}`);
         }
 
-        static callUIForEditing(uid, closeCallback = null) {
+        static callUIForEditing(uid, displayName="", closeCallback = null) {
             const currentAlias = this.getAliasForUID(uid) || '';
             const currentNotes = this.getNotesForUID(uid) || '';
             
@@ -285,7 +285,7 @@
                 });
             
             const floatWindow = Utils.ui.floatWindow({
-                title: `编辑 UP 备注 (UID: ${uid})`,
+                title: `编辑备注 ${displayName} (UID: ${uid})`,
                 content: form.render(),
                 width: '450px',
                 shadow: true
@@ -295,9 +295,9 @@
             floatWindow.moveToMouse?.();
         }
 
-        static callUIForRemoving(uid) {
+        static callUIForRemoving(uid, displayName="") {
             Utils.ui.confirm(
-                `确定要删除 UID 为 ${uid} 的 UP 备注吗？`,'确认删除 UP 备注'
+                `确定要删除 ${displayName} (UID: ${uid}) 的 UP 备注吗？`,'确认删除 UP 备注'
             ).then(res => {
                 if (res) {
                     this.deleteAliasForUID(uid);
@@ -329,10 +329,10 @@
 
     class FoManPlugin_Actions{
         static async setFor(uid, displayName = null) {
-            UPNotesManager.callUIForEditing(uid);
+            UPNotesManager.callUIForEditing(uid, displayName);
 		}
         static async removeFor(uid, displayName = null) {
-            UPNotesManager.callUIForRemoving(uid);
+            UPNotesManager.callUIForRemoving(uid, displayName);
 		}
     }
 
@@ -431,6 +431,7 @@
             logger.log(`UP Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
             const userNameEl = Utils.$child(cardElement, selectors.card.userName);
+            const username = userNameEl.textContent || '';
             if (alias) {
                 const span = document.createElement('span');
                 span.classList.add(selectors.markup.symbolclass.replace(".", ""), selectors.markup.idclass.replace(".", ""));
@@ -462,7 +463,7 @@
                 btn.style.marginLeft = '8px';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid);
+                    UPNotesManager.callUIForEditing(uid, username);
                 });
             }
         } finally { 
@@ -503,6 +504,7 @@
             logger.log(`Modern UP Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
             const userNameEl = Utils.$child(shadowroot, selectors.cardModern.userName);
+            const username = userNameEl?.textContent || '';
             if (alias) {
                 const span = document.createElement('span');
                 span.classList.add(selectors.markup.symbolclass.replace(".", ""), selectors.markup.idclass.replace(".", ""));
@@ -534,7 +536,7 @@
                 btn.style.marginLeft = '8px';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid);
+                    UPNotesManager.callUIForEditing(uid, username);
                 });
             }
             
@@ -574,6 +576,7 @@
             logger.log(`User Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
             const userNameEl = Utils.$child(cardElement, selectors.userCard.userName);
+            const displayName = userNameEl?.textContent || '';
             if (alias) {
                 const span = document.createElement('span');
                 span.classList.add(selectors.markup.symbolclass.replace(".", ""), selectors.markup.idclass.replace(".", ""));
@@ -601,12 +604,13 @@
             if (footerRootEl) {
                 const btn = document.createElement('div');
                 btn.classList.add('ckupnotes-usercard-btn', selectors.markup.idclass.replace(".", ""));
-                btn.textContent = '编辑备注';
+                btn.textContent = '备注';
                 btn.style.cursor = 'pointer';
-                btn.style.padding = '2px 6px';
+                btn.style.padding = '3px 6px';
+                btn.style.borderRadius = '3px';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid);
+                    UPNotesManager.callUIForEditing(uid, displayName);
                 });
             }
         } finally {
@@ -679,6 +683,7 @@
             logger.log(`UP Info Box Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
             
             const upNameEl = Utils.$(selectors.play.upName, upInfoBox);
+            const username = upNameEl.textContent || '';
             if (alias) {
                 const span = document.createElement('span');
                 span.classList.add(selectors.markup.symbolclass.replace(".", ""), selectors.markup.idclass.replace(".", ""));
@@ -707,9 +712,10 @@
                 btn.classList.add('ckupnotes-play-up-btn', selectors.markup.idclass.replace(".", ""));
                 btn.textContent = '编辑备注';
                 btn.style.cursor = 'pointer';
+                btn.style.marginLeft = '8px';
                 upDetailTopBoxEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid, ()=>onUpInfoBoxShown());
+                    UPNotesManager.callUIForEditing(uid, username, ()=>onUpInfoBoxShown());
                 });
             }
             
@@ -766,6 +772,7 @@
         }
         const alias = UPNotesManager.getAliasForUID(uid) || '';
         const notes = UPNotesManager.getNotesForUID(uid) || '';
+        const username = Utils.$('div.nickname')?.textContent || '';
 
         const existingCard = Utils.$('.ckupnotes-profile-aside-card', sidebarBox);
         if (existingCard) {
@@ -795,7 +802,7 @@
         editButton.classList.add('ckupnotes-profile-aside-card-button');
         editButton.textContent = '编辑备注';
         editButton.addEventListener('click', () => {
-            UPNotesManager.callUIForEditing(uid, ()=>injectOnSidebarBox(sidebarBox));
+            UPNotesManager.callUIForEditing(uid, username, ()=>injectOnSidebarBox(sidebarBox));
         });
         card.appendChild(editButton);
 
@@ -815,6 +822,7 @@
         }
         const alias = UPNotesManager.getAliasForUID(uid) || '';
         const notes = UPNotesManager.getNotesForUID(uid) || '';
+        const username = Utils.$('div.nickname')?.textContent || '';
 
         const existingCard = Utils.$('.ckupnotes-profile-aside-card', sidebarBox);
         if (existingCard) {
@@ -844,7 +852,7 @@
         editButton.classList.add('ckupnotes-profile-aside-card-button');
         editButton.textContent = '编辑备注';
         editButton.addEventListener('click', () => {
-            UPNotesManager.callUIForEditing(uid, ()=>injectOnDynamicSidebarBox(sidebarBox));
+            UPNotesManager.callUIForEditing(uid, username, ()=>injectOnDynamicSidebarBox(sidebarBox));
         });
         card.appendChild(editButton);
 
@@ -883,6 +891,8 @@
         }catch(e) {
             logger.error('Failed to register as FoMan plugin:', e);
         }
+
+        Utils.ui?.trackMouseEvent?.();
 
         logger.log('Bilibili UP Notes script initialized.');
     }
