@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.0.0
+// @version      2.1.0
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -12,7 +12,6 @@
 
 (function() {
     'use strict';
-    
 
     if (typeof unsafeWindow === 'undefined') {
         window.unsafeWindow = window;
@@ -156,6 +155,28 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        },
+
+        createShadowHost(options = {}) {
+            const host = document.createElement('div');
+            host.className = 'ckui-shadow-host';
+            host.style.cssText = 'all: initial; position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none;';
+            
+            const shadowRoot = host.attachShadow({ mode: 'open' });
+            const style = document.createElement('style');
+            style.textContent = coreStyles;
+            shadowRoot.appendChild(style);
+            const container = document.createElement('div');
+            container.style.cssText = 'all: initial; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none;';
+            shadowRoot.appendChild(container);
+            
+            document.body.appendChild(host);
+            
+            return {
+                host,
+                shadowRoot,
+                container
+            };
         }
     };
 
@@ -858,19 +879,33 @@
     class NotificationManager {
         constructor() {
             this.container = null;
+            this.shadowHost = null;
+            this.useShadow = false;
             this.init();
         }
 
-        init() {
+        init(useShadow = false) {
             if (!this.container) {
+                this.useShadow = useShadow;
                 const className = globalConfig.currentTheme === 'dark' 
                     ? 'ckui-root ckui-dark ckui-notification-container'
                     : 'ckui-root ckui-notification-container';
-                this.container = utils.createElement('div', {
-                    class: className,
-                    style: { zIndex: globalConfig.zIndexBase + 10 }
-                });
-                document.body.appendChild(this.container);
+                
+                if (useShadow) {
+                    const shadow = utils.createShadowHost();
+                    this.shadowHost = shadow.host;
+                    this.container = utils.createElement('div', {
+                        class: className,
+                        style: { zIndex: globalConfig.zIndexBase + 10 }
+                    });
+                    shadow.container.appendChild(this.container);
+                } else {
+                    this.container = utils.createElement('div', {
+                        class: className,
+                        style: { zIndex: globalConfig.zIndexBase + 10 }
+                    });
+                    document.body.appendChild(this.container);
+                }
             }
         }
 
@@ -880,8 +915,19 @@
                 message = '',
                 type = 'info',
                 duration = 3000,
-                closable = true
+                closable = true,
+                shadow = false
             } = options;
+            
+            if (shadow && !this.useShadow) {
+                this.destroy();
+                this.init(true);
+            } else if (!shadow && this.useShadow) {
+                this.destroy();
+                this.init(false);
+            } else if (!this.container) {
+                this.init(shadow);
+            }
 
             const icons = {
                 success: '✓',
@@ -947,6 +993,18 @@
         info(message, title = '提示') {
             return this.show({ type: 'info', title, message });
         }
+
+        destroy() {
+            if (this.container && this.container.parentNode) {
+                this.container.parentNode.removeChild(this.container);
+            }
+            if (this.shadowHost && this.shadowHost.parentNode) {
+                this.shadowHost.parentNode.removeChild(this.shadowHost);
+            }
+            this.container = null;
+            this.shadowHost = null;
+            this.useShadow = false;
+        }
     }
 
     class Modal {
@@ -961,6 +1019,7 @@
                 onOk: options.onOk,
                 onCancel: options.onCancel,
                 maskClosable: options.maskClosable !== false,
+                shadow: options.shadow || false,
                 ...options
             };
 
@@ -969,6 +1028,7 @@
             this.resolvePromise = null;
             this.rejectPromise = null;
             this.isShowing = false;
+            this.shadowHost = null;
 
             if (this.id) {
                 instanceManager.register('modals', this.id, this);
@@ -992,7 +1052,6 @@
         refresh(options = {}) {
 
             this.options = { ...this.options, ...options };
-            
 
             if (this.isShowing) {
                 this.close(false);
@@ -1003,6 +1062,10 @@
         }
 
         render() {
+            if (this.options.shadow) {
+                const shadow = utils.createShadowHost();
+                this.shadowHost = shadow.host;
+            }
 
             const className = globalConfig.currentTheme === 'dark'
                 ? 'ckui-root ckui-dark ckui-overlay'
@@ -1017,10 +1080,12 @@
                 }
             });
 
-            const existingOverlays = document.querySelectorAll('.ckui-overlay');
-            if (existingOverlays.length > 0) {
-                const maxZ = Math.max(...Array.from(existingOverlays).map(el => parseInt(el.style.zIndex) || 0));
-                this.overlay.style.zIndex = maxZ + 1;
+            if (!this.options.shadow) {
+                const existingOverlays = document.querySelectorAll('.ckui-overlay');
+                if (existingOverlays.length > 0) {
+                    const maxZ = Math.max(...Array.from(existingOverlays).map(el => parseInt(el.style.zIndex) || 0));
+                    this.overlay.style.zIndex = maxZ + 1;
+                }
             }
 
             this.modal = utils.createElement('div', {
@@ -1092,7 +1157,12 @@
             });
 
             this.overlay.appendChild(this.modal);
-            document.body.appendChild(this.overlay);
+            
+            if (this.options.shadow && this.shadowHost) {
+                this.shadowHost.shadowRoot.querySelector('div').appendChild(this.overlay);
+            } else {
+                document.body.appendChild(this.overlay);
+            }
 
             this.handleEscape = (e) => {
                 if (e.key === 'Escape') {
@@ -1136,6 +1206,10 @@
                 setTimeout(() => {
                     if (this.overlay && this.overlay.parentNode) {
                         this.overlay.parentNode.removeChild(this.overlay);
+                    }
+                    if (this.shadowHost && this.shadowHost.parentNode) {
+                        this.shadowHost.parentNode.removeChild(this.shadowHost);
+                        this.shadowHost = null;
                     }
                     if (result) {
                         this.resolvePromise && this.resolvePromise(result);
@@ -1238,7 +1312,6 @@
                 
                 select.appendChild(option);
             });
-            
 
             select.onchange = () => {
                 selectedValue = select.value;
@@ -1289,7 +1362,6 @@
                     }
                 });
             };
-            
 
             const blinkHighlight = (...indices) => {
 
@@ -1297,19 +1369,16 @@
                 indices.forEach(i => highlightIndices.add(i));
                 requestAnimationFrame(() => {
                     updateHighlights();
-                    
 
                     setTimeout(() => {
                         highlightIndices.clear();
                         requestAnimationFrame(() => {
                             updateHighlights();
-                            
 
                             setTimeout(() => {
                                 indices.forEach(i => highlightIndices.add(i));
                                 requestAnimationFrame(() => {
                                     updateHighlights();
-                                    
 
                                     setTimeout(() => {
                                         highlightIndices.clear();
@@ -1332,7 +1401,6 @@
                     itemEl.className = 'ckui-item';
                     itemEl.draggable = true;
                     itemEl.dataset.index = index;
-                    
 
                     const isHighlighted = highlightIndices.has(index);
                     const isDragging = draggedIndex === index;
@@ -1351,14 +1419,12 @@
                         transition: all 0.3s ease-in-out;
                         opacity: ${isDragging ? '0.6' : '1'};
                     `;
-                    
 
                     if (isDragging) {
                         itemEl.style.borderColor = '#3b82f6';
                         itemEl.style.background = 'rgba(59, 130, 246, 0.1)';
                         itemEl.style.cursor = 'grabbing';
                     }
-                    
 
                     if (isHighlighted) {
                         itemEl.style.borderColor = '#10b981';
@@ -1453,10 +1519,8 @@
                             const movedItem = items[draggedIndex];
                             items.splice(draggedIndex, 1);
                             items.splice(index, 0, movedItem);
-                            
 
                             draggedIndex = index;
-                            
 
                             renderList();
                         }
@@ -1512,6 +1576,7 @@
                 minimizable: options.minimizable !== false,
                 closable: options.closable !== false,
                 onClose: options.onClose || null,
+                shadow: options.shadow || false,
                 ...options
             };
 
@@ -1525,6 +1590,7 @@
             this.windowStartY = 0;
             this.onCloseCallbacks = [];
             this.onCloseOnceCallbacks = [];
+            this.shadowHost = null;
 
             if (this.id) {
                 instanceManager.register('floatWindows', this.id, this);
@@ -1555,7 +1621,6 @@
         refresh(options = {}) {
 
             this.options = { ...this.options, ...options };
-            
 
             if (this.isShowing) {
                 const wasMinimized = this.isMinimized;
@@ -1575,7 +1640,6 @@
                 if (!window.__ckui_lastMouseX) {
                     window.__ckui_lastMouseX = window.innerWidth / 2;
                     window.__ckui_lastMouseY = window.innerHeight / 2;
-                    
 
                     document.addEventListener('mousemove', (e) => {
                         window.__ckui_lastMouseX = e.clientX;
@@ -1585,26 +1649,21 @@
                 
                 const mouseX = window.__ckui_lastMouseX;
                 const mouseY = window.__ckui_lastMouseY;
-                
 
                 if (!this.window) {
                     this.render();
                 }
-                
 
                 const rect = this.window.getBoundingClientRect();
-                
 
                 const centerX = mouseX - (rect.width / 2) + offsetX;
                 const centerY = mouseY - (rect.height / 2) + offsetY;
-                
 
                 const viewportWidth = window.innerWidth;
                 const viewportHeight = window.innerHeight;
                 
                 let finalX = centerX;
                 let finalY = centerY;
-                
 
                 if (finalX < 20) finalX = 20;
                 if (finalY < 20) finalY = 20;
@@ -1617,7 +1676,6 @@
                 
                 this.window.style.left = finalX + 'px';
                 this.window.style.top = finalY + 'px';
-                
 
                 requestAnimationFrame(() => {
                     this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -1650,7 +1708,6 @@
         }
 
         render() {
-
             const className = globalConfig.currentTheme === 'dark'
                 ? 'ckui-root ckui-dark ckui-float-window'
                 : 'ckui-root ckui-float-window';
@@ -1666,6 +1723,13 @@
                     transform: 'scale(0.95)'
                 }
             });
+
+            let parent = document.body;
+            if (this.options.shadow) {
+                const shadow = utils.createShadowHost();
+                this.shadowHost = shadow.host;
+                parent = shadow.container;
+            }
 
             const header = utils.createElement('div', {
                 class: 'ckui-float-header'
@@ -1705,17 +1769,14 @@
                 this.setupDragging(header);
             }
 
-            document.body.appendChild(this.window);
-            
+            parent.appendChild(this.window);
 
             this.adjustPosition();
-            
 
             requestAnimationFrame(() => {
                 this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
                 this.window.style.opacity = '1';
                 this.window.style.transform = 'scale(1)';
-                
 
                 setTimeout(() => {
                     if (this.window) {
@@ -1734,22 +1795,18 @@
             
             let x = parseInt(this.window.style.left);
             let y = parseInt(this.window.style.top);
-            
 
             if (rect.right > viewportWidth) {
                 x = viewportWidth - rect.width - 20;
             }
-            
 
             if (rect.bottom > viewportHeight) {
                 y = viewportHeight - rect.height - 20;
             }
-            
 
             if (x < 20) {
                 x = 20;
             }
-            
 
             if (y < 20) {
                 y = 20;
@@ -1764,7 +1821,6 @@
 
             const onMouseDown = (e) => {
 
-                
                 this.isDragging = true;
                 this.dragStartX = e.clientX;
                 this.dragStartY = e.clientY;
@@ -1817,8 +1873,6 @@
         close() {
             if (this.window && this.window.parentNode) {
                 this.isShowing = false;
-                
-
                 this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.6, -0.28, 0.74, 0.05)';
                 this.window.style.opacity = '0';
                 this.window.style.transform = 'scale(0.95)';
@@ -1827,8 +1881,10 @@
                     if (this.window && this.window.parentNode) {
                         this.window.parentNode.removeChild(this.window);
                     }
-                    
-
+                    if (this.shadowHost && this.shadowHost.parentNode) {
+                        this.shadowHost.parentNode.removeChild(this.shadowHost);
+                        this.shadowHost = null;
+                    }
                     if (this.options.onClose) {
                         try {
                             this.options.onClose();
@@ -1837,7 +1893,6 @@
                         }
                     }
                     
-
                     this.onCloseCallbacks.forEach(callback => {
                         try {
                             callback();
@@ -1846,7 +1901,6 @@
                         }
                     });
                     
-
                     this.onCloseOnceCallbacks.forEach(callback => {
                         try {
                             callback();
@@ -2228,17 +2282,33 @@
         notify(options) {
             return this.notification.show(options);
         },
-        success(message, title) {
-            return this.notification.success(message, title);
+        success(message, title, options = {}) {
+            if (typeof title === 'object') {
+                options = title;
+                title = options.title || '成功';
+            }
+            return this.notification.show({ type: 'success', title: title || '成功', message, ...options });
         },
-        error(message, title) {
-            return this.notification.error(message, title);
+        error(message, title, options = {}) {
+            if (typeof title === 'object') {
+                options = title;
+                title = options.title || '错误';
+            }
+            return this.notification.show({ type: 'error', title: title || '错误', message, ...options });
         },
-        warning(message, title) {
-            return this.notification.warning(message, title);
+        warning(message, title, options = {}) {
+            if (typeof title === 'object') {
+                options = title;
+                title = options.title || '警告';
+            }
+            return this.notification.show({ type: 'warning', title: title || '警告', message, ...options });
         },
-        info(message, title) {
-            return this.notification.info(message, title);
+        info(message, title, options = {}) {
+            if (typeof title === 'object') {
+                options = title;
+                title = options.title || '提示';
+            }
+            return this.notification.show({ type: 'info', title: title || '提示', message, ...options });
         },
 
         Modal,
@@ -2259,7 +2329,6 @@
             } else {
                 options = { content: message, title: title || '提示', id: id };
             }
-            
 
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
@@ -2277,7 +2346,6 @@
             } else {
                 options = { content: message, title: title || '确认', id: id };
             }
-            
 
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
@@ -2300,7 +2368,6 @@
                     id: id
                 };
             }
-            
 
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
@@ -2353,13 +2420,11 @@
 
             if (options && options.fields) {
                 const builderId = options.formId || null;
-                
 
                 let builder = builderId ? instanceManager.get('forms', builderId) : null;
                 if (!builder) {
                     builder = new FormBuilder({ id: builderId });
                 }
-                
 
                 builder.fields = [];
                 options.fields.forEach(field => {
@@ -2409,7 +2474,6 @@
                         .catch(() => null);
                 }
             }
-            
 
             const builderId = options?.id || null;
             if (builderId) {
