@@ -161,7 +161,8 @@
             const host = document.createElement('div');
             host.className = 'ckui-shadow-host';
             const zIndex = globalConfig.zIndexBase + 20;
-            host.style.cssText = `all: initial; position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; z-index: ${zIndex};`;
+            host.style.cssText = `all: initial; position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none;`;
+            host.style.zIndex = zIndex; 
             
             const shadowRoot = host.attachShadow({ mode: 'open' });
             
@@ -170,7 +171,7 @@
             shadowRoot.appendChild(style);
             
             const container = document.createElement('div');
-            container.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none;';
+            container.style.cssText = `position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1;`;
             shadowRoot.appendChild(container);
             
             document.body.appendChild(host);
