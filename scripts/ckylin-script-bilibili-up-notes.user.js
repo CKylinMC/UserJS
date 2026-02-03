@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      v0.2
+// @version      v0.3
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -654,7 +654,7 @@
         const thisUpTaskId = ('' + Date.now()) + Math.random();
         try {
             runtime.uptaskId = thisUpTaskId;
-            await Utils.wait(200); // wait for content load
+            await Utils.wait(1000); // wait for content load
 
             if (runtime.uptaskId !== thisUpTaskId) {
                 logger.log('A newer UP task has started, aborting this one.(play)');
