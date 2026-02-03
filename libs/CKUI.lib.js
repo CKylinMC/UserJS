@@ -187,7 +187,7 @@
     const coreStyles = `
         /* CKUI Core Styles - Isolated with high specificity */
         .ckui-root {
-            all: initial;
+            /* all: initial; */ 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             font-size: 14px;
             line-height: 1.5;
@@ -600,7 +600,7 @@
 
         /* Form Group */
         .ckui-form-group {
-            margin-bottom: var(--ckui-spacing-xl);
+            margin-bottom: var(--ckui-spacing);
         }
 
         /* Layout */
