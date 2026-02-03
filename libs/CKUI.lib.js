@@ -10,6 +10,11 @@
 // @license      GPL-3.0-only
 // ==/UserScript==
 
+// 调试用
+if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
+    window.unsafeWindow = window;
+}
+
 (function(unsafeWindow, document) {
     'use strict';
     
