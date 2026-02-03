@@ -160,7 +160,10 @@
         createShadowHost(options = {}) {
             const host = document.createElement('div');
             host.className = 'ckui-shadow-host';
-            host.style.cssText = 'all: initial; position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none;';
+            // 设置足够高的 z-index 确保在最上层
+            // all: initial 会重置 z-index，所以必须在后面明确设置
+            const zIndex = globalConfig.zIndexBase + 20; // 使用比其他组件更高的值
+            host.style.cssText = `all: initial; position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; z-index: ${zIndex};`;
             
             const shadowRoot = host.attachShadow({ mode: 'open' });
             const style = document.createElement('style');
