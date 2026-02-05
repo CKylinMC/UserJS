@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.2.0
+// @version      2.2.1
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -178,7 +178,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             shadowRoot.appendChild(style);
             
             const container = document.createElement('div');
-            container.style.cssText = `position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1;`;
+            // container.style.cssText = `position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1;`;
+            container.style.cssText = `z-index: 1;`;
             shadowRoot.appendChild(container);
             
             document.body.appendChild(host);
