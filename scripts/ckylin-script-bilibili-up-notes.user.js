@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      v0.4
+// @version      v0.5
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
-// @require https://update.greasyfork.org/scripts/564901/1747775/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1749128/CKUI.js
 // ==/UserScript==
 
 
@@ -72,6 +72,7 @@
         },
         cardModern: {
             shadowRoot: 'bili-user-profile',
+            readyDom: 'div#view',
             avatarLink: 'a#avatar',
             avatar: 'img#face',
             bodyBox: 'div#body',
@@ -99,11 +100,14 @@
             upName: 'a.up-name',
             upDesc: 'div.up-description',
             upBtnBox: 'div.upinfo-btn-panel',
-            upDetailTopBox: 'div.up-detail-top'
+            upDetailTopBox: 'div.up-detail-top',
+            subBtn: 'div.follow-btn',
+            videoTitle: '.video-title'
         },
         profile: {
             sidebarBox: 'div.aside',
-            dynamicSidebarBox: 'div.space-dynamic__right'
+            dynamicSidebarBox: 'div.space-dynamic__right',
+            avatarImg: 'div.avatar div.b-avatar__layer__res>picture>img'
         }
     };
     class Utils{
@@ -130,6 +134,22 @@
                 return Array.from(document.querySelectorAll(parent+' '+selector));
             }
             return Array.from(parent.querySelectorAll(selector));
+        }
+        static removeTailingSlash(str) {
+            return str.replace(/\/+$/, '');
+        }
+        static fixUrlProtocol(url) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            } else if (url.startsWith('//')) {
+                return unsafeWindow.location.protocol + url;
+            } else if (url.startsWith('data:')) {
+                return url;
+            } else if (url.startsWith('/')) {
+                return unsafeWindow.location.origin + url;
+            } else {
+                return unsafeWindow.location.origin + Utils.removeTailingSlash(unsafeWindow.location.pathname) + '/' + url;
+            }
         }
         static waitForElementFirstAppearForever(selector, root = document) {
             return new Promise(resolve => {
@@ -159,6 +179,45 @@
                 });
             });
         }
+        static waitForElementFirstAppearForeverWithTimeout(selector, root = document, timeout = 5000) {
+            return new Promise(resolve => {
+                const element = root.querySelector(selector);
+                if (element) {
+                    resolve(element);
+                    return;
+                }
+                let done = false;
+                const observer = new MutationObserver(mutations => {
+                    if (done) return;
+                    for (const mutation of mutations) {
+                        for (const node of mutation.addedNodes) {
+                            if (!(node instanceof HTMLElement)) continue;
+                            const el = node.matches(selector)
+                                ? node
+                                : node.querySelector(selector);
+                            if (el) {
+                                done = true;
+                                resolve(el);
+                                observer.disconnect();
+                                return;
+                            }
+                        }
+                    }
+                });
+                observer.observe(root, {
+                    childList: true,
+                    subtree: true
+                });
+                if (timeout > 0) {
+                    setTimeout(() => {
+                        if (done) return;
+                        done = true;
+                        observer.disconnect();
+                        resolve(null);
+                    }, timeout);
+                }
+            });
+        }
         static registerOnElementAttrChange(element, attr, callback) {
             const observer = new MutationObserver(mutations => {
                 mutations.forEach(mutation => {
@@ -179,6 +238,31 @@
                 });
             });
             observer.observe(element, { characterData: true, subtree: true });
+            return observer;
+        }
+        static registerOnceElementRemoved(element, callback, root = null) {
+            if (!element) return null;
+            if (!element.isConnected) {
+                callback?.(element);
+                return null;
+            }
+            const parent = root || element.parentNode || element.getRootNode?.();
+            if (!parent) {
+                callback?.(element);
+                return null;
+            }
+            let done = false;
+            const observer = new MutationObserver(mutations => {
+                if (done) return;
+                
+                if (!element.isConnected) {
+                    done = true;
+                    observer.disconnect();
+                    callback?.(element);
+                    return;
+                }
+            });
+            observer.observe(parent, { childList: true });
             return observer;
         }
         static get ui() {
@@ -213,31 +297,45 @@
     
     // #region cores
     class UPNotesManager {
+        static _u(uid) {
+            return (uid ? ((''+uid).trim?.() || uid) : "not-a-uid")
+        }
+
         static getAliasForUID(uid, fallback = null) {
+            uid = UPNotesManager._u(uid);
             return GM_getValue(`upalias_${uid}`, fallback);
         }
 
         static setAliasForUID(uid, alias) {
+            uid = UPNotesManager._u(uid);
             GM_setValue(`upalias_${uid}`, alias);
         }
         
         static deleteAliasForUID(uid) {
+            uid = UPNotesManager._u(uid);
             GM_deleteValue(`upalias_${uid}`);
         }
 
         static getNotesForUID(uid, fallback = null) {
+            uid = UPNotesManager._u(uid);
             return GM_getValue(`upnotes_${uid}`, fallback);
         }
 
         static setNotesForUID(uid, notes) {
+            uid = UPNotesManager._u(uid);
             GM_setValue(`upnotes_${uid}`, notes);
         }
         
         static deleteNotesForUID(uid) {
+            uid = UPNotesManager._u(uid);
             GM_deleteValue(`upnotes_${uid}`);
         }
 
-        static callUIForEditing(uid, displayName="", closeCallback = null) {
+        static callUIForEditing(_uid, _displayName = "?", _avatarUrl = null, closeCallback = null) {
+            const uid = UPNotesManager._u(_uid);
+            const displayName = _displayName?.trim?.() || _displayName;
+            const avatarUrl = _avatarUrl?.trim?.() || _avatarUrl;
+
             const currentAlias = this.getAliasForUID(uid) || '';
             const currentNotes = this.getNotesForUID(uid) || '';
             
@@ -288,16 +386,30 @@
                 title: `编辑备注 ${displayName} (UID: ${uid})`,
                 content: form.render(),
                 width: '450px',
-                shadow: true
+                shadow: true,
+                ...(avatarUrl ? {
+                    icon: Utils.fixUrlProtocol(avatarUrl),
+                    iconShape: 'circle',
+                    iconWidth: '24px',
+                } : {})
             });
             
             floatWindow.show();
             floatWindow.moveToMouse?.();
         }
 
-        static callUIForRemoving(uid, displayName="") {
+        static callUIForRemoving(_uid, _displayName = "", _avatarUrl = null) {
+            const uid = UPNotesManager._u(_uid);
+            const displayName = _displayName?.trim?.() || _displayName;
+            const avatarUrl = _avatarUrl?.trim?.() || _avatarUrl;
             Utils.ui.confirm(
-                `确定要删除 ${displayName} (UID: ${uid}) 的 UP 备注吗？`,'确认删除 UP 备注'
+                `确定要删除 ${displayName} (UID: ${uid}) 的 UP 备注吗？`, '确认删除 UP 备注',
+                null,
+                avatarUrl ? {
+                    icon: Utils.fixUrlProtocol(avatarUrl),
+                    iconShape: 'circle',
+                    iconWidth: '24px',
+                } : {}
             ).then(res => {
                 if (res) {
                     this.deleteAliasForUID(uid);
@@ -416,7 +528,6 @@
                 logger.log('A newer card task has started, aborting this one.(note)');
                 return;
             }
-
             const avatarLinkEl = Utils.$child(cardElement, selectors.card.avatarLink);
             const link = avatarLinkEl?.getAttribute('href') || '';
             // value = `//space.bilibili.com/652239032/dynamic`
@@ -457,13 +568,15 @@
             const footerRootEl = Utils.$child(cardElement, selectors.card.footerRoot);
             if (footerRootEl) {
                 const btn = document.createElement('div');
-                btn.classList.add(selectors.card.button.replace("div.", ""), selectors.markup.idclass.replace(".", ""));
+                btn.classList.add(selectors.card.button.replace("div.", ""), selectors.markup.idclass.replace(".", ""), 'ckupnotes-usercard-btn');
                 btn.textContent = '编辑备注';
                 btn.style.cursor = 'pointer';
                 btn.style.marginLeft = '8px';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid, username);
+                    const avatarEl = Utils.$child(cardElement, selectors.card.avatar);
+                    const avatarImgSrc = avatarEl?.getAttribute('src') || null;
+                    UPNotesManager.callUIForEditing(uid, username, avatarImgSrc);
                 });
             }
         } finally { 
@@ -474,12 +587,12 @@
     async function onModernCardShown() {
         const cardElement = Utils.$(selectors.cardModern.shadowRoot);
         if (!cardElement) return;
-        const shadowroot = cardElement.shadowRoot;;
+        const shadowroot = cardElement.shadowRoot;
         if (!shadowroot) return;
         const thisCardTaskId = ('' + Date.now()) + Math.random();
         try {
             runtime.cardtaskId = thisCardTaskId;
-            await Utils.wait(150); // wait for content load
+            await Utils.waitForElementFirstAppearForever(selectors.cardModern.readyDom, shadowroot, 2000);
 
             if (runtime.cardtaskId !== thisCardTaskId) {
                 logger.log('A newer card task has started, aborting this one.(modern)');
@@ -530,16 +643,33 @@
             const footerRootEl = Utils.$child(shadowroot, selectors.cardModern.footerRoot);
             if (footerRootEl) {
                 const btn = document.createElement('button');
-                btn.classList.add(selectors.markup.idclass.replace(".", ""));
+                btn.classList.add(selectors.markup.idclass.replace(".", ""), 'ckupnotes-usercard-btn');
                 btn.textContent = '编辑备注';
                 btn.style.cursor = 'pointer';
                 btn.style.marginLeft = '8px';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid, username);
+                const avatarEl = Utils.$child(shadowroot, selectors.cardModern.avatar);
+                const avatarImgSrc = avatarEl?.getAttribute('src') || null;
+                    UPNotesManager.callUIForEditing(uid, username, avatarImgSrc);
                 });
             }
-            
+
+            // inject custom styles into shadowdom
+            const styleEl = document.createElement('style');
+            styleEl.textContent = `
+                .ckupnotes-usercard-btn{
+                    border: 1px solid var(--text3);
+                    color: var(--text2);
+                    background-color: transparent;
+                }
+                .ckupnotes-usercard-btn:hover{
+                    color: var(--brand_blue);
+                    border-color: var(--brand_blue);
+                }
+            `;
+            styleEl.classList.add(selectors.markup.idclass.replace(".", ""));
+            shadowroot.appendChild(styleEl);
         } finally {
             if (runtime.cardtaskId === thisCardTaskId) runtime.cardtaskId = null;
         }
@@ -562,8 +692,7 @@
                 element.remove();
             });
 
-            logger.log('Processing User Card...(usercard)\n', cardElement.innerHTML);
-            
+            logger.log('Processing User Card...(usercard)');
             const userNameLink = Utils.$child(cardElement, selectors.userCard.userName);
             const link = userNameLink?.getAttribute('href') || '';
             const match = link.match(/\/space\.bilibili\.com\/(\d+)/);
@@ -606,11 +735,15 @@
                 btn.classList.add('ckupnotes-usercard-btn', selectors.markup.idclass.replace(".", ""));
                 btn.textContent = '备注';
                 btn.style.cursor = 'pointer';
-                btn.style.padding = '3px 6px';
-                btn.style.borderRadius = '3px';
+                btn.style.padding = '5px 6px';
+                btn.style.borderRadius = '4px';
+                btn.style.flex = '1';
+                btn.style.textAlign = 'center';
                 footerRootEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid, displayName);
+                    const avatarEl = Utils.$child(cardElement, selectors.userCard.avatar);
+                    const avatarImgSrc = avatarEl?.getAttribute('src') || null;
+                    UPNotesManager.callUIForEditing(uid, displayName, avatarImgSrc);
                 });
             }
         } finally {
@@ -658,7 +791,7 @@
         const thisUpTaskId = ('' + Date.now()) + Math.random();
         try {
             runtime.uptaskId = thisUpTaskId;
-            await Utils.wait(1000); // wait for content load
+            await Utils.wait(500); // wait for content load
 
             if (runtime.uptaskId !== thisUpTaskId) {
                 logger.log('A newer UP task has started, aborting this one.(play)');
@@ -715,13 +848,89 @@
                 btn.style.marginLeft = '8px';
                 upDetailTopBoxEl.appendChild(btn);
                 btn.addEventListener('click', () => {
-                    UPNotesManager.callUIForEditing(uid, username, ()=>onUpInfoBoxShown());
+                    const upAvatarImgEl = Utils.$(selectors.play.upAvatarImg, upInfoBox);
+                    const avatarImgSrc = upAvatarImgEl?.getAttribute('src') || null;
+                    UPNotesManager.callUIForEditing(uid, username, avatarImgSrc, ()=>onUpInfoBoxShown());
                 });
             }
-            
+
+            const subButton = Utils.$(selectors.play.subBtn, upInfoBox);
+            if (subButton) {
+                logger.log('Registering follow/unfollow button listener on play page.');
+                subButton.removeEventListener('click', onSubBtn);
+                subButton.addEventListener('click', onSubBtn);
+            } else {
+                logger.log('Follow/unfollow button not found, cannot register listener.(play)');
+            }
+
+            if (!Utils.$(".ckupnote-upinfo-probe", upInfoBox)) {
+                logger.log('Creating probe element for UP Info Box reset detection.(play)');
+                const probe = document.createElement('span');
+                probe.style.display = 'none';
+                probe.classList.add("ckupnote-upinfo-probe");
+                upInfoBox.appendChild(probe);
+                if(!Utils.registerOnceElementRemoved(probe, () => {
+                    logger.log('Element reset, re-triggering up info box processing.(play)');
+                    Utils.wait(500).then(() => onUpInfoBoxShown());
+                }, document.body)) {
+                    logger.log('Probe create failed: element already been removed.(play)');
+                } else logger.log('Probe created', probe);
+            } else {
+                logger.log('Probe element already exists, no need to create.(play)');
+            }
+        } catch (e) {
+            logger.error('Error occurred while processing UP Info Box on play page:', e);
         } finally {
             if (runtime.uptaskId === thisUpTaskId) runtime.uptaskId = null;
         }
+    }
+
+    async function onSubBtn(event) {
+        logger.log('Follow/Unfollow button clicked on play page.');
+        await Utils.wait(500);
+        try {
+            const upInfoBox = Utils.$(selectors.play.upInfoBox);
+            const upAvatarLinkEl = Utils.$(selectors.play.upAvatarLink, upInfoBox);
+            const link = upAvatarLinkEl?.getAttribute('href') || '';
+            const match = link.match(/\/space\.bilibili\.com\/(\d+)/);
+            if (!match) return logger.log('UID not found in avatar link, aborting.(play)');
+            const uid = match[1];
+            logger.log(`Extracted UID: ${uid} (play)`);
+            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const upNameEl = Utils.$(selectors.play.upName, upInfoBox);
+            let username = upNameEl.textContent || '?';
+            username = username?.trim?.() || username;
+            const vidNameEl = Utils.$(selectors.play.videoTitle);
+            let vidName = vidNameEl?.textContent || '?';
+            vidName = vidName?.trim?.() || vidName;
+            const formatedDate = (Intl.DateTimeFormat('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            }).format(new Date())).replace(/\//g, '-').replace(',', '');
+            const subBtn = Utils.$(selectors.play.subBtn, upInfoBox);
+            if (subBtn) {
+                logger.log('Processing follow/unfollow action on play page.');
+                if (subBtn.classList.contains('following')) {
+                    // just followed
+                    UPNotesManager.setNotesForUID(uid,
+                        (notes ? notes + '\n' : '') + `[${formatedDate}] 在《${vidName}》关注了 "${username}"`
+                    );
+                    Utils.ui?.success(`关注操作已记录到 ${username} 的备注`);
+                } else if (subBtn.classList.contains('not-follow')) {
+                    // just unfollowed
+                    UPNotesManager.setNotesForUID(uid,
+                        (notes ? notes + '\n' : '') + `[${formatedDate}] 在《${vidName}》取关了 "${username}"`
+                    );
+                    Utils.ui?.success(`取关操作已记录到 ${username} 的备注`);
+                } else {
+                    logger.log('Follow button state unrecognized, no action taken.(play)');
+                }
+            }
+        } finally { }
     }
 
     // #endregion playpage
@@ -747,6 +956,7 @@
                 color: var(--text2);
                 background-color: transparent;
                 cursor: pointer;
+                border-radius: 4px;
             }
             .ckupnotes-profile-aside-card-button:hover{
                 color: var(--brand_blue);
@@ -802,7 +1012,8 @@
         editButton.classList.add('ckupnotes-profile-aside-card-button');
         editButton.textContent = '编辑备注';
         editButton.addEventListener('click', () => {
-            UPNotesManager.callUIForEditing(uid, username, ()=>injectOnSidebarBox(sidebarBox));
+            const avatarImgSrc = Utils.$(selectors.profile.avatarImg, sidebarBox)?.getAttribute('src') || '';
+            UPNotesManager.callUIForEditing(uid, username, avatarImgSrc, ()=>injectOnSidebarBox(sidebarBox));
         });
         card.appendChild(editButton);
 
@@ -852,7 +1063,8 @@
         editButton.classList.add('ckupnotes-profile-aside-card-button');
         editButton.textContent = '编辑备注';
         editButton.addEventListener('click', () => {
-            UPNotesManager.callUIForEditing(uid, username, ()=>injectOnDynamicSidebarBox(sidebarBox));
+            const avatarImgSrc = Utils.$(selectors.profile.avatarImg, sidebarBox)?.getAttribute('src') || '';
+            UPNotesManager.callUIForEditing(uid, username, avatarImgSrc, ()=>injectOnDynamicSidebarBox(sidebarBox));
         });
         card.appendChild(editButton);
 
