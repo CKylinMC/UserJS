@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.1.1
+// @version      2.2.0
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -28,7 +28,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         currentTheme: 'light'
     };
 
-    // 全局鼠标追踪状态
     if (!unsafeWindow.__ckui_mouseTrackingEnabled) {
         unsafeWindow.__ckui_mouseTrackingEnabled = false;
         unsafeWindow.__ckui_lastMouseX = null;
@@ -285,6 +284,35 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             font-weight: 600;
             color: var(--ckui-text);
             margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .ckui-modal-title.has-icon {
+            gap: 12px;
+        }
+
+        .ckui-modal-icon {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ckui-modal-icon.circle {
+            border-radius: 50%;
+        }
+
+        .ckui-modal-icon.square {
+            border-radius: 4px;
+        }
+
+        .ckui-modal-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .ckui-modal-close {
@@ -353,6 +381,35 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             font-size: 14px;
             font-weight: 600;
             margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .ckui-float-title.has-icon {
+            gap: 8px;
+        }
+
+        .ckui-float-icon {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ckui-float-icon.circle {
+            border-radius: 50%;
+        }
+
+        .ckui-float-icon.square {
+            border-radius: 4px;
+        }
+
+        .ckui-float-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .ckui-float-controls {
@@ -469,6 +526,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             transition: all var(--ckui-animation-duration);
             outline: none;
             user-select: none;
+            margin-right: 5px;
         }
 
         .ckui-btn:hover {
@@ -1033,6 +1091,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 onCancel: options.onCancel,
                 maskClosable: options.maskClosable !== false,
                 shadow: options.shadow || false,
+                allowHtml: options.allowHtml || false,
+                icon: options.icon || null,
+                iconShape: options.iconShape || 'square',
+                iconWidth: options.iconWidth || '24px',
                 ...options
             };
 
@@ -1106,12 +1168,47 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 style: { width: this.options.width }
             });
 
+            const titleChildren = [];
+            
+            if (this.options.icon) {
+                const iconEl = utils.createElement('span', {
+                    class: `ckui-modal-icon ${this.options.iconShape}`,
+                    style: {
+                        width: this.options.iconWidth,
+                        height: this.options.iconWidth,
+                        fontSize: this.options.iconWidth
+                    }
+                });
+                
+                if (this.options.icon.startsWith('http://') || this.options.icon.startsWith('https://') || this.options.icon.startsWith('//') || this.options.icon.startsWith('data:')) {
+                    const img = utils.createElement('img', {
+                        src: this.options.icon,
+                        alt: 'icon'
+                    });
+                    iconEl.appendChild(img);
+                } else {
+                    iconEl.textContent = this.options.icon;
+                }
+                
+                titleChildren.push(iconEl);
+            }
+            
+            const titleTextEl = utils.createElement('span');
+            if (this.options.allowHtml && typeof this.options.title === 'string') {
+                titleTextEl.innerHTML = this.options.title;
+            } else {
+                titleTextEl.textContent = this.options.title;
+            }
+            titleChildren.push(titleTextEl);
+            
+            const titleEl = utils.createElement('h3', {
+                class: this.options.icon ? 'ckui-modal-title has-icon' : 'ckui-modal-title'
+            }, titleChildren);
+
             const header = utils.createElement('div', {
                 class: 'ckui-modal-header'
             }, [
-                utils.createElement('h3', {
-                    class: 'ckui-modal-title'
-                }, [this.options.title]),
+                titleEl,
                 this.options.showClose ? utils.createElement('button', {
                     class: 'ckui-modal-close',
                     onclick: () => this.cancel()
@@ -1123,7 +1220,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
 
             if (typeof this.options.content === 'string') {
-                body.innerHTML = this.options.content;
+                if (this.options.allowHtml) {
+                    body.innerHTML = this.options.content;
+                } else {
+                    body.textContent = this.options.content;
+                }
             } else if (this.options.content instanceof Node) {
                 body.appendChild(this.options.content);
             }
@@ -1590,6 +1691,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 closable: options.closable !== false,
                 onClose: options.onClose || null,
                 shadow: options.shadow || false,
+                allowHtml: options.allowHtml || false,
+                icon: options.icon || null,
+                iconShape: options.iconShape || 'square',
+                iconWidth: options.iconWidth || '20px',
                 ...options
             };
 
@@ -1650,13 +1755,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         moveToMouse(offsetX = 0, offsetY = 0) {
             return new Promise((resolve) => {
                 let mouseX, mouseY;
-                
-                // 如果已启用全局追踪且有数据，直接使用
+
                 if (unsafeWindow.__ckui_mouseTrackingEnabled && unsafeWindow.__ckui_lastMouseX !== null) {
                     mouseX = unsafeWindow.__ckui_lastMouseX;
                     mouseY = unsafeWindow.__ckui_lastMouseY;
                 } else if (!unsafeWindow.__ckui_mouseTrackingEnabled) {
-                    // 未启用追踪，fallback 到旧行为：首次调用时初始化
+
                     if (unsafeWindow.__ckui_lastMouseX === null) {
                         unsafeWindow.__ckui_lastMouseX = unsafeWindow.innerWidth / 2;
                         unsafeWindow.__ckui_lastMouseY = unsafeWindow.innerHeight / 2;
@@ -1669,7 +1773,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     mouseX = unsafeWindow.__ckui_lastMouseX;
                     mouseY = unsafeWindow.__ckui_lastMouseY;
                 } else {
-                    // 已启用追踪但还没有数据，使用页面中心
+
                     mouseX = unsafeWindow.innerWidth / 2;
                     mouseY = unsafeWindow.innerHeight / 2;
                 }
@@ -1755,12 +1859,47 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 parent = shadow.container;
             }
 
+            const titleChildren = [];
+            
+            if (this.options.icon) {
+                const iconEl = utils.createElement('span', {
+                    class: `ckui-float-icon ${this.options.iconShape}`,
+                    style: {
+                        width: this.options.iconWidth,
+                        height: this.options.iconWidth,
+                        fontSize: this.options.iconWidth
+                    }
+                });
+                
+                if (this.options.icon.startsWith('http://') || this.options.icon.startsWith('https://') || this.options.icon.startsWith('data:')) {
+                    const img = utils.createElement('img', {
+                        src: this.options.icon,
+                        alt: 'icon'
+                    });
+                    iconEl.appendChild(img);
+                } else {
+                    iconEl.textContent = this.options.icon;
+                }
+                
+                titleChildren.push(iconEl);
+            }
+            
+            const titleTextEl = utils.createElement('span');
+            if (this.options.allowHtml && typeof this.options.title === 'string') {
+                titleTextEl.innerHTML = this.options.title;
+            } else {
+                titleTextEl.textContent = this.options.title;
+            }
+            titleChildren.push(titleTextEl);
+            
+            const titleEl = utils.createElement('h3', {
+                class: this.options.icon ? 'ckui-float-title has-icon' : 'ckui-float-title'
+            }, titleChildren);
+
             const header = utils.createElement('div', {
                 class: 'ckui-float-header'
             }, [
-                utils.createElement('h3', {
-                    class: 'ckui-float-title'
-                }, [this.options.title]),
+                titleEl,
                 utils.createElement('div', {
                     class: 'ckui-float-controls'
                 }, [
@@ -1781,7 +1920,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
 
             if (typeof this.options.content === 'string') {
-                this.body.innerHTML = this.options.content;
+                if (this.options.allowHtml) {
+                    this.body.innerHTML = this.options.content;
+                } else {
+                    this.body.textContent = this.options.content;
+                }
             } else if (this.options.content instanceof Node) {
                 this.body.appendChild(this.options.content);
             }
@@ -1886,7 +2029,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         setContent(content) {
             if (typeof content === 'string') {
-                this.body.innerHTML = content;
+                if (this.options.allowHtml) {
+                    this.body.innerHTML = content;
+                } else {
+                    this.body.textContent = content;
+                }
             } else if (content instanceof Node) {
                 this.body.innerHTML = '';
                 this.body.appendChild(content);
@@ -2346,12 +2493,19 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             return new Modal(options);
         },
-        async alert(message, title, id) {
+        async alert(message, title, id, customOptions = {}) {
             let options = {};
             if (typeof message === 'object') {
                 options = message;
+            } else if (typeof title === 'object') {
+
+                options = { content: message, title: '提示', ...title };
+            } else if (id !== null && id !== undefined && typeof id === 'object') {
+
+                options = { content: message, title: title || '提示', ...id };
             } else {
-                options = { content: message, title: title || '提示', id: id };
+
+                options = { content: message, title: title || '提示', id, ...customOptions };
             }
 
             if (options.id) {
@@ -2363,12 +2517,19 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             return Modal.alert(options);
         },
-        async confirm(message, title, id) {
+        async confirm(message, title, id, customOptions = {}) {
             let options = {};
             if (typeof message === 'object') {
                 options = message;
+            } else if (typeof title === 'object') {
+
+                options = { content: message, title: '确认', ...title };
+            } else if (id !== null && id !== undefined && typeof id === 'object') {
+
+                options = { content: message, title: title || '确认', ...id };
             } else {
-                options = { content: message, title: title || '确认', id: id };
+
+                options = { content: message, title: title || '确认', id, ...customOptions };
             }
 
             if (options.id) {
@@ -2380,48 +2541,66 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             return Modal.confirm(options).then(() => true).catch(() => false);
         },
-        async prompt(message, defaultValue, title, id) {
+        async prompt(message, defaultValue, title, id, customOptions = {}) {
             let options = {};
             if (typeof message === 'object') {
                 options = message;
+            } else if (typeof defaultValue === 'object') {
+
+                options = { title: message, ...defaultValue };
+            } else if (typeof title === 'object') {
+
+                options = { title: message, defaultValue: defaultValue, ...title };
+            } else if (id !== null && id !== undefined && typeof id === 'object') {
+
+                options = { title: message, defaultValue: defaultValue, placeholder: title || '', ...id };
             } else {
+
                 options = {
-                    title: title || message,
-                    placeholder: message,
-                    defaultValue: defaultValue || '',
-                    id: id
+                    title: message,
+                    defaultValue: defaultValue,
+                    placeholder: title || '',
+                    id,
+                    ...customOptions
                 };
             }
 
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
                 if (existing) {
-                    existing.refresh(options);
-                    return existing.show().then(() => {
 
-                        const input = existing.modal.querySelector('.ckui-input');
-                        return input ? input.value : null;
-                    }).catch(() => null);
+                    options.defaultValue = options.defaultValue || '';
+                    const input = utils.createElement('input', {
+                        class: 'ckui-root ckui-input',
+                        type: 'text',
+                        placeholder: options.placeholder || '',
+                        value: options.defaultValue
+                    });
+                    options.content = input;
+                    existing.refresh(options);
+                    return existing.show().then(() => input.value).catch(() => null);
                 }
             }
             return Modal.prompt(options);
         },
-        async select(options) {
-
+        async select(options, customOptions = {}) {
+            options = { ...options, ...customOptions };
+            
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
                 if (existing) {
-                    existing.destroy();
+                    return existing.refresh(options).show();
                 }
             }
             return Modal.select(options);
         },
-        async sortableList(options) {
-
+        async sortableList(options, customOptions = {}) {
+            options = { ...options, ...customOptions };
+            
             if (options.id) {
                 const existing = instanceManager.get('modals', options.id);
                 if (existing) {
-                    existing.destroy();
+                    return existing.refresh(options).show();
                 }
             }
             return Modal.sortableList(options);
