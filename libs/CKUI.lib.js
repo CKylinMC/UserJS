@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.3.0
+// @version      2.3.1
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -2902,7 +2902,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const input = utils.createElement('input', {
                 class: 'ckui-tags-input',
                 type: 'text',
-                placeholder: field.placeholder || '输入后按空格添加标签'
+                placeholder: field.placeholder || '输入后按空格或回车添加标签'
+            });
+
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', () => {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', () => {
+                isComposing = false;
             });
 
             input.addEventListener('input', () => {
@@ -2914,41 +2924,54 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
             });
 
-            input.addEventListener('keydown', (e) => {
-                if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    const value = input.value.trim();
-                    if (value) {
-                        const currentTags = this.values.value[field.name] || [];
+            const addTag = () => {
+                const value = input.value.trim();
+                if (value) {
+                    const currentTags = this.values.value[field.name] || [];
 
-                        if (currentTags.includes(value)) {
-                            showError('标签已存在，不允许重复');
-                            return;
-                        }
-
-                        if (currentTags.length >= maxTags) {
-                            showError(`最多只能添加 ${maxTags} 个标签`);
-                            return;
-                        }
-
-                        if (validator) {
-                            const result = validator(value, currentTags);
-                            if (result !== true) {
-                                showError(typeof result === 'string' ? result : '标签校验失败');
-                                return;
-                            }
-                        }
-
-                        const newTags = [...currentTags, value];
-                        this.values.value = { ...this.values.value, [field.name]: newTags };
-                        input.value = '';
-                        clearError();
-                        updateTags();
-                        if (field.onChange) field.onChange(newTags);
-
-                        setTimeout(() => input.focus(), 0);
+                    if (currentTags.includes(value)) {
+                        showError('标签已存在，不允许重复');
+                        return;
                     }
-                } else if (e.key === 'Backspace' && input.value === '') {
+
+                    if (currentTags.length >= maxTags) {
+                        showError(`最多只能添加 ${maxTags} 个标签`);
+                        return;
+                    }
+
+                    if (validator) {
+                        const result = validator(value, currentTags);
+                        if (result !== true) {
+                            showError(typeof result === 'string' ? result : '标签校验失败');
+                            return;
+                        }
+                    }
+
+                    const newTags = [...currentTags, value];
+                    this.values.value = { ...this.values.value, [field.name]: newTags };
+                    input.value = '';
+                    clearError();
+                    updateTags();
+                    if (field.onChange) field.onChange(newTags);
+
+                    setTimeout(() => input.focus(), 0);
+                }
+            };
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isComposing) {
+                        setTimeout(() => addTag(), 50);
+                    } else {
+                        addTag();
+                    }
+                }
+                else if (e.key === ' ' && !isComposing) {
+                    e.preventDefault();
+                    addTag();
+                }
+                else if (e.key === 'Backspace' && input.value === '') {
                     const currentTags = this.values.value[field.name] || [];
                     if (currentTags.length > 0) {
                         const newTags = currentTags.slice(0, -1);
@@ -3133,6 +3156,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 placeholder: field.placeholder || '输入搜索或选择'
             });
 
+            // 跟踪输入法状态
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', () => {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', () => {
+                isComposing = false;
+            });
+
             input.addEventListener('input', (e) => {
                 const value = e.target.value.trim();
                 if (value) {
@@ -3153,14 +3187,29 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     highlightOption(Math.max(highlightedIndex - 1, 0));
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (highlightedIndex >= 0) {
-                        const highlighted = dropdown.children[highlightedIndex];
-                        if (highlighted) highlighted.click();
-                    } else if (input.value.trim()) {
-                        if (allowCustom) {
-                            addTag(input.value.trim());
-                        } else if (filteredOptions.length > 0) {
-                            addTag(filteredOptions[0]);
+                    if (isComposing) {
+                        setTimeout(() => {
+                            if (highlightedIndex >= 0) {
+                                const highlighted = dropdown.children[highlightedIndex];
+                                if (highlighted) highlighted.click();
+                            } else if (input.value.trim()) {
+                                if (allowCustom) {
+                                    addTag(input.value.trim());
+                                } else if (filteredOptions.length > 0) {
+                                    addTag(filteredOptions[0]);
+                                }
+                            }
+                        }, 50);
+                    } else {
+                        if (highlightedIndex >= 0) {
+                            const highlighted = dropdown.children[highlightedIndex];
+                            if (highlighted) highlighted.click();
+                        } else if (input.value.trim()) {
+                            if (allowCustom) {
+                                addTag(input.value.trim());
+                            } else if (filteredOptions.length > 0) {
+                                addTag(filteredOptions[0]);
+                            }
                         }
                     }
                 } else if (e.key === 'Escape') {
