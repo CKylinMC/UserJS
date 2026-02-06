@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.2.1
+// @version      2.3.0
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -670,6 +670,20 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             margin-bottom: var(--ckui-spacing);
         }
 
+        .ckui-form-group.has-error .ckui-input,
+        .ckui-form-group.has-error .ckui-textarea,
+        .ckui-form-group.has-error .ckui-select {
+            border-color: var(--ckui-danger);
+        }
+
+        .ckui-form-error {
+            color: var(--ckui-danger);
+            font-size: 12px;
+            margin-top: 4px;
+            line-height: 1.4;
+            display: block;
+        }
+
         /* Layout */
         .ckui-row {
             display: flex;
@@ -944,6 +958,271 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         .ckui-root.ckui-dark .ckui-select:focus {
             border-color: #60a5fa;
             box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        /* Tags Input */
+        .ckui-tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--ckui-spacing-sm);
+            padding: var(--ckui-spacing-sm);
+            border: 1px solid var(--ckui-border);
+            border-radius: var(--ckui-radius);
+            background: var(--ckui-bg);
+            min-height: 40px;
+            align-items: center;
+            transition: all var(--ckui-animation-duration);
+        }
+
+        .ckui-tags-container:focus-within {
+            border-color: var(--ckui-info);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .ckui-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: var(--ckui-secondary);
+            border: 1px solid var(--ckui-border);
+            border-radius: var(--ckui-radius-sm);
+            font-size: 13px;
+            color: var(--ckui-text);
+            max-width: 200px;
+        }
+
+        .ckui-tag-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ckui-tag-remove {
+            background: none;
+            border: none;
+            color: var(--ckui-text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            line-height: 1;
+            border-radius: 50%;
+            transition: all var(--ckui-animation-duration);
+        }
+
+        .ckui-tag-remove:hover {
+            background: var(--ckui-border);
+            color: var(--ckui-text);
+        }
+
+        .ckui-tags-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            flex: 1;
+            min-width: 100px;
+            font-size: 14px;
+            color: var(--ckui-text);
+            padding: 4px;
+        }
+
+        .ckui-tags-input::placeholder {
+            color: var(--ckui-text-muted);
+        }
+
+        /* Tags Error */
+        .ckui-tags-container.error {
+            border-color: var(--ckui-danger);
+            animation: ckui-shake 0.4s ease-in-out;
+        }
+
+        .ckui-tags-error {
+            color: var(--ckui-danger);
+            font-size: 12px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .ckui-tags-error.warning {
+            color: var(--ckui-warning);
+        }
+
+        @keyframes ckui-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        /* Select Tags Dropdown */
+        .ckui-select-tags-wrapper {
+            position: relative;
+        }
+
+        .ckui-select-tags-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--ckui-bg);
+            border: 1px solid var(--ckui-border);
+            border-radius: var(--ckui-radius);
+            box-shadow: var(--ckui-shadow);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .ckui-select-tags-dropdown.active {
+            display: block;
+        }
+
+        .ckui-select-tags-option {
+            padding: var(--ckui-spacing-sm) var(--ckui-spacing);
+            cursor: pointer;
+            transition: all var(--ckui-animation-duration);
+            font-size: 14px;
+            color: var(--ckui-text);
+        }
+
+        .ckui-select-tags-option:hover,
+        .ckui-select-tags-option.selected {
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-select-tags-option.highlighted {
+            background: var(--ckui-secondary-hover);
+        }
+
+        .ckui-select-tags-option.disabled {
+            color: var(--ckui-text-muted);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* Dark mode for tags */
+        .ckui-root.ckui-dark .ckui-tags-container {
+            background: var(--ckui-bg-secondary);
+            border-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-tags-container:focus-within {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        .ckui-root.ckui-dark .ckui-tag {
+            background: var(--ckui-secondary);
+            border-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-tags-input {
+            color: var(--ckui-text);
+        }
+
+        .ckui-root.ckui-dark .ckui-select-tags-dropdown {
+            background: var(--ckui-bg);
+            border-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-select-tags-option:hover,
+        .ckui-root.ckui-dark .ckui-select-tags-option.selected {
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-root.ckui-dark .ckui-select-tags-option.highlighted {
+            background: var(--ckui-secondary-hover);
+        }
+
+        /* Hidden Area */
+        .ckui-hidden-area {
+            display: none;
+        }
+
+        .ckui-hidden-area.visible {
+            display: block;
+        }
+
+        /* Detail Component */
+        .ckui-detail {
+            border: 1px solid var(--ckui-border);
+            border-radius: var(--ckui-radius);
+            background: var(--ckui-bg);
+            overflow: hidden;
+            margin-bottom: var(--ckui-spacing);
+        }
+
+        .ckui-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--ckui-spacing) var(--ckui-spacing-md);
+            cursor: pointer;
+            user-select: none;
+            transition: background var(--ckui-animation-duration);
+            background: var(--ckui-bg);
+        }
+
+        .ckui-detail-header:hover {
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-detail-title {
+            font-weight: 600;
+            color: var(--ckui-text);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .ckui-detail-icon {
+            transition: transform var(--ckui-animation-duration);
+            color: var(--ckui-text-secondary);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .ckui-detail.open .ckui-detail-icon {
+            transform: rotate(180deg);
+        }
+
+        .ckui-detail-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .ckui-detail.open .ckui-detail-content {
+            max-height: 2000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .ckui-detail-body {
+            padding: var(--ckui-spacing-md);
+            border-top: 1px solid var(--ckui-border);
+        }
+
+        /* Dark mode for detail */
+        .ckui-root.ckui-dark .ckui-detail {
+            background: var(--ckui-bg);
+            border-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-detail-header {
+            background: var(--ckui-bg);
+        }
+
+        .ckui-root.ckui-dark .ckui-detail-header:hover {
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-root.ckui-dark .ckui-detail-body {
+            border-top-color: var(--ckui-border-dark);
         }
     `;
 
@@ -2158,9 +2437,43 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
         }
 
+        tags(options) {
+            return this.addField({
+                type: 'tags',
+                value: options.value || [],
+                maxTags: options.maxTags || Infinity,
+                ...options
+            });
+        }
+
+        selectTags(options) {
+            return this.addField({
+                type: 'selectTags',
+                value: options.value || [],
+                options: options.options || [],
+                allowCustom: options.allowCustom !== false,
+                maxTags: options.maxTags || Infinity,
+                ...options
+            });
+        }
+
         button(options) {
             return this.addField({
                 type: 'button',
+                ...options
+            });
+        }
+
+        hiddenarea(options) {
+            return this.addField({
+                type: 'hiddenarea',
+                ...options
+            });
+        }
+
+        detail(options) {
+            return this.addField({
+                type: 'detail',
                 ...options
             });
         }
@@ -2192,8 +2505,16 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     return this.renderCheckbox(field);
                 case 'radio':
                     return this.renderRadio(field);
+                case 'tags':
+                    return this.renderTags(field);
+                case 'selectTags':
+                    return this.renderSelectTags(field);
                 case 'button':
                     return this.renderButton(field);
+                case 'hiddenarea':
+                    return this.renderHiddenArea(field);
+                case 'detail':
+                    return this.renderDetail(field);
                 default:
                     return null;
             }
@@ -2216,17 +2537,46 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 name: field.name || ''
             });
 
+            const errorEl = utils.createElement('span', {
+                class: 'ckui-form-error',
+                style: { display: 'none' }
+            });
+
+            const validate = () => {
+                if (field.validator) {
+                    const result = field.validator(input.value, this.values.value);
+                    if (result === true) {
+                        group.classList.remove('has-error');
+                        errorEl.style.display = 'none';
+                        return true;
+                    } else {
+                        group.classList.add('has-error');
+                        errorEl.textContent = result || field.errorMessage || '输入格式不正确';
+                        errorEl.style.display = 'block';
+                        return false;
+                    }
+                }
+                return true;
+            };
+
             input.addEventListener('input', (e) => {
                 const currentValues = { ...this.values.value };
                 currentValues[field.name] = e.target.value;
                 this.values.value = currentValues;
                 
+                validate();
+                
                 if (field.onChange) {
-                    field.onChange(e.target.value);
+                    field.onChange(e.target.value, this.values.value);
                 }
             });
 
+            input.addEventListener('blur', () => {
+                validate();
+            });
+
             group.appendChild(input);
+            group.appendChild(errorEl);
             return group;
         }
 
@@ -2246,17 +2596,46 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
             textarea.value = field.value || '';
 
+            const errorEl = utils.createElement('span', {
+                class: 'ckui-form-error',
+                style: { display: 'none' }
+            });
+
+            const validate = () => {
+                if (field.validator) {
+                    const result = field.validator(textarea.value, this.values.value);
+                    if (result === true) {
+                        group.classList.remove('has-error');
+                        errorEl.style.display = 'none';
+                        return true;
+                    } else {
+                        group.classList.add('has-error');
+                        errorEl.textContent = result || field.errorMessage || '输入格式不正确';
+                        errorEl.style.display = 'block';
+                        return false;
+                    }
+                }
+                return true;
+            };
+
             textarea.addEventListener('input', (e) => {
                 const currentValues = { ...this.values.value };
                 currentValues[field.name] = e.target.value;
                 this.values.value = currentValues;
                 
+                validate();
+                
                 if (field.onChange) {
-                    field.onChange(e.target.value);
+                    field.onChange(e.target.value, this.values.value);
                 }
             });
 
+            textarea.addEventListener('blur', () => {
+                validate();
+            });
+
             group.appendChild(textarea);
+            group.appendChild(errorEl);
             return group;
         }
 
@@ -2316,13 +2695,37 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 input.checked = true;
             }
 
+            const errorEl = utils.createElement('span', {
+                class: 'ckui-form-error',
+                style: { display: 'none' }
+            });
+
+            const validate = () => {
+                if (field.validator) {
+                    const result = field.validator(input.checked, this.values.value);
+                    if (result === true) {
+                        group.classList.remove('has-error');
+                        errorEl.style.display = 'none';
+                        return true;
+                    } else {
+                        group.classList.add('has-error');
+                        errorEl.textContent = result || field.errorMessage || '请选择该选项';
+                        errorEl.style.display = 'block';
+                        return false;
+                    }
+                }
+                return true;
+            };
+
             input.addEventListener('change', (e) => {
                 const currentValues = { ...this.values.value };
                 currentValues[field.name] = e.target.checked;
                 this.values.value = currentValues;
                 
+                validate();
+                
                 if (field.onChange) {
-                    field.onChange(e.target.checked);
+                    field.onChange(e.target.checked, this.values.value);
                 }
             });
 
@@ -2332,6 +2735,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
 
             group.appendChild(label);
+            group.appendChild(errorEl);
             return group;
         }
 
@@ -2343,6 +2747,28 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     class: 'ckui-root ckui-label'
                 }, [field.label]));
             }
+
+            const errorEl = utils.createElement('span', {
+                class: 'ckui-form-error',
+                style: { display: 'none' }
+            });
+
+            const validate = (selectedValue) => {
+                if (field.validator) {
+                    const result = field.validator(selectedValue, this.values.value);
+                    if (result === true) {
+                        group.classList.remove('has-error');
+                        errorEl.style.display = 'none';
+                        return true;
+                    } else {
+                        group.classList.add('has-error');
+                        errorEl.textContent = result || field.errorMessage || '请选择一项';
+                        errorEl.style.display = 'block';
+                        return false;
+                    }
+                }
+                return true;
+            };
 
             (field.options || []).forEach(opt => {
                 const label = utils.createElement('label', {
@@ -2366,8 +2792,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         currentValues[field.name] = opt.value;
                         this.values.value = currentValues;
                         
+                        validate(opt.value);
+                        
                         if (field.onChange) {
-                            field.onChange(opt.value);
+                            field.onChange(opt.value, this.values.value);
                         }
                     }
                 });
@@ -2377,6 +2805,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 group.appendChild(label);
             });
 
+            group.appendChild(errorEl);
             return group;
         }
 
@@ -2392,6 +2821,508 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }, [field.label || 'Button']);
 
             return button;
+        }
+
+        renderTags(field) {
+            const group = utils.createElement('div', { class: 'ckui-root ckui-form-group' });
+            
+            if (field.label) {
+                const label = utils.createElement('label', { class: 'ckui-label' }, [field.label]);
+                group.appendChild(label);
+            }
+
+            const container = utils.createElement('div', {
+                class: 'ckui-tags-container'
+            });
+
+            const errorEl = utils.createElement('div', {
+                class: 'ckui-tags-error',
+                style: { display: 'none' }
+            });
+
+            const tags = field.value || [];
+            const maxTags = field.maxTags || Infinity;
+            const validator = field.validator || null;
+
+            const updateTags = () => {
+                const currentTags = this.values.value[field.name] || [];
+                container.innerHTML = '';
+                
+                currentTags.forEach(tag => {
+                    const tagEl = utils.createElement('div', { class: 'ckui-tag' });
+                    const tagText = utils.createElement('span', { class: 'ckui-tag-text' }, [tag]);
+                    const removeBtn = utils.createElement('button', {
+                        class: 'ckui-tag-remove',
+                        type: 'button',
+                        onclick: () => {
+                            const newTags = currentTags.filter(t => t !== tag);
+                            this.values.value = { ...this.values.value, [field.name]: newTags };
+                            updateTags();
+                            if (field.onChange) field.onChange(newTags);
+
+                            setTimeout(() => input.focus(), 0);
+                        }
+                    }, ['×']);
+                    tagEl.appendChild(tagText);
+                    tagEl.appendChild(removeBtn);
+                    container.appendChild(tagEl);
+                });
+
+                if (currentTags.length < maxTags) {
+                    container.appendChild(input);
+                    input.disabled = false;
+                    input.placeholder = field.placeholder || '输入后按空格添加标签';
+                } else {
+                    input.disabled = true;
+                    input.placeholder = '已达到最大标签数';
+                }
+            };
+
+            const showError = (message) => {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                errorEl.classList.remove('warning');
+                errorEl.classList.add('error');
+                container.classList.add('error');
+                setTimeout(() => container.classList.remove('error'), 400);
+            };
+
+            const showWarning = (message) => {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                errorEl.classList.remove('error');
+                errorEl.classList.add('warning');
+            };
+
+            const clearError = () => {
+                errorEl.style.display = 'none';
+                errorEl.classList.remove('error', 'warning');
+            };
+
+            const input = utils.createElement('input', {
+                class: 'ckui-tags-input',
+                type: 'text',
+                placeholder: field.placeholder || '输入后按空格添加标签'
+            });
+
+            input.addEventListener('input', () => {
+                const value = input.value.trim();
+                if (value) {
+                    showWarning('按空格或回车添加标签');
+                } else {
+                    clearError();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = input.value.trim();
+                    if (value) {
+                        const currentTags = this.values.value[field.name] || [];
+
+                        if (currentTags.includes(value)) {
+                            showError('标签已存在，不允许重复');
+                            return;
+                        }
+
+                        if (currentTags.length >= maxTags) {
+                            showError(`最多只能添加 ${maxTags} 个标签`);
+                            return;
+                        }
+
+                        if (validator) {
+                            const result = validator(value, currentTags);
+                            if (result !== true) {
+                                showError(typeof result === 'string' ? result : '标签校验失败');
+                                return;
+                            }
+                        }
+
+                        const newTags = [...currentTags, value];
+                        this.values.value = { ...this.values.value, [field.name]: newTags };
+                        input.value = '';
+                        clearError();
+                        updateTags();
+                        if (field.onChange) field.onChange(newTags);
+
+                        setTimeout(() => input.focus(), 0);
+                    }
+                } else if (e.key === 'Backspace' && input.value === '') {
+                    const currentTags = this.values.value[field.name] || [];
+                    if (currentTags.length > 0) {
+                        const newTags = currentTags.slice(0, -1);
+                        this.values.value = { ...this.values.value, [field.name]: newTags };
+                        updateTags();
+                        if (field.onChange) field.onChange(newTags);
+
+                        setTimeout(() => input.focus(), 0);
+                    }
+                }
+            });
+
+            this.values.value = { ...this.values.value, [field.name]: tags };
+            updateTags();
+
+            group.appendChild(container);
+            group.appendChild(errorEl);
+            return group;
+        }
+
+        renderSelectTags(field) {
+            const group = utils.createElement('div', { class: 'ckui-root ckui-form-group' });
+            
+            if (field.label) {
+                const label = utils.createElement('label', { class: 'ckui-label' }, [field.label]);
+                group.appendChild(label);
+            }
+
+            const wrapper = utils.createElement('div', {
+                class: 'ckui-select-tags-wrapper'
+            });
+
+            const container = utils.createElement('div', {
+                class: 'ckui-tags-container'
+            });
+
+            const dropdown = utils.createElement('div', {
+                class: 'ckui-select-tags-dropdown'
+            });
+
+            const errorEl = utils.createElement('div', {
+                class: 'ckui-tags-error',
+                style: { display: 'none' }
+            });
+
+            const tags = field.value || [];
+            const options = field.options || [];
+            const allowCustom = field.allowCustom !== false;
+            const maxTags = field.maxTags || Infinity;
+            const validator = field.validator || null;
+            let highlightedIndex = -1;
+            let filteredOptions = [];
+
+            const updateTags = () => {
+                const currentTags = this.values.value[field.name] || [];
+                container.innerHTML = '';
+                
+                currentTags.forEach(tag => {
+                    const tagEl = utils.createElement('div', { class: 'ckui-tag' });
+                    const tagText = utils.createElement('span', { class: 'ckui-tag-text' }, [tag]);
+                    const removeBtn = utils.createElement('button', {
+                        class: 'ckui-tag-remove',
+                        type: 'button',
+                        onclick: () => {
+                            const newTags = currentTags.filter(t => t !== tag);
+                            this.values.value = { ...this.values.value, [field.name]: newTags };
+                            updateTags();
+                            if (field.onChange) field.onChange(newTags);
+                        }
+                    }, ['×']);
+                    tagEl.appendChild(tagText);
+                    tagEl.appendChild(removeBtn);
+                    container.appendChild(tagEl);
+                });
+
+                if (currentTags.length < maxTags) {
+                    container.appendChild(input);
+                    input.disabled = false;
+                    input.placeholder = field.placeholder || '输入搜索或选择';
+                } else {
+                    input.disabled = true;
+                    input.placeholder = '已达到最大标签数';
+                }
+            };
+
+            const showError = (message) => {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                container.classList.add('error');
+                setTimeout(() => container.classList.remove('error'), 400);
+            };
+
+            const clearError = () => {
+                errorEl.style.display = 'none';
+            };
+
+            const updateDropdown = (filterText = '') => {
+                const currentTags = this.values.value[field.name] || [];
+
+                filteredOptions = options.filter(opt => 
+                    opt.toLowerCase().includes(filterText.toLowerCase()) && 
+                    !currentTags.includes(opt)
+                );
+                
+                dropdown.innerHTML = '';
+                highlightedIndex = -1;
+
+                if (filteredOptions.length === 0 && filterText && allowCustom) {
+                    const isDuplicate = currentTags.includes(filterText);
+                    const createOption = utils.createElement('div', {
+                        class: isDuplicate ? 'ckui-select-tags-option disabled' : 'ckui-select-tags-option',
+                        onclick: () => {
+                            if (!isDuplicate) {
+                                addTag(filterText);
+                            }
+                        }
+                    }, [isDuplicate ? `⚠️ 已存在: "${filterText}"` : `创建: "${filterText}"`]);
+                    dropdown.appendChild(createOption);
+                } else {
+                    filteredOptions.forEach((opt, idx) => {
+                        const optEl = utils.createElement('div', {
+                            class: 'ckui-select-tags-option',
+                            onclick: () => addTag(opt)
+                        }, [opt]);
+                        optEl.dataset.index = idx;
+                        dropdown.appendChild(optEl);
+                    });
+                }
+
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.add('active');
+                } else {
+                    dropdown.classList.remove('active');
+                }
+            };
+
+            const addTag = (tag) => {
+                const currentTags = this.values.value[field.name] || [];
+
+                if (currentTags.includes(tag)) {
+                    showError('标签已存在，不允许重复');
+                    return;
+                }
+
+                if (currentTags.length >= maxTags) {
+                    showError(`最多只能添加 ${maxTags} 个标签`);
+                    return;
+                }
+
+                if (validator) {
+                    const result = validator(tag, currentTags);
+                    if (result !== true) {
+                        showError(typeof result === 'string' ? result : '标签校验失败');
+                        return;
+                    }
+                }
+
+                const newTags = [...currentTags, tag];
+                this.values.value = { ...this.values.value, [field.name]: newTags };
+                input.value = '';
+                clearError();
+                updateTags();
+                updateDropdown('');
+                if (field.onChange) field.onChange(newTags);
+                input.focus();
+            };
+
+            const highlightOption = (index) => {
+                const optionEls = dropdown.querySelectorAll('.ckui-select-tags-option');
+                optionEls.forEach(el => el.classList.remove('highlighted'));
+                
+                if (index >= 0 && index < optionEls.length) {
+                    highlightedIndex = index;
+                    optionEls[index].classList.add('highlighted');
+                    optionEls[index].scrollIntoView({ block: 'nearest' });
+                }
+            };
+
+            const input = utils.createElement('input', {
+                class: 'ckui-tags-input',
+                type: 'text',
+                placeholder: field.placeholder || '输入搜索或选择'
+            });
+
+            input.addEventListener('input', (e) => {
+                const value = e.target.value.trim();
+                if (value) {
+                    showWarning('按回车选择或添加标签');
+                } else {
+                    clearError();
+                }
+                updateDropdown(e.target.value);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const maxIndex = dropdown.children.length - 1;
+                    highlightOption(Math.min(highlightedIndex + 1, maxIndex));
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    highlightOption(Math.max(highlightedIndex - 1, 0));
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (highlightedIndex >= 0) {
+                        const highlighted = dropdown.children[highlightedIndex];
+                        if (highlighted) highlighted.click();
+                    } else if (input.value.trim()) {
+                        if (allowCustom) {
+                            addTag(input.value.trim());
+                        } else if (filteredOptions.length > 0) {
+                            addTag(filteredOptions[0]);
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdown.classList.remove('active');
+                    input.blur();
+                } else if (e.key === 'Backspace' && input.value === '') {
+                    const currentTags = this.values.value[field.name] || [];
+                    if (currentTags.length > 0) {
+                        const newTags = currentTags.slice(0, -1);
+                        this.values.value = { ...this.values.value, [field.name]: newTags };
+                        updateTags();
+                        if (field.onChange) field.onChange(newTags);
+
+                        setTimeout(() => input.focus(), 0);
+                    }
+                }
+            });
+
+            input.addEventListener('focus', () => {
+                updateDropdown(input.value);
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(() => dropdown.classList.remove('active'), 200);
+            });
+
+            this.values.value = { ...this.values.value, [field.name]: tags };
+            updateTags();
+
+            wrapper.appendChild(container);
+            wrapper.appendChild(dropdown);
+            group.appendChild(wrapper);
+            group.appendChild(errorEl);
+            return group;
+        }
+
+        renderHiddenArea(field) {
+            const container = utils.createElement('div', {
+                class: 'ckui-root ckui-hidden-area'
+            });
+
+            const contentWrapper = utils.createElement('div');
+
+            if (field.fields && Array.isArray(field.fields)) {
+                field.fields.forEach(innerField => {
+                    const innerGroup = this.renderField(innerField);
+                    if (innerGroup) {
+                        contentWrapper.appendChild(innerGroup);
+                    }
+                });
+            } else if (field.content) {
+
+                if (typeof field.content === 'string') {
+                    contentWrapper.innerHTML = field.content;
+                } else if (field.content instanceof Node) {
+                    contentWrapper.appendChild(field.content);
+                }
+            }
+
+            container.appendChild(contentWrapper);
+
+            if (field.visible) {
+
+                if (field.visible.value) {
+                    container.classList.add('visible');
+                }
+
+                field.visible.subscribe((value) => {
+                    if (value) {
+                        container.classList.add('visible');
+                    } else {
+                        container.classList.remove('visible');
+                    }
+                });
+            }
+
+            return container;
+        }
+
+        renderDetail(field) {
+            const isOpen = field.open !== false;
+            const container = utils.createElement('div', {
+                class: isOpen ? 'ckui-root ckui-detail open' : 'ckui-root ckui-detail'
+            });
+
+            const header = utils.createElement('div', {
+                class: 'ckui-detail-header'
+            });
+
+            const title = utils.createElement('h4', {
+                class: 'ckui-detail-title'
+            }, [field.title || '详情']);
+
+            const icon = utils.createElement('span', {
+                class: 'ckui-detail-icon'
+            }, ['▼']);
+
+            header.appendChild(title);
+            header.appendChild(icon);
+
+            const contentWrapper = utils.createElement('div', {
+                class: 'ckui-detail-content'
+            });
+
+            const body = utils.createElement('div', {
+                class: 'ckui-detail-body'
+            });
+
+            if (field.fields && Array.isArray(field.fields)) {
+                field.fields.forEach(innerField => {
+                    const innerGroup = this.renderField(innerField);
+                    if (innerGroup) {
+                        body.appendChild(innerGroup);
+                    }
+                });
+            } else if (field.content) {
+
+                if (typeof field.content === 'string') {
+                    body.innerHTML = field.content;
+                } else if (field.content instanceof Node) {
+                    body.appendChild(field.content);
+                }
+            }
+
+            contentWrapper.appendChild(body);
+            container.appendChild(header);
+            container.appendChild(contentWrapper);
+
+            let isUpdating = false;
+            const toggleOpen = (open) => {
+                if (isUpdating) return;
+                isUpdating = true;
+
+                if (open) {
+                    container.classList.add('open');
+                } else {
+                    container.classList.remove('open');
+                }
+
+                if (field.openState && field.openState.value !== open) {
+                    field.openState.value = open;
+                }
+
+                isUpdating = false;
+            };
+
+            header.addEventListener('click', () => {
+                toggleOpen(!container.classList.contains('open'));
+            });
+
+            if (field.openState) {
+
+                toggleOpen(field.openState.value);
+
+                field.openState.subscribe((value) => {
+                    if (!isUpdating) {
+                        toggleOpen(value);
+                    }
+                });
+            }
+
+            return container;
         }
 
         getValues() {
@@ -2759,6 +3690,27 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return utils.createElement('div', { class: 'ckui-root ckui-divider' });
         },
 
+        space(size = 16, direction = 'vertical') {
+            const styles = {
+                display: 'block',
+                flexShrink: '0'
+            };
+            
+            if (direction === 'vertical') {
+                styles.height = typeof size === 'number' ? size + 'px' : size;
+                styles.width = '100%';
+            } else if (direction === 'horizontal') {
+                styles.width = typeof size === 'number' ? size + 'px' : size;
+                styles.height = '100%';
+                styles.display = 'inline-block';
+            }
+            
+            return utils.createElement('div', { 
+                class: 'ckui-root',
+                style: Object.entries(styles).map(([k, v]) => `${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${v}`).join('; ')
+            });
+        },
+
         button(options = {}) {
             const className = ['ckui-root', 'ckui-btn'];
             if (options.primary) className.push('ckui-btn-primary');
@@ -2848,6 +3800,114 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         loading() {
             return utils.createElement('div', { class: 'ckui-root ckui-loading' });
+        },
+
+        hiddenarea(options = {}) {
+            const container = utils.createElement('div', {
+                class: 'ckui-root ckui-hidden-area'
+            });
+
+            if (options.content) {
+                if (typeof options.content === 'string') {
+                    container.innerHTML = options.content;
+                } else if (options.content instanceof Node) {
+                    container.appendChild(options.content);
+                }
+            }
+
+            if (options.visible) {
+
+                if (options.visible.value) {
+                    container.classList.add('visible');
+                }
+
+                options.visible.subscribe((value) => {
+                    if (value) {
+                        container.classList.add('visible');
+                    } else {
+                        container.classList.remove('visible');
+                    }
+                });
+            }
+
+            return container;
+        },
+
+        detail(options = {}) {
+            const isOpen = options.open !== false;
+            const container = utils.createElement('div', {
+                class: isOpen ? 'ckui-root ckui-detail open' : 'ckui-root ckui-detail'
+            });
+
+            const header = utils.createElement('div', {
+                class: 'ckui-detail-header'
+            });
+
+            const title = utils.createElement('h4', {
+                class: 'ckui-detail-title'
+            }, [options.title || '详情']);
+
+            const icon = utils.createElement('span', {
+                class: 'ckui-detail-icon'
+            }, ['▼']);
+
+            header.appendChild(title);
+            header.appendChild(icon);
+
+            const contentWrapper = utils.createElement('div', {
+                class: 'ckui-detail-content'
+            });
+
+            const body = utils.createElement('div', {
+                class: 'ckui-detail-body'
+            });
+
+            if (options.content) {
+                if (typeof options.content === 'string') {
+                    body.innerHTML = options.content;
+                } else if (options.content instanceof Node) {
+                    body.appendChild(options.content);
+                }
+            }
+
+            contentWrapper.appendChild(body);
+            container.appendChild(header);
+            container.appendChild(contentWrapper);
+
+            let isUpdating = false;
+            const toggleOpen = (open) => {
+                if (isUpdating) return;
+                isUpdating = true;
+
+                if (open) {
+                    container.classList.add('open');
+                } else {
+                    container.classList.remove('open');
+                }
+
+                if (options.openState && options.openState.value !== open) {
+                    options.openState.value = open;
+                }
+
+                isUpdating = false;
+            };
+
+            header.addEventListener('click', () => {
+                toggleOpen(!container.classList.contains('open'));
+            });
+
+            if (options.openState) {
+
+                toggleOpen(options.openState.value);
+
+                options.openState.subscribe((value) => {
+                    if (!isUpdating) {
+                        toggleOpen(value);
+                    }
+                });
+            }
+
+            return container;
         },
 
         setTheme(theme) {
