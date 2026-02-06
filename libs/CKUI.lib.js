@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.1
+// @version      2.4.2
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -2508,6 +2508,18 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
         }
 
+        space(options) {
+            if (typeof options === 'number') {
+                options = { size: options };
+            }
+            return this.addField({
+                type: 'space',
+                size: 16,
+                direction: 'vertical',
+                ...options
+            });
+        }
+
         html(options) {
 
             if (typeof options === 'string') {
@@ -2593,6 +2605,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     return this.renderElement(field);
                 case 'elements':
                     return this.renderElements(field);
+                case 'space':
+                    return this.renderSpace(field);
                 default:
                     return null;
             }
@@ -3551,6 +3565,19 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return container;
         }
 
+        renderSpace(field) {
+            const size = field.size || 16;
+            const direction = field.direction || 'vertical';
+            const style = direction === 'horizontal'
+                ? `display: inline-block; width: ${typeof size === 'number' ? size + 'px' : size};`
+                : `display: block; height: ${typeof size === 'number' ? size + 'px' : size};`;
+            
+            return utils.createElement('div', {
+                class: 'ckui-root',
+                style
+            });
+        }
+
         getValues() {
             return { ...this.values.value };
         }
@@ -3704,16 +3731,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (typeof message === 'object') {
                 options = message;
             } else if (typeof defaultValue === 'object') {
-
                 options = { title: message, ...defaultValue };
             } else if (typeof title === 'object') {
-
                 options = { title: message, defaultValue: defaultValue, ...title };
             } else if (id !== null && id !== undefined && typeof id === 'object') {
-
                 options = { title: message, defaultValue: defaultValue, placeholder: title || '', ...id };
             } else {
-
                 options = {
                     title: message,
                     defaultValue: defaultValue,
