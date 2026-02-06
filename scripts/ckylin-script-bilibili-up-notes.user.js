@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      0.6.0
+// @version      0.7.0
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -13,10 +13,11 @@
 // @grant        GM_deleteValue
 // @grant        GM_listValues
 // @grant        GM_addStyle
+// @grant        GM_registerMenuCommand
 // @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
-// @require https://update.greasyfork.org/scripts/564901/1749821/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1749919/CKUI.js
 // ==/UserScript==
 
 
@@ -281,6 +282,15 @@
             const diff = now - target.getTime();
             return Math.floor(diff / (1000 * 60 * 60 * 24));
         }
+        static download(filename, text) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
         static get ui() {
             return unsafeWindow.ckui;
         }
@@ -488,7 +498,7 @@
                 user.uname = obj.uname || "";
                 user.uavatar = obj.uavatar || "";
                 user.alias = obj.a || "";
-                user.notes = obj.n || "";
+                user.notes = (obj.n !== null && obj.n !== undefined) ? String(obj.n) : "";
                 user.tags = obj.t || [];
                 user.followInfo = obj.f || null;
                 user.externalInfo = obj.s || null;
@@ -587,7 +597,7 @@
         }
 
         refresh() {
-            // refresh data from store
+
             return User.fromUID(this.uid).then(user => {
                 if (user) {
                     this.uname = user.uname;
@@ -604,8 +614,7 @@
         }
     }
     function migrationCheckV2() {
-        // move from UPNotesManager to UserBeans, check if needed
-        // store is static
+
         const keys = Store.list();
         let need = false;
         for (const key of keys) {
@@ -832,6 +841,388 @@
     }
 
     // #endregion integrations
+
+    // #region import-export
+
+    class ImportValidator {
+        static validate(data) {
+            try {
+                if (!data?.meta || data.meta.fmt !== 'v2') throw new Error('不支持的数据格式');
+                if (!data.content || typeof data.content !== 'object') throw new Error('缺少内容数据');
+                return { valid: true, data };
+            } catch (e) {
+                return { valid: false, error: `验证失败: ${e.message}` };
+            }
+        }
+
+        static validateBackup(data) {
+            try {
+                if (data?.type !== 'backup' || !data.data) throw new Error('不是有效的备份格式');
+                return { valid: true, data };
+            } catch (e) {
+                return { valid: false, error: `备份验证失败: ${e.message}` };
+            }
+        }
+    }
+
+    class ImportMerger {
+        static prepareMerge(importData, options = {}) {
+            const { mergeMode = 'smart', externalInfo = null } = options;
+            const content = importData.data.content;
+            
+            return Object.entries(content).map(([uid, importUserData]) => {
+                const existingUser = User.fromUID(uid);
+                const hasData = importUserData.alias || importUserData.notes || importUserData.tags?.length > 0;
+                let action = 'skip';
+                
+                if (!existingUser) action = 'create';
+                else if (mergeMode === 'overwrite') action = 'overwrite';
+                else if (mergeMode === 'smart' && hasData) action = 'merge';
+                
+                return { uid, importData: importUserData, existingUser, action, externalInfo };
+            });
+        }
+        
+        static executeTask(task) {
+            try {
+                if (task.action === 'skip') return { success: true, action: 'skip', uid: task.uid };
+                
+                const user = task.action === 'create' ? User.LoadOrCreate(task.uid) : task.existingUser;
+                const data = task.importData;
+                
+                if (task.action === 'overwrite') {
+                    user.alias = data.alias || '';
+                    user.notes = data.notes != null ? String(data.notes) : '';
+                    user.tags = Array.isArray(data.tags) ? data.tags : [];
+                } else if (task.action === 'merge') {
+                    if (data.alias) user.alias = data.alias;
+                    if (data.notes != null && data.notes !== '') user.notes = String(data.notes);
+                    if (Array.isArray(data.tags) && data.tags.length) {
+                        user.tags = [...new Set([...(user.tags || []), ...data.tags])];
+                    }
+                }
+                
+                if (task.externalInfo) user.setExternalInfo(task.externalInfo);
+                user.save();
+                
+                return { success: true, action: task.action, uid: task.uid };
+            } catch (e) {
+                return { success: false, action: task.action, uid: task.uid, error: e.message };
+            }
+        }
+    }
+
+    class ImportProgressUI {
+        constructor() {
+            this.data = { current: 0, total: 0, created: 0, updated: 0, skipped: 0, failed: 0 };
+            this.elements = {};
+        }
+        
+        create() {
+            if (this.window) return this.window.show(), this;
+            
+            const h = Utils.ui.h;
+            const stat = (label, key, color) => h('div', {
+                style: `background: var(--ckui-bg-secondary); padding: 12px; border-radius: 6px; border-left: 3px solid ${color};`
+            }, [
+                h('div', { style: 'font-size: 12px; color: var(--ckui-text-secondary);' }, [label]),
+                h('div', { 'data-stat': key, style: 'font-size: 20px; font-weight: 600;' }, ['0'])
+            ]);
+            
+            this.window = Utils.ui.floatWindow({
+                id: 'ckupnotes-import-progress',
+                title: '数据导入',
+                content: h('div', {}, [
+                    h('div', { style: 'background: var(--ckui-bg-secondary); border-radius: 8px; height: 24px; margin-bottom: 8px;' }, [
+                        h('div', { 'data-bind': 'bar', style: 'height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 0.3s; width: 0%;' })
+                    ]),
+                    h('div', { 'data-bind': 'text', style: 'text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 16px;' }, ['0%']),
+                    h('div', { style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;' }, [
+                        stat('新建', 'created', '#10b981'), stat('更新', 'updated', '#3b82f6'),
+                        stat('跳过', 'skipped', '#f59e0b'), stat('失败', 'failed', '#ef4444')
+                    ])
+                ]),
+                width: '450px',
+                closable: false,
+                shadow: true
+            });
+            
+            return this;
+        }
+        
+        show() {
+            this.window?.show();
+
+            if (this.window && this.window.container && !this.elements.bar) {
+                const c = this.window.container;
+                this.elements = {
+                    bar: c.querySelector('[data-bind="bar"]'),
+                    text: c.querySelector('[data-bind="text"]'),
+                    stats: {
+                        created: c.querySelector('[data-stat="created"]'),
+                        updated: c.querySelector('[data-stat="updated"]'),
+                        skipped: c.querySelector('[data-stat="skipped"]'),
+                        failed: c.querySelector('[data-stat="failed"]')
+                    }
+                };
+            }
+            return this;
+        }
+        
+        update(data) {
+            Object.assign(this.data, data);
+            const pct = this.data.total > 0 ? Math.round(this.data.current / this.data.total * 100) : 0;
+            if (this.elements.bar) this.elements.bar.style.width = pct + '%';
+            if (this.elements.text) this.elements.text.textContent = pct + '%';
+            ['created', 'updated', 'skipped', 'failed'].forEach(k => {
+                if (this.elements.stats && this.elements.stats[k]) {
+                    this.elements.stats[k].textContent = this.data[k] || 0;
+                }
+            });
+        }
+        
+        close() { this.window?.close(); this.window = null; this.elements = {}; }
+    }
+
+    class DataImporter {
+        static async importWithProgress(jsonString, options = {}) {
+            const { mergeMode = 'smart', batchSize = 50, batchDelay = 10, sourceUrl = null } = options;
+            let progressUI = null;
+            
+            try {
+                const jsonData = JSON.parse(jsonString);
+                const validation = ImportValidator.validate(jsonData);
+                if (!validation.valid) {
+                    Utils.ui.notification.error('格式验证失败', validation.error);
+                    return { success: false, error: validation.error };
+                }
+                
+                const meta = jsonData.meta || {};
+                const infoLines = [
+                    meta.author && `作者：${meta.author}`,
+                    meta.version && `版本：${meta.version}`,
+                    meta.exportTime && `导出时间：${Utils.formatDate(meta.exportTime)}`,
+                    meta.count && `数据条数：${meta.count}`
+                ].filter(Boolean);
+                
+                const confirmContent = Utils.ui.h('div', {}, [
+                    Utils.ui.h('div', { style: 'line-height: 1.8;' }, 
+                        infoLines.map(line => Utils.ui.h('div', {}, [line]))
+                    ),
+                    Utils.ui.h('div', { style: 'margin-top: 12px; padding: 12px; background: var(--ckui-bg-secondary); border-radius: 4px; font-size: 13px;' }, 
+                        ['导入后将记录数据来源信息到每个UP主。']
+                    )
+                ]);
+                
+                const confirmed = await Utils.ui.confirm({ title: '确认导入分享数据', content: confirmContent });
+                if (!confirmed) return { success: false, error: '用户取消导入' };
+                
+                const externalInfo = { 
+                    sourceName: meta.author || '未知来源', 
+                    sourceUrl: meta.website || sourceUrl || '本地文件', 
+                    timestamp: Date.now() 
+                };
+                const tasks = ImportMerger.prepareMerge(validation, { mergeMode, externalInfo });
+                
+                if (!tasks.length) {
+                    Utils.ui.notification.info('无数据', '没有需要导入的数据');
+                    return { success: true, stats: { total: 0 } };
+                }
+                
+                progressUI = new ImportProgressUI().create().show();
+                await this._executeTasks(tasks, progressUI, batchSize, batchDelay);
+                
+                progressUI.close();
+                Utils.ui.notification.success('导入完成', 
+                    `成功: ${progressUI.data.created} 新建, ${progressUI.data.updated} 更新, ${progressUI.data.skipped} 跳过`
+                );
+                return { success: true, stats: progressUI.data };
+            } catch (e) {
+                progressUI?.close();
+                Utils.ui.notification.error('导入失败', e.message);
+                logger.error('导入失败:', e);
+                return { success: false, error: e.message };
+            }
+        }
+        
+        static async importBackupWithProgress(jsonString, options = {}) {
+            const { batchSize = 50, batchDelay = 10 } = options;
+            let progressUI = null;
+            
+            try {
+                const jsonData = JSON.parse(jsonString);
+                const validation = ImportValidator.validateBackup(jsonData);
+                if (!validation.valid) {
+                    Utils.ui.notification.error('格式验证失败', validation.error);
+                    return { success: false, error: validation.error };
+                }
+                
+                const userData = jsonData.data;
+                const uids = Object.keys(userData);
+                
+                if (!uids.length) {
+                    Utils.ui.notification.info('无数据', '没有需要导入的数据');
+                    return { success: true, stats: { total: 0 } };
+                }
+                
+                progressUI = new ImportProgressUI().create().show();
+                const stats = { total: uids.length, created: 0, updated: 0, skipped: 0, failed: 0 };
+                progressUI.update({ total: uids.length, current: 0 });
+                
+                for (let i = 0; i < uids.length; i += batchSize) {
+                    const batch = uids.slice(i, i + batchSize);
+                    batch.forEach(uid => {
+                        try {
+                            const existingUser = User.fromUID(uid);
+                            Store.setUser(uid, userData[uid]);
+                            stats[existingUser ? 'updated' : 'created']++;
+                        } catch (e) {
+                            stats.failed++;
+                        }
+                    });
+                    progressUI.update({ current: Math.min(i + batchSize, uids.length), ...stats });
+                    if (i + batchSize < uids.length) await Utils.wait(batchDelay);
+                }
+                
+                progressUI.close();
+                Utils.ui.notification.success('备份导入完成', 
+                    `成功: ${stats.created} 新建, ${stats.updated} 更新${stats.failed ? `, ${stats.failed} 失败` : ''}`
+                );
+                return { success: true, stats };
+            } catch (e) {
+                progressUI?.close();
+                Utils.ui.notification.error('导入失败', e.message);
+                logger.error('备份导入失败:', e);
+                return { success: false, error: e.message };
+            }
+        }
+        
+        static async _executeTasks(tasks, progressUI, batchSize, batchDelay) {
+            const stats = { created: 0, updated: 0, skipped: 0, failed: 0 };
+            progressUI.update({ total: tasks.length, current: 0, ...stats });
+            
+            for (let i = 0; i < tasks.length; i += batchSize) {
+                const batch = tasks.slice(i, i + batchSize);
+                batch.forEach(task => {
+                    const result = ImportMerger.executeTask(task);
+                    stats[result.success ? result.action : 'failed']++;
+                });
+                progressUI.update({ current: Math.min(i + batchSize, tasks.length), ...stats });
+                if (i + batchSize < tasks.length) await Utils.wait(batchDelay);
+            }
+        }
+    }
+
+    // #endregion import-export
+
+    // #region settingspage
+
+    function openSettings() {
+        if (!Utils.ui) return;
+        const settings = Object.assign({
+            enableIntegrationOnUnfollow: true,
+            enableRecordFollowInfo: true,
+        }, Store.readSettings() || {});
+        const form = Utils.ui.form()
+            .checkbox({
+                label: '启用 与关注管理器的集成',
+                name: 'enableIntegrationOnUnfollow',
+                value: !!settings.enableIntegrationOnUnfollow,
+                onChange: (value, allValues) => {
+                    Store.setSetting('enableIntegrationOnUnfollow', !!value);
+                }
+            })
+            .html(`<span>能够在关注管理器中显示 UP 主别名，允许快速修改。</span>`)
+            .checkbox({
+                label: '启用 记录关注信息',
+                name: 'enableRecordFollowInfo',
+                value: !!settings.enableRecordFollowInfo,
+                onChange: (value, allValues) => {
+                    Store.setSetting('enableRecordFollowInfo', !!value);
+                }
+            })
+            .html(`<span>当在播放页右上角点击关注时，记录 UP 主的关注时间、关联视频等信息，并显示在 UP 卡片中。</span>`)
+            .button({
+                label: '备份',
+                onClick() {
+                    const users = Store.listUsers();
+                    const backup = {
+                        type: 'backup',
+                        version: '2.0',
+                        exportTime: Date.now(),
+                        data: Object.fromEntries(users.map(uid => [uid, Store.getUser(uid)]).filter(([, v]) => v))
+                    };
+                    Utils.download(`bilibili_upnotes_backup_${Date.now()}.json`, JSON.stringify(backup, null, 2));
+                    Utils.ui.notification.success('备份成功', `已备份 ${users.length} 条完整数据`);
+                }
+            })
+            .button({
+                label: '分享',
+                onClick() {
+                    const users = Store.listUsers().map(uid => User.fromUID(uid)).filter(Boolean);
+                    const share = {
+                        meta: { fmt: 'v2', author: 'BiliUPNotes User', version: '1.0', exportTime: Date.now(), count: users.length },
+                        content: Object.fromEntries(users.map(u => [u.uid, { alias: u.alias || '', notes: u.notes || '', tags: u.tags || [] }]))
+                    };
+                    Utils.download(`bilibili_upnotes_share_${Date.now()}.json`, JSON.stringify(share, null, 2));
+                    Utils.ui.notification.success('分享数据已导出', `已导出 ${users.length} 条简化数据`);
+                }
+            })
+            .space()
+            .button({
+                label: '从 URL 导入',
+                onClick: async () => {
+                    const url = await Utils.ui.prompt('请输入包含 UP 备注数据的 URL（需返回 JSON 格式数据）', '', 'https://example.com/path/to.json');
+                    if (!url) return;
+                    try {
+                        Utils.ui.notification.info('正在获取数据', '请稍候...');
+                        const resp = await fetch(url);
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+                        await DataImporter.importWithProgress(await resp.text(), { mergeMode: 'smart', sourceUrl: url });
+                    } catch (e) {
+                        Utils.ui.notification.error('导入失败', e.message);
+                    }
+                }
+            })
+            .button({
+                label: '从文件导入',
+                onClick: () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                            Utils.ui.notification.info('正在读取文件', '请稍候...');
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            if (data.type === 'backup') {
+                                await DataImporter.importBackupWithProgress(text);
+                            } else {
+                                await DataImporter.importWithProgress(text, { sourceUrl: '本地文件: ' + file.name });
+                            }
+                        } catch (e) {
+                            Utils.ui.notification.error('导入失败', e.message);
+                        }
+                    };
+                    input.click();
+                }
+            })
+            .space()
+            .html(`Tips: 可以将分享内容发布到 JSONBin.io 这样的网站，并给他人提供访问链接来分享 UP 备注数据。`);
+        const win = Utils.ui.floatWindow({
+            id: 'ckupnotes-settings',
+            title: 'UP 备注 - 功能设置',
+            content: form.render(),
+            width: '400px',
+            shadow: true,
+        });
+
+        win.show();
+    }
+
+    // #endregion
 
     // #region onAnyPage
 
@@ -1661,9 +2052,15 @@
         }
     }
 
+    function createMenu() {
+        GM_registerMenuCommand('UP备注设置', () => {
+            openSettings();
+        });
+    }
+
     function init() {
         logger.log('Initializing Bilibili UP Notes script...');
-
+        createMenu();
         migrationCheckAndMigrate();
 
         // 注册任意页面事件
@@ -1692,6 +2089,10 @@
         }
 
         Utils.ui?.trackMouseEvent?.();
+
+        unsafeWindow.ckupnotes = {
+            settingsWindow: ()=>openSettings(),
+        }
 
         logger.log('Bilibili UP Notes script initialized.');
     }
