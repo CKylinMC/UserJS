@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.0
+// @version      2.4.1
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -2509,6 +2509,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         }
 
         html(options) {
+
+            if (typeof options === 'string') {
+                return this.addField({
+                    type: 'html',
+                    content: options
+                });
+            }
             return this.addField({
                 type: 'html',
                 ...options
@@ -2516,6 +2523,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         }
 
         element(options) {
+
+            if (options instanceof Node || typeof options === 'function') {
+                return this.addField({
+                    type: 'element',
+                    element: options
+                });
+            }
             return this.addField({
                 type: 'element',
                 ...options
@@ -2523,6 +2537,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         }
 
         elements(options) {
+
+            if (Array.isArray(options) || options instanceof NodeList) {
+                return this.addField({
+                    type: 'elements',
+                    elements: Array.from(options)
+                });
+            }
             return this.addField({
                 type: 'elements',
                 ...options
