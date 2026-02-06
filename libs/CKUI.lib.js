@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.3.1
+// @version      2.4.0
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -1384,6 +1384,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.rejectPromise = null;
             this.isShowing = false;
             this.shadowHost = null;
+            this.handleEscape = null;
 
             if (this.id) {
                 instanceManager.register('modals', this.id, this);
@@ -1594,7 +1595,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         close(result) {
             if (this.overlay && this.overlay.parentNode) {
                 this.isShowing = false;
-                document.removeEventListener('keydown', this.handleEscape);
+                if (this.handleEscape) {
+                    document.removeEventListener('keydown', this.handleEscape);
+                    this.handleEscape = null;
+                }
                 this.overlay.style.animation = 'ckui-fade-out 0.2s ease-out forwards';
                 this.modal.style.animation = 'ckui-modal-out 0.2s ease-out forwards';
                 setTimeout(() => {
@@ -1989,6 +1993,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.onCloseCallbacks = [];
             this.onCloseOnceCallbacks = [];
             this.shadowHost = null;
+            this.dragHandlers = null;
 
             if (this.id) {
                 instanceManager.register('floatWindows', this.id, this);
@@ -2299,6 +2304,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             };
 
             header.addEventListener('mousedown', onMouseDown);
+
+            this.dragHandlers = {
+                header,
+                onMouseDown,
+                onMouseMove,
+                onMouseUp
+            };
         }
 
         toggleMinimize() {
@@ -2324,6 +2336,18 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         close() {
             if (this.window && this.window.parentNode) {
                 this.isShowing = false;
+
+                if (this.dragHandlers) {
+                    const { header, onMouseDown, onMouseMove, onMouseUp } = this.dragHandlers;
+                    if (header) {
+                        header.removeEventListener('mousedown', onMouseDown);
+                    }
+
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    this.dragHandlers = null;
+                }
+                
                 this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.6, -0.28, 0.74, 0.05)';
                 this.window.style.opacity = '0';
                 this.window.style.transform = 'scale(0.95)';
@@ -2391,6 +2415,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (this.id) {
                 instanceManager.unregister('forms', this.id);
             }
+
+            if (this.values && this.values._subscribers) {
+                this.values._subscribers = [];
+            }
+
+            this.fields = [];
         }
 
         addField(field) {
@@ -2478,6 +2508,27 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
         }
 
+        html(options) {
+            return this.addField({
+                type: 'html',
+                ...options
+            });
+        }
+
+        element(options) {
+            return this.addField({
+                type: 'element',
+                ...options
+            });
+        }
+
+        elements(options) {
+            return this.addField({
+                type: 'elements',
+                ...options
+            });
+        }
+
         render() {
             const form = utils.createElement('form', {
                 class: 'ckui-form'
@@ -2515,6 +2566,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     return this.renderHiddenArea(field);
                 case 'detail':
                     return this.renderDetail(field);
+                case 'html':
+                    return this.renderHtml(field);
+                case 'element':
+                    return this.renderElement(field);
+                case 'elements':
+                    return this.renderElements(field);
                 default:
                     return null;
             }
@@ -3156,7 +3213,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 placeholder: field.placeholder || '输入搜索或选择'
             });
 
-            // 跟踪输入法状态
             let isComposing = false;
 
             input.addEventListener('compositionstart', () => {
@@ -3374,6 +3430,106 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return container;
         }
 
+        renderHtml(field) {
+            const container = utils.createElement('div', {
+                class: 'ckui-root ckui-form-group'
+            });
+            
+            if (field.label) {
+                const label = utils.createElement('label', {
+                    class: 'ckui-label'
+                }, [field.label]);
+                container.appendChild(label);
+            }
+            
+            const htmlContainer = utils.createElement('div');
+            if (typeof field.content === 'string') {
+                htmlContainer.innerHTML = field.content;
+            } else if (field.html) {
+                htmlContainer.innerHTML = field.html;
+            }
+            
+            if (field.style) {
+                Object.entries(field.style).forEach(([key, value]) => {
+                    htmlContainer.style[key] = value;
+                });
+            }
+            
+            if (field.class) {
+                htmlContainer.className = field.class;
+            }
+            
+            container.appendChild(htmlContainer);
+            return container;
+        }
+
+        renderElement(field) {
+            const container = utils.createElement('div', {
+                class: 'ckui-root ckui-form-group'
+            });
+            
+            if (field.label) {
+                const label = utils.createElement('label', {
+                    class: 'ckui-label'
+                }, [field.label]);
+                container.appendChild(label);
+            }
+            
+            if (field.element) {
+                if (typeof field.element === 'function') {
+                    const el = field.element();
+                    if (el) {
+                        container.appendChild(el);
+                    }
+                } else {
+                    container.appendChild(field.element);
+                }
+            }
+            
+            return container;
+        }
+
+        renderElements(field) {
+            const container = utils.createElement('div', {
+                class: 'ckui-root ckui-form-group'
+            });
+            
+            if (field.label) {
+                const label = utils.createElement('label', {
+                    class: 'ckui-label'
+                }, [field.label]);
+                container.appendChild(label);
+            }
+            
+            const elementsContainer = utils.createElement('div');
+            
+            if (field.style) {
+                Object.entries(field.style).forEach(([key, value]) => {
+                    elementsContainer.style[key] = value;
+                });
+            }
+            
+            if (field.class) {
+                elementsContainer.className = field.class;
+            }
+            
+            if (field.elements && Array.isArray(field.elements)) {
+                field.elements.forEach(el => {
+                    if (typeof el === 'function') {
+                        const element = el();
+                        if (element) {
+                            elementsContainer.appendChild(element);
+                        }
+                    } else if (el) {
+                        elementsContainer.appendChild(el);
+                    }
+                });
+            }
+            
+            container.appendChild(elementsContainer);
+            return container;
+        }
+
         getValues() {
             return { ...this.values.value };
         }
@@ -3406,7 +3562,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
     const ckui = {
         __initialized: true,
-        version: '2.0.0',
+        version: '2.4.0',
 
         getInstance(type, id) {
             return instanceManager.get(type, id);
