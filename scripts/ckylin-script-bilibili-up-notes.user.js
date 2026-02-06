@@ -2,7 +2,7 @@
 // @name         Bilibili UP Notes
 // @name:zh-CN   哔哩哔哩UP主备注
 // @namespace    ckylin-script-bilibili-up-notes
-// @version      v0.5
+// @version      0.6.0
 // @description  A simple script to add notes to Bilibili UPs.
 // @description:zh-CN 一个可以给哔哩哔哩UP主添加备注的脚本。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @license      Apache-2.0
 // @run-at       document-end
 // @icon         https://www.bilibili.com/favicon.ico
-// @require https://update.greasyfork.org/scripts/564901/1749128/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1749821/CKUI.js
 // ==/UserScript==
 
 
@@ -265,6 +265,22 @@
             observer.observe(parent, { childList: true });
             return observer;
         }
+        static formatDate(timestamp) {
+            return (Intl.DateTimeFormat('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            }).format(new Date(+timestamp))).replace(/\//g, '-').replace(',', '');
+        }
+        static daysBefore(timestamp) {
+            const target = new Date(+timestamp);
+            const now = Date.now();
+            const diff = now - target.getTime();
+            return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
         static get ui() {
             return unsafeWindow.ckui;
         }
@@ -291,9 +307,336 @@
             }
             return null;
         }
+        static get currentVID() {
+            if (!pages.isPlayPage()) return null;
+            // method referenced Bilibili Evolved
+            if (unsafeWindow.aid || unsafeWindow.bvid) {
+                return 'av'+unsafeWindow.aid || unsafeWindow.bvid;
+            }
+            const selector = '.av-link,.bv-link,.bvid-link';
+            const avEl = document.querySelector(selector);
+            if (avEl) {
+                const vid = avEl.innerText?.trim?.() || '';
+                if (vid.toLowerCase().startsWith('av') || vid.toLowerCase().startsWith('bv')) {
+                    return vid;
+                }
+                if (vid.match(/^\d+/)) {
+                    return 'av' + vid;
+                }
+            }
+            return null;
+        }
+    }
+    // #endregion helpers
+
+    // #region store-v2
+    class GMStore {
+        static _serialize(value) {
+            return JSON.stringify({ v: value });
+        }
+        static _deserialize(value) {
+            if (value === null || typeof value === 'undefined') return null;
+            if (typeof value !== 'string') return value;
+            try {
+                const parsed = JSON.parse(value);
+                if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'v')) {
+                    return parsed.v;
+                }
+                return parsed;
+            } catch {
+                return value;
+            }
+        }
+        static get(key, fallback = null) {
+            const raw = GM_getValue(key, null);
+            if (raw === null || typeof raw === 'undefined') return fallback;
+            const val = this._deserialize(raw);
+            return (val === null || typeof val === 'undefined') ? fallback : val;
+        }
+        static set(key, value) {
+            GM_setValue(key, this._serialize(value));
+        }
+        static delete(key) {
+            GM_deleteValue(key);
+        }
+        static has(key) {
+            return GM_listValues().includes(key);
+        }
+        static list() {
+            return GM_listValues();
+        }
+    }
+    class Store{
+        static datastore = GMStore;
+        static settingsstore = GMStore;
+        static setDataStore(storeName) {
+            switch (storeName) {
+                case 'GMStore':
+                    this.datastore = GMStore;
+                    break;
+                default:
+                    throw new Error(`Unknown store: ${storeName}`);
+            }
+        }
+
+        static set(key, value) {
+            return this.datastore.set(key, value);
+        }
+        static get(key, fallback = null) {
+            return this.datastore.get(key, fallback);
+        }
+        static delete(key) {
+            return this.datastore.delete(key);
+        }
+        static has(key) {
+            return this.datastore.has(key);
+        }
+        static list() {
+            return this.datastore.list();
+        }
+
+        static readSettings() {
+            const settings = this.get('settings', {});
+            return settings;
+        }
+        static readSetting(key, fallback = null) {
+            const settings = this.readSettings();
+            return (settings && Object.prototype.hasOwnProperty.call(settings, key)) ? settings[key] : fallback;
+        }
+        static setSettings(settings) {
+            return this.set('settings', settings);
+        }
+        static setSetting(key, value) {
+            const settings = this.readSettings() || {};
+            settings[key] = value;
+            return this.setSettings(settings);
+        }
+        static deleteSetting(key) {
+            const settings = this.readSettings();
+            if (settings && Object.prototype.hasOwnProperty.call(settings, key)) {
+                delete settings[key];
+                return this.setSettings(settings);
+            }
+        }
+
+        static _u(uid) {
+            return (uid ? ((''+uid).trim?.() || uid) : null)
+        }
+
+        static hasUser(_uid) {
+            const uid = this._u(_uid);
+            if (!uid) return false;
+            return this.has(`u:${uid}`);
+        }
+        static getUser(_uid, fallback = null) {
+            const uid = this._u(_uid);
+            if (!uid) return fallback;
+            return this.get(`u:${uid}`, fallback);
+        }
+        static setUser(_uid, user) {
+            const uid = this._u(_uid);
+            if (!uid) return;
+            return this.set(`u:${uid}`, user);
+        }
+        static delUser(_uid) {
+            const uid = this._u(_uid);
+            if (!uid) return;
+            return this.delete(`u:${uid}`);
+        }
+        static listUsers() {
+            return this.list().filter(key => key.startsWith('u:')).map(key => key.substring(2));
+        }
     }
 
-    // #endregion helpers
+    class User {
+        uid = "";
+        uname = "";
+        uavatar = "";
+        alias = "";
+        notes = "";
+        tags = [];
+        followInfo = null;
+        externalInfo = null;
+        extras = null;
+
+        static LoadOrCreate(uid) {
+            let user = Store.getUser(uid, null);
+            if (user) {
+                return User.fromJson(user);
+            } else {
+                user = new User();
+                user.uid = uid;
+                user.save();
+                return user;
+            }
+        }
+
+        static fromUID(uid) {
+            const result = Store.getUser(uid, null);
+            if (result) {
+                return User.fromJson(result);
+            } else {
+                return null;
+            }
+        }
+        
+        static fromJson(jsonStr) {
+            try {
+                const obj = JSON.parse(jsonStr);
+                const user = new User();
+                user.uid = obj.uid || "";
+                user.uname = obj.uname || "";
+                user.uavatar = obj.uavatar || "";
+                user.alias = obj.a || "";
+                user.notes = obj.n || "";
+                user.tags = obj.t || [];
+                user.followInfo = obj.f || null;
+                user.externalInfo = obj.s || null;
+                user.extras = obj.e || null;
+                return user;
+            } catch {
+                return null;
+            }
+        }
+
+        toObj() {
+            return {
+                uid: this.uid,
+                uname: this.uname,
+                uavatar: this.uavatar,
+                a: this.alias,
+                n: this.notes,
+                t: this.tags,
+                f: this.followInfo,
+                s: this.externalInfo,
+                e: this.extras
+            }
+        }
+        toJSON() {
+            return JSON.stringify(this.toObj());
+        }
+        toString() {
+            return `[UP ${this.uid} - ${this.uname}${this.alias ? ` (${this.alias})` : ''}]`;
+        }
+
+        save() {
+            return Store.setUser(this.uid, this.toJSON());
+        }
+        remove() {
+            return Store.delUser(this.uid);
+        }
+        getTags() {
+            return this.tags || [];
+        }
+        setTags(tags) {
+            this.tags = tags || [];
+        }
+        addTag(tag) {
+            if (!this.tags) this.tags = [];
+            if (!this.tags.includes(tag)) {
+                this.tags.push(tag);
+            }
+        }
+        removeTag(tag) {
+            if (!this.tags) return;
+            this.tags = this.tags.filter(t => t !== tag);
+        }
+
+        setFollowInfo({ timestamp, videoId, videoName, upName }) {
+            this.followInfo = {
+                t: timestamp,
+                vi: videoId,
+                vn: videoName,
+                un: upName
+            }
+        }
+        getFollowInfo() {
+            if (!this.followInfo) return null;
+            return {
+                timestamp: this.followInfo.t,
+                videoId: this.followInfo.vi,
+                videoName: this.followInfo.vn,
+                upName: this.followInfo.un
+            }
+        }
+        removeFollowInfo() {
+            this.followInfo = null;
+        }
+        setExternalInfo({ sourceName, sourceUrl, timestamp }) {
+            this.externalInfo = {
+                s: sourceName,
+                u: sourceUrl,
+                t: timestamp
+            }
+        }
+        getExternalInfo() {
+            if (!this.externalInfo) return null;
+            return {
+                sourceName: this.externalInfo.s,
+                sourceUrl: this.externalInfo.u,
+                timestamp: this.externalInfo.t
+            }
+        }
+        setExtra(key, value) {
+            if (!this.extras) this.extras = {};
+            this.extras[key] = value;
+        }
+        getExtra(key, fallback = null) {
+            if (!this.extras) return fallback;
+            return (Object.prototype.hasOwnProperty.call(this.extras, key)) ? this.extras[key] : fallback;
+        }
+
+        refresh() {
+            // refresh data from store
+            return User.fromUID(this.uid).then(user => {
+                if (user) {
+                    this.uname = user.uname;
+                    this.uavatar = user.uavatar;
+                    this.alias = user.alias;
+                    this.notes = user.notes;
+                    this.tags = user.tags;
+                    this.followInfo = user.followInfo;
+                    this.externalInfo = user.externalInfo;
+                    this.extras = user.extras;
+                }
+                return this;
+            });
+        }
+    }
+    function migrationCheckV2() {
+        // move from UPNotesManager to UserBeans, check if needed
+        // store is static
+        const keys = Store.list();
+        let need = false;
+        for (const key of keys) {
+            if (key.startsWith('upalias_') || key.startsWith('upnotes_')) {
+                need = true;
+                break;
+            }
+        }
+        return need;
+    }
+    function doMigrationV2() {
+        const keys = Store.list();
+        for (const key of keys) {
+            if (key.startsWith('upalias_')) {
+                const uid = key.substring('upalias_'.length);
+                const user = User.LoadOrCreate(uid);
+                user.alias = Store.get(key, '');
+                user.save();
+                Store.delete(key);
+                logger.log(`Migrated alias for UID ${uid}`);
+            } else if (key.startsWith('upnotes_')) {
+                const uid = key.substring('upnotes_'.length);
+                const user = User.LoadOrCreate(uid);
+                user.notes = Store.get(key, '');
+                user.save();
+                Store.delete(key);
+                logger.log(`Migrated notes for UID ${uid}`);
+            }
+        }
+    }
+    // #endregion store-v2
     
     // #region cores
     class UPNotesManager {
@@ -301,56 +644,93 @@
             return (uid ? ((''+uid).trim?.() || uid) : "not-a-uid")
         }
 
-        static getAliasForUID(uid, fallback = null) {
-            uid = UPNotesManager._u(uid);
-            return GM_getValue(`upalias_${uid}`, fallback);
+        static getAliasForUID(_uid, fallback = null) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.fromUID(uid);
+            if (user) {
+                return user.alias || fallback;
+            } else return fallback;
         }
 
-        static setAliasForUID(uid, alias) {
-            uid = UPNotesManager._u(uid);
-            GM_setValue(`upalias_${uid}`, alias);
+        static setAliasForUID(_uid, alias) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.LoadOrCreate(uid);
+            user.alias = alias;
+            user.save();
         }
         
-        static deleteAliasForUID(uid) {
-            uid = UPNotesManager._u(uid);
-            GM_deleteValue(`upalias_${uid}`);
+        static deleteAliasForUID(_uid) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.fromUID(uid);
+            if (user) {
+                user.alias = "";
+                user.save();
+            }
         }
 
-        static getNotesForUID(uid, fallback = null) {
-            uid = UPNotesManager._u(uid);
-            return GM_getValue(`upnotes_${uid}`, fallback);
+        static getNotesForUID(_uid, fallback = null) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.fromUID(uid);
+            if (user) {
+                return user.notes || fallback;
+            } else return fallback;
         }
 
-        static setNotesForUID(uid, notes) {
-            uid = UPNotesManager._u(uid);
-            GM_setValue(`upnotes_${uid}`, notes);
+        static setNotesForUID(_uid, notes) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.LoadOrCreate(uid);
+            user.notes = notes;
+            user.save();
         }
         
-        static deleteNotesForUID(uid) {
-            uid = UPNotesManager._u(uid);
-            GM_deleteValue(`upnotes_${uid}`);
+        static deleteNotesForUID(_uid) {
+            const uid = UPNotesManager._u(_uid);
+            const user = User.fromUID(uid);
+            if (user) {
+                user.notes = "";
+                user.save();
+            }
         }
 
         static callUIForEditing(_uid, _displayName = "?", _avatarUrl = null, closeCallback = null) {
             const uid = UPNotesManager._u(_uid);
             const displayName = _displayName?.trim?.() || _displayName;
             const avatarUrl = _avatarUrl?.trim?.() || _avatarUrl;
-
-            const currentAlias = this.getAliasForUID(uid) || '';
-            const currentNotes = this.getNotesForUID(uid) || '';
+            
+            const user = User.LoadOrCreate(uid);
+            user.uname = displayName || user.uname;
+            user.uavatar = avatarUrl || user.uavatar;
             
             const form = Utils.ui.form()
                 .input({ 
                     label: 'UP 别名', 
                     name: 'alias', 
                     placeholder: '请输入 UP 别名', 
-                    value: currentAlias 
+                    value: user.alias
                 })
                 .textarea({ 
                     label: 'UP 备注', 
                     name: 'notes', 
                     placeholder: '请输入 UP 备注', 
-                    value: currentNotes 
+                    value: user.notes
+                })
+                .tags({
+                    label: '分类标签',
+                    name: 'tags',
+                    placeholder: '对 UP 进行标签归类',
+                    value: user.tags || [],
+                    maxTags: 10,
+                    validator(tag, tags) {
+                        if (tag.length < 1 || tag.length > 20) {
+                            return '标签长度应在 1-20 字符之间';
+                        }
+                        return true;
+                    }
+                })
+                .checkbox({
+                    label: '勾选并保存以删除关注记录',
+                    name: 'deleteFollowInfo',
+                    value: false,
                 })
                 .button({ 
                     label: '保存', 
@@ -358,16 +738,18 @@
                     onClick: (values) => {
                         const newAlias = values.alias.trim();
                         const newNotes = values.notes.trim();
-                        if (newAlias) {
-                            this.setAliasForUID(uid, newAlias);
-                        } else {
-                            this.deleteAliasForUID(uid);
+                        const tags = values.tags || [];
+                        const deleteFollowInfo = values.deleteFollowInfo || false;
+
+                        if (deleteFollowInfo) {
+                            user.removeFollowInfo();
                         }
-                        if (newNotes) {
-                            this.setNotesForUID(uid, newNotes);
-                        } else {
-                            this.deleteNotesForUID(uid);
-                        }
+
+                        user.alias = newAlias;
+                        user.notes = newNotes;
+                        user.setTags(tags);
+                        user.save();
+                        
                         Utils.ui.success('保存成功');
                         floatWindow.close();
                         if (closeCallback) {
@@ -402,6 +784,8 @@
             const uid = UPNotesManager._u(_uid);
             const displayName = _displayName?.trim?.() || _displayName;
             const avatarUrl = _avatarUrl?.trim?.() || _avatarUrl;
+            const user = User.fromUID(uid);
+            if(!user) return Utils.ui.error('未找到该 UP 主的备注信息，无需删除。');
             Utils.ui.confirm(
                 `确定要删除 ${displayName} (UID: ${uid}) 的 UP 备注吗？`, '确认删除 UP 备注',
                 null,
@@ -412,8 +796,7 @@
                 } : {}
             ).then(res => {
                 if (res) {
-                    this.deleteAliasForUID(uid);
-                    this.deleteNotesForUID(uid);
+                    user.remove();
                     Utils.ui.success('删除成功');
                 }
             });
@@ -463,7 +846,69 @@
                 color: var(--brand_blue);
                 border-color: var(--brand_blue);
             }
+            .ckupnotes-tagrow{
+                margin-top: 4px;
+            }
+            .ckupnotes-tag{
+                display: inline-block;
+                padding: 2px 6px;
+                margin-right: 4px;
+                background-color: var(--bg2);
+                color: var(--text2);
+                border-radius: 4px;
+                font-size: 12px;
+            }
             `);
+    }
+
+    function tagRowMaker(tags) {
+        const row = document.createElement('div');
+        row.classList.add('ckupnotes-tagrow', selectors.markup.idclass.replace(".", ""));
+        tags.forEach(tag => {
+            const tagEl = document.createElement('div');
+            tagEl.classList.add('ckupnotes-tag');
+            tagEl.textContent = tag;
+            row.appendChild(tagEl);
+        });
+        return row;
+    }
+
+    function followInfoBlockMaker(user) {
+        const followInfo = user.getFollowInfo();
+        if (!followInfo) return null;
+        const block = document.createElement('div');
+        block.classList.add('ckupnotes-followinfo', selectors.markup.idclass.replace(".", ""));
+        block.textContent = `关注于 `;
+        const dateSpan = document.createElement('span');
+        dateSpan.innerText = Utils.formatDate(followInfo.timestamp);
+        dateSpan.title = Utils.daysBefore(followInfo.timestamp) + '天前';
+        block.appendChild(dateSpan);
+        const vidLink = document.createElement('a');
+        vidLink.href=`https://www.bilibili.com/video/${followInfo.videoId}`;
+        vidLink.target = '_blank';
+        vidLink.textContent = `《${followInfo.videoName ||'未知'}》`;
+        block.appendChild(vidLink);
+        if(user.uname && followInfo.upName && user.uname !== followInfo.upName) {
+            block.textContent += `（UP：${followInfo.upName}）`;
+        }
+        return block;
+    }
+
+    function externalInfoBlockMaker(user) {
+        const externalInfo = user.getExternalInfo();
+        if (!externalInfo) return null;
+        const block = document.createElement('div');
+        block.classList.add('ckupnotes-externalinfo', selectors.markup.idclass.replace(".", ""));
+        block.textContent = `信息来自 ${externalInfo.sourceName} 于 ${Utils.formatDate(externalInfo.timestamp)}`;
+        if (externalInfo.sourceUrl) {
+            const link = document.createElement('a');
+            link.href = Utils.fixUrlProtocol(externalInfo.sourceUrl);
+            link.target = '_blank';
+            link.style.marginLeft = '8px';
+            link.textContent = '[查看来源]';
+            block.appendChild(link);
+        }
+        return block;
     }
 
     function registerOnAnyPage() {
@@ -536,8 +981,9 @@
             if (!match) return logger.log('UID not found in avatar link, aborting.(note)');
             const uid = match[1];
             logger.log(`Extracted UID: ${uid} (note)`);
-            let alias = UPNotesManager.getAliasForUID(uid) || '';
-            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const user = User.fromUID(uid) || {};
+            let alias = user.alias || '';
+            let notes = user.notes || '';
 
             logger.log(`UP Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
@@ -563,6 +1009,25 @@
                 logger.log('Notes added to UP Card.(note)');
             } else {
                 logger.log('No notes found.(note)');
+            }
+            if (user.tags && user.tags.length > 0) {
+                const tagRow = tagRowMaker(user.tags);
+                bodyRootEl.appendChild(tagRow);
+                logger.log('Tags added to UP Card.(note)');
+            }
+            if (user.followInfo) {
+                const followInfoBlock = followInfoBlockMaker(user);
+                if (followInfoBlock) {
+                    bodyRootEl.appendChild(followInfoBlock);
+                    logger.log('Follow info added to UP Card.(note)');
+                }
+            }
+            if (user.externalInfo) {
+                const externalInfoBlock = externalInfoBlockMaker(user);
+                if (externalInfoBlock) {
+                    bodyRootEl.appendChild(externalInfoBlock);
+                    logger.log('External info added to UP Card.(note)');
+                }
             }
 
             const footerRootEl = Utils.$child(cardElement, selectors.card.footerRoot);
@@ -610,9 +1075,11 @@
             if (!match) return logger.log('UID not found in avatar link, aborting.(modern)');
             const uid = match[1];
             logger.log(`Extracted UID: ${uid} (modern)`);
-
-            let alias = UPNotesManager.getAliasForUID(uid) || '';
-            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const user = User.fromUID(uid) || {};
+            let alias = user.alias || '';
+            let notes = user.notes || '';
+            let followInfo = user.followInfo || null;
+            let externalInfo = user.externalInfo || null;
 
             logger.log(`Modern UP Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
@@ -638,6 +1105,26 @@
                 logger.log('Notes added to Modern UP Card.(modern)');
             } else {
                 logger.log('No notes found.(modern)');
+            }
+            if(user.tags && user.tags.length > 0) {
+                const tagRow = tagRowMaker(user.tags);
+                bodyRootEl.appendChild(tagRow);
+                logger.log('Tags added to Modern UP Card.(modern)');
+            }
+            if (followInfo) {
+                const followInfoBlock = followInfoBlockMaker(user);
+                if (followInfoBlock) {
+                    bodyRootEl.appendChild(followInfoBlock);
+                    logger.log('Follow info added to Modern UP Card.(modern)');
+                }
+            }
+
+            if (externalInfo) {
+                const externalInfoBlock = externalInfoBlockMaker(user);
+                if (externalInfoBlock) {
+                    bodyRootEl.appendChild(externalInfoBlock);
+                    logger.log('External info added to Modern UP Card.(modern)');
+                }
             }
 
             const footerRootEl = Utils.$child(shadowroot, selectors.cardModern.footerRoot);
@@ -666,6 +1153,18 @@
                 .ckupnotes-usercard-btn:hover{
                     color: var(--brand_blue);
                     border-color: var(--brand_blue);
+                }
+                .ckupnotes-tagrow{
+                    margin-top: 4px;
+                }
+                .ckupnotes-tag{
+                    display: inline-block;
+                    padding: 2px 6px;
+                    margin-right: 4px;
+                    background-color: var(--bg2);
+                    color: var(--text2);
+                    border-radius: 4px;
+                    font-size: 12px;
                 }
             `;
             styleEl.classList.add(selectors.markup.idclass.replace(".", ""));
@@ -699,8 +1198,11 @@
             if (!match) return logger.log('UID not found in avatar link, aborting.(usercard)');
             const uid = match[1];
             logger.log(`Extracted UID: ${uid} (usercard)`);
-            let alias = UPNotesManager.getAliasForUID(uid) || '';
-            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const user = User.fromUID(uid) || {};
+            let alias = user.alias || '';
+            let notes = user.notes || '';
+            let followInfo = user.followInfo || null;
+            let externalInfo = user.externalInfo || null;
             
             logger.log(`User Card Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
 
@@ -727,6 +1229,25 @@
             }
             else {
                 logger.log('No notes found.(usercard)');
+            }
+            if(user.tags && user.tags.length > 0) {
+                const tagRow = tagRowMaker(user.tags);
+                bodyRootEl.appendChild(tagRow);
+                logger.log('Tags added to User Card.(usercard)');
+            }
+            if (followInfo) {
+                const followInfoBlock = followInfoBlockMaker(user);
+                if (followInfoBlock) {
+                    bodyRootEl.appendChild(followInfoBlock);
+                    logger.log('Follow info added to User Card.(usercard)');
+                }
+            }
+            if (externalInfo) {
+                const externalInfoBlock = externalInfoBlockMaker(user);
+                if (externalInfoBlock) {
+                    bodyRootEl.appendChild(externalInfoBlock);
+                    logger.log('External info added to User Card.(usercard)');
+                }
             }
 
             const footerRootEl = Utils.$child(cardElement, selectors.userCard.footerRoot);
@@ -810,8 +1331,9 @@
             if (!match) return logger.log('UID not found in avatar link, aborting.(play)');
             const uid = match[1];
             logger.log(`Extracted UID: ${uid} (play)`);
-            let alias = UPNotesManager.getAliasForUID(uid) || '';
-            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const user = User.fromUID(uid) || {};
+            let alias = user.alias || '';
+            let notes = user.notes || '';
 
             logger.log(`UP Info Box Shown - UID: ${uid}, Alias: ${alias}, Notes: ${notes}`);
             
@@ -896,36 +1418,44 @@
             if (!match) return logger.log('UID not found in avatar link, aborting.(play)');
             const uid = match[1];
             logger.log(`Extracted UID: ${uid} (play)`);
-            let notes = UPNotesManager.getNotesForUID(uid) || '';
+            const user = User.fromUID(uid) || {};
+            let notes = user.notes || '';
             const upNameEl = Utils.$(selectors.play.upName, upInfoBox);
             let username = upNameEl.textContent || '?';
             username = username?.trim?.() || username;
+            user.uname = username;
             const vidNameEl = Utils.$(selectors.play.videoTitle);
             let vidName = vidNameEl?.textContent || '?';
             vidName = vidName?.trim?.() || vidName;
-            const formatedDate = (Intl.DateTimeFormat('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-            }).format(new Date())).replace(/\//g, '-').replace(',', '');
+            // const formatedDate = (Intl.DateTimeFormat('zh-CN', {
+            //     year: 'numeric',
+            //     month: '2-digit',
+            //     day: '2-digit',
+            //     hour: '2-digit',
+            //     minute: '2-digit',
+            //     hour12: false,
+            // }).format(new Date())).replace(/\//g, '-').replace(',', '');
             const subBtn = Utils.$(selectors.play.subBtn, upInfoBox);
             if (subBtn) {
                 logger.log('Processing follow/unfollow action on play page.');
                 if (subBtn.classList.contains('following')) {
                     // just followed
-                    UPNotesManager.setNotesForUID(uid,
-                        (notes ? notes + '\n' : '') + `[${formatedDate}] 在《${vidName}》关注了 "${username}"`
-                    );
+                    // UPNotesManager.setNotesForUID(uid,
+                    //     (notes ? notes + '\n' : '') + `[${formatedDate}] 在《${vidName}》关注了 "${username}"`
+                    // );
+
+                    user.setFollowInfo({
+                        timestamp: "" + (+new Date()),
+                        videoName: vidName,
+                        videoId: Utils.currentVID || '',
+                        upName: username,
+                        
+                    });
+                    user.save();
                     Utils.ui?.success(`关注操作已记录到 ${username} 的备注`);
                 } else if (subBtn.classList.contains('not-follow')) {
                     // just unfollowed
-                    UPNotesManager.setNotesForUID(uid,
-                        (notes ? notes + '\n' : '') + `[${formatedDate}] 在《${vidName}》取关了 "${username}"`
-                    );
-                    Utils.ui?.success(`取关操作已记录到 ${username} 的备注`);
+                    // not supported
                 } else {
                     logger.log('Follow button state unrecognized, no action taken.(play)');
                 }
@@ -980,8 +1510,11 @@
             logger.warn('Cannot extract UID on profile page, aborting.');
             return;
         }
-        const alias = UPNotesManager.getAliasForUID(uid) || '';
-        const notes = UPNotesManager.getNotesForUID(uid) || '';
+        const user = User.fromUID(uid) || {};
+        const alias = user.alias || '';
+        const notes = user.notes || '';
+        const followInfo = user.followInfo || null;
+        const externalInfo = user.externalInfo || null;
         const username = Utils.$('div.nickname')?.textContent || '';
 
         const existingCard = Utils.$('.ckupnotes-profile-aside-card', sidebarBox);
@@ -1007,6 +1540,25 @@
         notesLine.classList.add('ckupnotes-profile-aside-card-line');
         notesLine.textContent = `备注: ${notes || '无'}`;
         card.appendChild(notesLine);
+
+        if (user.tags && user.tags.length > 0) {
+            const tagRow = tagRowMaker(user.tags);
+            card.appendChild(tagRow);
+        }
+
+        if (followInfo) {
+            const followInfoBlock = followInfoBlockMaker(user);
+            if (followInfoBlock) {
+                card.appendChild(followInfoBlock);
+            }
+        }
+
+        if (externalInfo) {
+            const externalInfoBlock = externalInfoBlockMaker(user);
+            if (externalInfoBlock) {
+                card.appendChild(externalInfoBlock);
+            }
+        }
 
         const editButton = document.createElement('button');
         editButton.classList.add('ckupnotes-profile-aside-card-button');
@@ -1031,8 +1583,11 @@
             logger.warn('Cannot extract UID on profile page, aborting.');
             return;
         }
-        const alias = UPNotesManager.getAliasForUID(uid) || '';
-        const notes = UPNotesManager.getNotesForUID(uid) || '';
+        const user = User.fromUID(uid) || {};
+        const alias = user.alias || '';
+        const notes = user.notes || '';
+        const followInfo = user.followInfo || null;
+        const externalInfo = user.externalInfo || null;
         const username = Utils.$('div.nickname')?.textContent || '';
 
         const existingCard = Utils.$('.ckupnotes-profile-aside-card', sidebarBox);
@@ -1058,6 +1613,25 @@
         notesLine.classList.add('ckupnotes-profile-aside-card-line');
         notesLine.textContent = `备注: ${notes || '无'}`;
         card.appendChild(notesLine);
+        
+        if (user.tags && user.tags.length > 0) {
+            const tagRow = tagRowMaker(user.tags);
+            card.appendChild(tagRow);
+        }
+
+        if (followInfo) {
+            const followInfoBlock = followInfoBlockMaker(user);
+            if (followInfoBlock) {
+                card.appendChild(followInfoBlock);
+            }
+        }
+
+        if (externalInfo) {
+            const externalInfoBlock = externalInfoBlockMaker(user);
+            if (externalInfoBlock) {
+                card.appendChild(externalInfoBlock);
+            }
+        }
 
         const editButton = document.createElement('button');
         editButton.classList.add('ckupnotes-profile-aside-card-button');
@@ -1077,8 +1651,21 @@
     // #endregion userprofilepage
 
     // #region init
+    function migrationCheckAndMigrate() {
+        logger.log('Checking for old data to migrate...');
+        if (migrationCheckV2()) {
+            logger.log('Old data detected, starting migration to new format (v2)...');
+            Utils.ui?.info('检测到旧版数据，正在进行数据迁移，请稍候...');
+            doMigrationV2();
+            Utils.ui?.success('迁移成功！');
+        }
+    }
+
     function init() {
         logger.log('Initializing Bilibili UP Notes script...');
+
+        migrationCheckAndMigrate();
+
         // 注册任意页面事件
         registerOnAnyPage();
 
