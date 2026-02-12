@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.2
+// @version      2.4.3
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -1986,6 +1986,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.isDragging = false;
             this.isMinimized = false;
             this.isShowing = false;
+            this.isHidden = false;
             this.dragStartX = 0;
             this.dragStartY = 0;
             this.windowStartX = 0;
@@ -2002,21 +2003,24 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         show() {
             if (this.isShowing && this.window && this.window.parentNode) {
-
-                this.window.style.display = '';
-                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                this.window.style.opacity = '1';
-                this.window.style.transform = 'scale(1)';
-                
-                setTimeout(() => {
-                    if (this.window) {
-                        this.window.style.transition = '';
-                    }
-                }, 200);
+                if (this.isHidden) {
+                    this.isHidden = false;
+                    this.window.style.display = '';
+                    this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    this.window.style.opacity = '1';
+                    this.window.style.transform = 'scale(1)';
+                    
+                    setTimeout(() => {
+                        if (this.window) {
+                            this.window.style.transition = '';
+                        }
+                    }, 200);
+                }
                 return this;
             }
             
             this.isShowing = true;
+            this.isHidden = false;
             this.render();
             return this;
         }
@@ -2329,6 +2333,23 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             } else if (content instanceof Node) {
                 this.body.innerHTML = '';
                 this.body.appendChild(content);
+            }
+            return this;
+        }
+
+        hide() {
+            if (this.window && this.window.parentNode && !this.isHidden) {
+                this.isHidden = true;
+                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.6, -0.28, 0.74, 0.05)';
+                this.window.style.opacity = '0';
+                this.window.style.transform = 'scale(0.95)';
+                
+                setTimeout(() => {
+                    if (this.window && this.isHidden) {
+                        this.window.style.display = 'none';
+                        this.window.style.transition = '';
+                    }
+                }, 200);
             }
             return this;
         }
