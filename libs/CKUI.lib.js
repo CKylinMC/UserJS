@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.3
+// @version      2.4.4
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -2003,19 +2003,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         show() {
             if (this.isShowing && this.window && this.window.parentNode) {
-                if (this.isHidden) {
-                    this.isHidden = false;
-                    this.window.style.display = '';
-                    this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    this.window.style.opacity = '1';
-                    this.window.style.transform = 'scale(1)';
-                    
-                    setTimeout(() => {
-                        if (this.window) {
-                            this.window.style.transition = '';
-                        }
-                    }, 200);
-                }
+                this.isHidden = false;
+                this.window.style.display = '';
+                this.window.style.transition = 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                this.window.style.opacity = '1';
+                this.window.style.transform = 'scale(1)';
+                
+                setTimeout(() => {
+                    if (this.window) {
+                        this.window.style.transition = '';
+                    }
+                }, 200);
                 return this;
             }
             
