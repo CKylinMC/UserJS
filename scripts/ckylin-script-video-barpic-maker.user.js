@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.1.0
+// @version      0.2.1
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @grant        GM_registerMenuCommand
 // @license      Apache-2.0
 // @run-at       document-end
-// @require https://update.greasyfork.org/scripts/564901/1753405/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1754060/CKUI.js
 // ==/UserScript==
 
 if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
@@ -250,8 +250,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
     class SettingsManager {
         constructor() {
             this.defaults = {
-                captureMode: 'first', // 'first' or 'fixed'
+                captureMode: 'fixed', // 'fixed' or 'adaptive'
                 fixedWidth: 1280,
+                minWidth: 640,
+                maxWidth: 1920,
                 topRange: 50,
                 topRangeUnit: 'percent', // 'percent' or 'pixel'
                 bottomRange: 50,
@@ -666,13 +668,29 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     <div style="margin-bottom: 12px;">
                         <label class="ckui-label">画布宽度模式</label>
                         <select class="ckui-select" id="vbm-capture-mode">
-                            <option value="first" ${settings.get('captureMode') === 'first' ? 'selected' : ''}>首次截图宽度</option>
                             <option value="fixed" ${settings.get('captureMode') === 'fixed' ? 'selected' : ''}>固定宽度</option>
+                            <option value="adaptive" ${settings.get('captureMode') === 'adaptive' ? 'selected' : ''}>自适应宽度</option>
                         </select>
                     </div>
-                    <div style="margin-bottom: 12px;" id="vbm-fixed-width-container" ${settings.get('captureMode') === 'first' ? 'style="display:none;"' : ''}>
+                    <div id="vbm-fixed-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'fixed' ? ' display:none;' : ''}">
                         <label class="ckui-label">固定宽度(px)</label>
                         <input type="number" class="ckui-input" id="vbm-fixed-width" value="${settings.get('fixedWidth')}" min="100" max="3840">
+                    </div>
+                    <div id="vbm-adaptive-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'adaptive' ? ' display:none;' : ''}">
+                        <label class="ckui-label">自适应宽度范围(px)</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div>
+                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最小宽度</label>
+                                <input type="number" class="ckui-input" id="vbm-min-width" value="${settings.get('minWidth')}" min="100" max="3840">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最大宽度</label>
+                                <input type="number" class="ckui-input" id="vbm-max-width" value="${settings.get('maxWidth')}" min="100" max="3840">
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                            第一张截图宽度在此范围内时使用原宽度，否则限制到边界
+                        </div>
                     </div>
                     <div style="margin-bottom: 12px;">
                         <label class="ckui-label">预览图片宽度(px)</label>
@@ -708,7 +726,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                             启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。
                         </div>
                     </div>
-                    <div style="margin-bottom: 12px;" id="vbm-manual-offset-container" ${!settings.get('useLayerCapture') ? 'style="display:none;"' : ''}>
+                    <div id="vbm-manual-offset-container" style="margin-bottom: 12px;${!settings.get('useLayerCapture') ? ' display:none;' : ''}">
                         <label class="ckui-label">DisplayMedia 手动偏移补偿</label>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                             <div>
@@ -755,7 +773,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
             const captureModeSelect = container.querySelector('#vbm-capture-mode');
             const fixedWidthContainer = container.querySelector('#vbm-fixed-width-container');
+            const adaptiveWidthContainer = container.querySelector('#vbm-adaptive-width-container');
             const fixedWidthInput = container.querySelector('#vbm-fixed-width');
+            const minWidthInput = container.querySelector('#vbm-min-width');
+            const maxWidthInput = container.querySelector('#vbm-max-width');
             const topRangeInput = container.querySelector('#vbm-top-range');
             const topRangeUnit = container.querySelector('#vbm-top-range-unit');
             const bottomRangeInput = container.querySelector('#vbm-bottom-range');
@@ -764,10 +785,19 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             captureModeSelect?.addEventListener('change', (e) => {
                 this.settings.set('captureMode', e.target.value);
                 fixedWidthContainer.style.display = e.target.value === 'fixed' ? 'block' : 'none';
+                adaptiveWidthContainer.style.display = e.target.value === 'adaptive' ? 'block' : 'none';
             });
 
             fixedWidthInput?.addEventListener('change', (e) => {
                 this.settings.set('fixedWidth', parseInt(e.target.value) || 1280);
+            });
+
+            minWidthInput?.addEventListener('change', (e) => {
+                this.settings.set('minWidth', parseInt(e.target.value) || 640);
+            });
+
+            maxWidthInput?.addEventListener('change', (e) => {
+                this.settings.set('maxWidth', parseInt(e.target.value) || 1920);
             });
 
             const previewWidthInput = container.querySelector('#vbm-preview-width');
@@ -1123,9 +1153,23 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 );
                 const imageData = croppedCtx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
                 let targetWidth;
-                if (this.settings.get('captureMode') === 'fixed') {
+                const captureMode = this.settings.get('captureMode');
+                if (captureMode === 'fixed') {
                     targetWidth = this.settings.get('fixedWidth');
+                } else if (captureMode === 'adaptive') {
+                    const firstWidth = this.canvas.firstWidth || imageData.width;
+                    const minWidth = this.settings.get('minWidth');
+                    const maxWidth = this.settings.get('maxWidth');
+                    
+                    if (firstWidth < minWidth) {
+                        targetWidth = minWidth;
+                    } else if (firstWidth > maxWidth) {
+                        targetWidth = maxWidth;
+                    } else {
+                        targetWidth = firstWidth;
+                    }
                 } else {
+                    // Fallback to first width for backward compatibility
                     targetWidth = this.canvas.firstWidth || imageData.width;
                 }
 
@@ -1238,9 +1282,23 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     imageData = tempCtx.getImageData(0, startY, tempCanvas.width, height);
                 }
                 let targetWidth;
-                if (this.settings.get('captureMode') === 'fixed') {
+                const captureMode = this.settings.get('captureMode');
+                if (captureMode === 'fixed') {
                     targetWidth = this.settings.get('fixedWidth');
+                } else if (captureMode === 'adaptive') {
+                    const firstWidth = this.canvas.firstWidth || imageData.width;
+                    const minWidth = this.settings.get('minWidth');
+                    const maxWidth = this.settings.get('maxWidth');
+                    
+                    if (firstWidth < minWidth) {
+                        targetWidth = minWidth;
+                    } else if (firstWidth > maxWidth) {
+                        targetWidth = maxWidth;
+                    } else {
+                        targetWidth = firstWidth;
+                    }
                 } else {
+                    // Fallback to first width for backward compatibility
                     targetWidth = this.canvas.firstWidth || imageData.width;
                 }
                 
