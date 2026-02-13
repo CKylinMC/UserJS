@@ -92,6 +92,44 @@
 
 ------
 
+
+#### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) UP主信息备注 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
+**简单介绍**:
+给每个UP主一个备注，鼠标悬停到头像时显示的卡片里能看到备注内容，方便区分同名UP主或者记住一些UP主的特点。与关注管理器同时安装时，能在关注管理器内查看备注。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/564985)
+
+**安装链接**:
+
+* [Greasyfork](https://update.greasyfork.org/scripts/564985/Bilibili%20UP%20Notes.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-bilibili-up-notes.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-bilibili-up-notes.user.js)
+
+**仓库文件:**
+
+[ckylin-script-bilibili-up-notes.user.js](scripts/ckylin-script-bilibili-up-notes.user.js)
+
+------
+
+
+#### 视频连续字幕截图工具 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
+**简单介绍**:
+快速制作视频字幕截图的工具，支持自定义截图区域，自动连续截图并合成一张长图。
+
+**脚本主页**: [Greasyfork](https://greasyfork.org/zh-CN/scripts/566054)
+
+**安装链接**:
+
+* [Greasyfork](https://update.greasyfork.org/scripts/566054/Video%20Barpic%20Maker.user.js)
+* [Github](https://github.com/CKylinMC/UserJS/raw/main/scripts/ckylin-script-video-barpic-maker.user.js)
+* [jsDelivr](https://cdn.jsdelivr.net/gh/CKylinMC/UserJS/scripts/ckylin-script-video-barpic-maker.user.js)
+
+**仓库文件:**
+
+[ckylin-script-video-barpic-maker.user.js](scripts/ckylin-script-video-barpic-maker.user.js)
+
+------
+
 #### ![bilibili](https://shields.io/badge/Bilibili-blue?logo=bilibili&style=flat) AB循环 ![Recommended](https://shields.io/badge/👍-Recommended-purple?labelColor=red&style=flat)
 **简单介绍**:
 AB循环，在某两个进度之间循环！进阶版洗脑循环！
