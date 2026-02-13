@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.5
+// @version      2.4.6
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -85,8 +85,18 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
         }
 
-        subscribe(callback) {
+        subscribe(callback, immediate = true) {
             this._subscribers.push(callback);
+            
+            // 立即执行一次回调以同步初始值
+            if (immediate) {
+                try {
+                    callback(this._value);
+                } catch (e) {
+                    console.error('[CKUI] Reactive callback error:', e);
+                }
+            }
+            
             return () => {
                 this._subscribers = this._subscribers.filter(cb => cb !== callback);
             };
