@@ -9,7 +9,7 @@ CKUI 是一个现代化、无依赖的 UI 库，专为 Tampermonkey/Greasemonkey
 
 ## 版本信息
 
-- **当前版本**: 2.4.5
+- **当前版本**: 2.5.0
 - **许可证**: GPL-3.0-only
 - **作者**: CKylinMC
 
@@ -362,7 +362,295 @@ createToolbar() {
 
 ---
 
-### 4. 表单构建器（FormBuilder）
+### 4. 标签页容器（Tabs）
+
+现代化的标签页组件，支持多种样式风格、响应式变量控制和表单集成。
+
+#### 4.1 基础用法
+
+```javascript
+// 创建基础标签页
+const tabs = ckui.tabs({
+    tabs: [
+        { label: '首页', content: '首页内容' },
+        { label: '产品', content: '产品列表' },
+        { label: '关于', content: '关于我们' }
+    ],
+    style: 'default', // 'default' | 'pills' | 'bordered' | 'minimal'
+    width: '100%',
+    height: 'auto'
+});
+
+// 渲染到页面
+document.body.appendChild(tabs.render());
+```
+
+#### 4.2 样式风格
+
+```javascript
+// 默认样式 - 底部下划线高亮
+const tabs1 = ckui.tabs({
+    tabs: [...],
+    style: 'default'
+});
+
+// Pills样式 - 圆角药丸
+const tabs2 = ckui.tabs({
+    tabs: [...],
+    style: 'pills'
+});
+
+// Bordered样式 - 带边框
+const tabs3 = ckui.tabs({
+    tabs: [...],
+    style: 'bordered'
+});
+
+// Minimal样式 - 极简风格
+const tabs4 = ckui.tabs({
+    tabs: [...],
+    style: 'minimal'
+});
+```
+
+#### 4.3 响应式变量控制
+
+```javascript
+// 创建响应式变量
+const activeTab = ckui.reactive(0);
+
+const tabs = ckui.tabs({
+    tabs: [
+        { label: 'Tab 1', content: '内容1' },
+        { label: 'Tab 2', content: '内容2' },
+        { label: 'Tab 3', content: '内容3' }
+    ],
+    reactive: activeTab, // 绑定响应式变量
+    onChange: (index, tab) => {
+        console.log('切换到:', index, tab.label);
+    }
+});
+
+// 从外部控制切换
+activeTab.value = 1; // 切换到第二个标签页
+activeTab.value = 2; // 切换到第三个标签页
+```
+
+#### 4.4 动态内容
+
+```javascript
+// 使用DOM元素作为内容
+const tabs = ckui.tabs({
+    tabs: [
+        {
+            label: '表单',
+            content: (() => {
+                const div = document.createElement('div');
+                const input = ckui.input({ placeholder: '输入内容...' });
+                const button = ckui.button({ label: '提交', primary: true });
+                div.appendChild(input);
+                div.appendChild(button);
+                return div;
+            })()
+        },
+        {
+            label: '列表',
+            content: document.createElement('ul') // 任意DOM元素
+        }
+    ]
+});
+
+// 使用函数返回内容
+const tabs2 = ckui.tabs({
+    tabs: [
+        {
+            label: '动态',
+            content: () => {
+                return `<p>生成的内容：${new Date().toLocaleString()}</p>`;
+            }
+        }
+    ]
+});
+
+// 使用HTML字符串
+const tabs3 = ckui.tabs({
+    tabs: [
+        {
+            label: 'HTML',
+            content: '<div><h3>标题</h3><p>段落内容</p></div>',
+            allowHtml: true
+        }
+    ]
+});
+```
+
+#### 4.5 在表单中使用
+
+```javascript
+// 作为表单字段使用
+const result = await ckui.form({
+    title: '用户设置',
+    fields: [
+        {
+            type: 'input',
+            name: 'username',
+            label: '用户名',
+            value: 'Admin'
+        },
+        {
+            type: 'tabs',
+            name: 'settingType',
+            label: '设置类型',
+            tabs: [
+                { label: '基础设置', content: '基础配置选项' },
+                { label: '高级设置', content: '高级配置选项' },
+                { label: '隐私设置', content: '隐私相关配置' }
+            ],
+            style: 'pills',
+            activeIndex: 0
+        }
+    ]
+}).show();
+
+if (result) {
+    console.log('用户名:', result.username);
+    console.log('选择的标签页索引:', result.settingType);
+}
+```
+
+#### 4.6 API方法
+
+```javascript
+const tabs = ckui.tabs({ tabs: [...] });
+
+// 切换标签页
+tabs.switchTab(1); // 切换到索引为1的标签页
+
+// 获取当前激活的标签页索引
+const index = tabs.getActiveIndex();
+
+// 获取当前激活的标签页对象
+const tab = tabs.getActiveTab();
+
+// 动态添加标签页
+tabs.addTab({
+    label: '新标签',
+    content: '新内容'
+});
+
+// 删除标签页
+tabs.removeTab(2); // 删除索引为2的标签页
+
+// 更新标签页
+tabs.updateTab(1, {
+    label: '更新后的标签',
+    content: '更新后的内容'
+});
+
+// 销毁组件
+tabs.destroy();
+```
+
+#### 4.7 配置选项
+
+```javascript
+const tabs = ckui.tabs({
+    tabs: [],              // 标签页数组
+    activeIndex: 0,        // 初始激活的标签页索引
+    style: 'default',      // 样式风格
+    width: '100%',         // 容器宽度
+    height: 'auto',        // 容器高度
+    noPadding: false,      // 是否移除内容区域的padding
+    reactive: null,        // 响应式变量
+    onChange: null         // 切换回调 (index, tab) => {}
+});
+
+// 标签页对象结构
+const tab = {
+    label: '标签标题',     // 标签文本
+    content: '内容',       // 内容（字符串、DOM元素或函数）
+    allowHtml: false       // 是否允许HTML（仅字符串内容）
+};
+```
+
+#### 4.8 嵌套使用
+
+```javascript
+// 创建嵌套的标签页
+const nestedTabs = ckui.tabs({
+    tabs: [
+        { label: '子标签 1', content: '嵌套内容 1' },
+        { label: '子标签 2', content: '嵌套内容 2' }
+    ],
+    style: 'pills'
+});
+
+const mainTabs = ckui.tabs({
+    tabs: [
+        { label: '主标签 1', content: '普通内容' },
+        { 
+            label: '主标签 2 (嵌套)', 
+            content: nestedTabs.render() // 嵌套其他标签页
+        },
+        { label: '主标签 3', content: '更多内容' }
+    ],
+    style: 'bordered'
+});
+```
+
+#### 实际应用示例
+
+```javascript
+// 多功能设置面板
+function createSettingsPanel() {
+    const activeTab = ckui.reactive(0);
+    
+    const tabs = ckui.tabs({
+        tabs: [
+            {
+                label: '常规',
+                content: (() => {
+                    const form = ckui.form()
+                        .input({ label: '用户名', name: 'username' })
+                        .input({ label: '邮箱', name: 'email' });
+                    return form.render();
+                })()
+            },
+            {
+                label: '外观',
+                content: (() => {
+                    const form = ckui.form()
+                        .select({ 
+                            label: '主题', 
+                            name: 'theme',
+                            options: [
+                                { label: '亮色', value: 'light' },
+                                { label: '暗色', value: 'dark' }
+                            ]
+                        });
+                    return form.render();
+                })()
+            },
+            {
+                label: '高级',
+                content: '<div style="padding: 20px;"><p>高级设置选项...</p></div>',
+                allowHtml: true
+            }
+        ],
+        style: 'pills',
+        reactive: activeTab,
+        onChange: (index, tab) => {
+            console.log(`切换到: ${tab.label}`);
+        }
+    });
+    
+    return tabs.render();
+}
+```
+
+---
+
+### 5. 表单构建器（FormBuilder）
 
 用于快速构建表单，支持多种输入类型和数据验证。
 
@@ -664,7 +952,7 @@ static callUIForEditing(_uid, _displayName, _avatarUrl, closeCallback) {
 
 ---
 
-### 5. 响应式数据（Reactive）
+### 6. 响应式数据（Reactive）
 
 用于创建响应式数据，自动更新 UI。
 
@@ -742,9 +1030,9 @@ const form = ckui.form()
 
 ---
 
-### 6. 组件和工具
+### 7. 组件和工具
 
-#### 6.1 基础组件
+#### 7.1 基础组件
 
 ```javascript
 // 按钮
@@ -787,7 +1075,7 @@ const label = ckui.label('标签文本');
 const loading = ckui.loading();
 ```
 
-#### 6.2 布局组件
+#### 7.2 布局组件
 
 ```javascript
 // 行布局
@@ -834,7 +1122,7 @@ const hiddenArea = ckui.hiddenarea({
 });
 ```
 
-#### 6.3 工具函数
+#### 7.3 工具函数
 
 ```javascript
 // 创建元素（类似 React.createElement）
@@ -868,7 +1156,7 @@ const id = ckui.utils.uuid(); // 'ckui-xxxxx-xxxxx'
 
 ---
 
-### 7. 实例管理
+### 8. 实例管理
 
 CKUI 提供实例管理功能，可以通过 ID 获取和重用组件实例。
 
@@ -911,7 +1199,7 @@ const instance = ckui.getInstance('forms', 'my-form');
 
 ---
 
-### 8. 主题配置
+### 9. 主题配置
 
 #### 切换主题
 
@@ -973,7 +1261,7 @@ ckui.setCSSVars({
 
 ---
 
-### 9. Shadow DOM 支持
+### 10. Shadow DOM 支持
 
 CKUI 支持使用 Shadow DOM 隔离组件样式，避免与页面样式冲突。
 
@@ -1002,7 +1290,7 @@ const floatWindow = new ckui.FloatWindow({
 
 ---
 
-### 10. Z-Index 管理
+### 11. Z-Index 管理
 
 ```javascript
 // 获取当前 z-index 基础值
@@ -1014,7 +1302,7 @@ ckui.setZIndexBase(1000000);
 
 ---
 
-### 11. 鼠标追踪
+### 12. 鼠标追踪
 
 启用全局鼠标位置追踪，用于浮动窗口移动到鼠标位置。
 
@@ -1390,6 +1678,16 @@ A: 使用 `ckui.setCSSVars()` 修改 CSS 变量，或通过 `style` 属性传入
 
 ## 更新日志
 
+### v2.5.0
+- ✨ 新增 Tabs（标签页容器）组件
+- 🎨 支持 4 种样式风格：default、pills、bordered、minimal
+- 🔄 支持响应式变量控制标签页切换
+- 📦 完整的表单集成支持
+- 🔧 支持动态添加/删除/更新标签页
+- 🎯 支持横向滚动和嵌套使用
+- 🐛 修复所有按钮的 type 属性，防止意外触发表单提交
+- 📝 完善文档和示例
+
 ### v2.4.5
 - 完善的主题支持（亮色/暗色）
 - 新增 Shadow DOM 支持
@@ -1402,4 +1700,4 @@ A: 使用 `ckui.setCSSVars()` 修改 CSS 变量，或通过 `style` 属性传入
 
 ---
 
-本文档基于 CKUI v2.4.5 版本编写，包含了所有核心功能和最佳实践。
+本文档基于 CKUI v2.5.0 版本编写，包含了所有核心功能和最佳实践。

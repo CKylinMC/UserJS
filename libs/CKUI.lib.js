@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.4.6
+// @version      2.5.0
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -1234,6 +1234,193 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         .ckui-root.ckui-dark .ckui-detail-body {
             border-top-color: var(--ckui-border-dark);
         }
+
+        /* Tabs Component */
+        .ckui-tabs {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .ckui-tabs-header-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ckui-tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--ckui-border);
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: var(--ckui-border) transparent;
+            scroll-behavior: smooth;
+        }
+
+        .ckui-tabs-header::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .ckui-tabs-header::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .ckui-tabs-header::-webkit-scrollbar-thumb {
+            background: var(--ckui-border);
+            border-radius: 2px;
+        }
+
+        .ckui-tabs-header::-webkit-scrollbar-thumb:hover {
+            background: var(--ckui-border-dark);
+        }
+
+        /* Tab styles - shadcn inspired */
+        .ckui-tab {
+            position: relative;
+            flex-shrink: 0;
+            padding: var(--ckui-spacing) var(--ckui-spacing-md);
+            border: none;
+            background: transparent;
+            color: var(--ckui-text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--ckui-animation-duration);
+            outline: none;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+        }
+
+        .ckui-tab:hover {
+            color: var(--ckui-text);
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-tab.active {
+            color: var(--ckui-primary);
+            border-bottom-color: var(--ckui-primary);
+        }
+
+        /* Tab style variants */
+        .ckui-tabs.style-pills .ckui-tabs-header {
+            border-bottom: none;
+            gap: var(--ckui-spacing-sm);
+            padding: var(--ckui-spacing-sm);
+            background: var(--ckui-bg-secondary);
+            border-radius: var(--ckui-radius);
+        }
+
+        .ckui-tabs.style-pills .ckui-tab {
+            border-radius: var(--ckui-radius);
+            border-bottom: none;
+        }
+
+        .ckui-tabs.style-pills .ckui-tab.active {
+            background: var(--ckui-bg);
+            color: var(--ckui-primary);
+            box-shadow: var(--ckui-shadow-sm);
+        }
+
+        .ckui-tabs.style-bordered .ckui-tabs-header {
+            border: 1px solid var(--ckui-border);
+            border-radius: var(--ckui-radius) var(--ckui-radius) 0 0;
+            background: var(--ckui-bg-secondary);
+        }
+
+        .ckui-tabs.style-bordered .ckui-tab {
+            border-right: 1px solid var(--ckui-border);
+            border-bottom: none;
+        }
+
+        .ckui-tabs.style-bordered .ckui-tab:last-child {
+            border-right: none;
+        }
+
+        .ckui-tabs.style-bordered .ckui-tab.active {
+            background: var(--ckui-bg);
+            color: var(--ckui-primary);
+        }
+
+        .ckui-tabs.style-minimal .ckui-tabs-header {
+            border-bottom: 1px solid transparent;
+            gap: var(--ckui-spacing-lg);
+        }
+
+        .ckui-tabs.style-minimal .ckui-tab {
+            padding: var(--ckui-spacing-sm) 0;
+            border-bottom: 2px solid transparent;
+        }
+
+        .ckui-tabs.style-minimal .ckui-tab:hover {
+            background: transparent;
+        }
+
+        .ckui-tabs.style-minimal .ckui-tab.active {
+            border-bottom-color: var(--ckui-primary);
+        }
+
+        /* Tabs content */
+        .ckui-tabs-content {
+            padding: var(--ckui-spacing-md);
+            background: var(--ckui-bg);
+        }
+
+        .ckui-tabs.style-bordered .ckui-tabs-content {
+            border: 1px solid var(--ckui-border);
+            border-top: none;
+            border-radius: 0 0 var(--ckui-radius) var(--ckui-radius);
+        }
+
+        .ckui-tabs.no-padding .ckui-tabs-content {
+            padding: 0;
+        }
+
+        .ckui-tab-panel {
+            display: none;
+        }
+
+        .ckui-tab-panel.active {
+            display: block;
+            animation: ckui-fade-in 0.2s ease-out;
+        }
+
+        /* Dark mode for tabs */
+        .ckui-root.ckui-dark .ckui-tabs-header {
+            border-bottom-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-tab:hover {
+            background: var(--ckui-secondary);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-pills .ckui-tabs-header {
+            background: var(--ckui-bg-secondary);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-pills .ckui-tab.active {
+            background: var(--ckui-bg);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-bordered .ckui-tabs-header {
+            border-color: var(--ckui-border-dark);
+            background: var(--ckui-bg-secondary);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-bordered .ckui-tab {
+            border-right-color: var(--ckui-border-dark);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-bordered .ckui-tab.active {
+            background: var(--ckui-bg);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs-content {
+            background: var(--ckui-bg);
+        }
+
+        .ckui-root.ckui-dark .ckui-tabs.style-bordered .ckui-tabs-content {
+            border-color: var(--ckui-border-dark);
+        }
     `;
 
     class NotificationManager {
@@ -1315,6 +1502,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 ].filter(Boolean)),
                 closable ? utils.createElement('button', {
                     class: 'ckui-notification-close',
+                    type: 'button',
                     onclick: () => this.close(notification)
                 }, ['×']) : null
             ].filter(Boolean));
@@ -1502,6 +1690,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 titleEl,
                 this.options.showClose ? utils.createElement('button', {
                     class: 'ckui-modal-close',
+                    type: 'button',
                     onclick: () => this.cancel()
                 }, ['×']) : null
             ].filter(Boolean));
@@ -1530,6 +1719,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }, [
                     utils.createElement('button', {
                         class: 'ckui-btn ckui-btn-primary',
+                        type: 'button',
                         onclick: () => this.ok()
                     }, ['确定'])
                 ]);
@@ -1548,10 +1738,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }, [
                     utils.createElement('button', {
                         class: 'ckui-btn',
+                        type: 'button',
                         onclick: () => this.cancel()
                     }, ['取消']),
                     utils.createElement('button', {
                         class: 'ckui-btn ckui-btn-primary',
+                        type: 'button',
                         onclick: () => this.ok()
                     }, ['确定'])
                 ]);
@@ -2200,10 +2392,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }, [
                     this.options.minimizable ? utils.createElement('button', {
                         class: 'ckui-float-btn',
+                        type: 'button',
                         onclick: () => this.toggleMinimize()
                     }, ['−']) : null,
                     this.options.closable ? utils.createElement('button', {
                         class: 'ckui-float-btn',
+                        type: 'button',
                         onclick: () => this.close()
                     }, ['×']) : null
                 ].filter(Boolean))
@@ -2409,6 +2603,308 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         }
     }
 
+    class Tabs {
+        constructor(options = {}) {
+            this.options = {
+                tabs: options.tabs || [],
+                activeIndex: options.activeIndex || 0,
+                style: options.style || 'default', // 'default' | 'pills' | 'bordered' | 'minimal'
+                width: options.width || '100%',
+                height: options.height || 'auto',
+                noPadding: options.noPadding || false,
+                onChange: options.onChange || null,
+                ...options
+            };
+
+            this.container = null;
+            this.tabButtons = [];
+            this.tabPanels = [];
+            this.activeIndex = new Reactive(this.options.activeIndex);
+
+            // 如果提供了响应式变量，使用它
+            if (options.reactive) {
+                this.activeIndex = options.reactive;
+            }
+
+            // 订阅activeIndex变化（不立即执行，等待render后）
+            this.activeIndex.subscribe((index) => {
+                this._switchTab(index, false);
+            }, false);
+        }
+
+        render() {
+            const className = ['ckui-root', 'ckui-tabs'];
+            if (this.options.style !== 'default') {
+                className.push(`style-${this.options.style}`);
+            }
+            if (this.options.noPadding) {
+                className.push('no-padding');
+            }
+
+            this.container = utils.createElement('div', {
+                class: className.join(' '),
+                style: {
+                    width: this.options.width,
+                    height: this.options.height
+                }
+            });
+
+            // 创建Tab头部
+            const headerWrapper = utils.createElement('div', {
+                class: 'ckui-tabs-header-wrapper'
+            });
+
+            const header = utils.createElement('div', {
+                class: 'ckui-tabs-header'
+            });
+
+            // 创建Tab按钮
+            this.tabButtons = [];
+            this.options.tabs.forEach((tab, index) => {
+                const button = utils.createElement('button', {
+                    type: 'button',
+                    class: index === this.activeIndex.value ? 'ckui-tab active' : 'ckui-tab',
+                    onclick: (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.switchTab(index);
+                    }
+                }, [tab.label || `Tab ${index + 1}`]);
+
+                this.tabButtons.push(button);
+                header.appendChild(button);
+            });
+
+            headerWrapper.appendChild(header);
+            this.container.appendChild(headerWrapper);
+
+            // 创建Tab内容区域
+            const content = utils.createElement('div', {
+                class: 'ckui-tabs-content'
+            });
+
+            // 创建Tab面板
+            this.tabPanels = [];
+            this.options.tabs.forEach((tab, index) => {
+                const panel = utils.createElement('div', {
+                    class: index === this.activeIndex.value ? 'ckui-tab-panel active' : 'ckui-tab-panel'
+                });
+
+                // 支持多种内容类型
+                if (tab.content instanceof Node) {
+                    panel.appendChild(tab.content);
+                } else if (typeof tab.content === 'function') {
+                    const result = tab.content();
+                    if (result instanceof Node) {
+                        panel.appendChild(result);
+                    } else if (typeof result === 'string') {
+                        panel.innerHTML = result;
+                    }
+                } else if (typeof tab.content === 'string') {
+                    if (tab.allowHtml) {
+                        panel.innerHTML = tab.content;
+                    } else {
+                        panel.textContent = tab.content;
+                    }
+                }
+
+                this.tabPanels.push(panel);
+                content.appendChild(panel);
+            });
+
+            this.container.appendChild(content);
+
+            return this.container;
+        }
+
+        switchTab(index) {
+            if (index < 0 || index >= this.options.tabs.length) {
+                return;
+            }
+
+            // 更新响应式变量，这会触发_switchTab
+            this.activeIndex.value = index;
+        }
+
+        _switchTab(index, triggerCallback = true) {
+            if (!this.container || index < 0 || index >= this.options.tabs.length) {
+                return;
+            }
+
+            // 更新按钮状态
+            this.tabButtons.forEach((button, i) => {
+                if (i === index) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+
+            // 更新面板状态
+            this.tabPanels.forEach((panel, i) => {
+                if (i === index) {
+                    panel.classList.add('active');
+                } else {
+                    panel.classList.remove('active');
+                }
+            });
+
+            // 滚动到可见区域
+            if (this.tabButtons[index]) {
+                this.tabButtons[index].scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            }
+
+            // 触发onChange回调
+            if (triggerCallback && this.options.onChange) {
+                this.options.onChange(index, this.options.tabs[index]);
+            }
+        }
+
+        getActiveIndex() {
+            return this.activeIndex.value;
+        }
+
+        getActiveTab() {
+            return this.options.tabs[this.activeIndex.value];
+        }
+
+        addTab(tab) {
+            this.options.tabs.push(tab);
+            
+            if (!this.container) {
+                return;
+            }
+
+            // 添加按钮
+            const header = this.container.querySelector('.ckui-tabs-header');
+            const button = utils.createElement('button', {
+                type: 'button',
+                class: 'ckui-tab',
+                onclick: (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.switchTab(this.options.tabs.length - 1);
+                }
+            }, [tab.label || `Tab ${this.options.tabs.length}`]);
+            this.tabButtons.push(button);
+            header.appendChild(button);
+
+            // 添加面板
+            const content = this.container.querySelector('.ckui-tabs-content');
+            const panel = utils.createElement('div', {
+                class: 'ckui-tab-panel'
+            });
+
+            if (tab.content instanceof Node) {
+                panel.appendChild(tab.content);
+            } else if (typeof tab.content === 'function') {
+                const result = tab.content();
+                if (result instanceof Node) {
+                    panel.appendChild(result);
+                } else if (typeof result === 'string') {
+                    panel.innerHTML = result;
+                }
+            } else if (typeof tab.content === 'string') {
+                if (tab.allowHtml) {
+                    panel.innerHTML = tab.content;
+                } else {
+                    panel.textContent = tab.content;
+                }
+            }
+
+            this.tabPanels.push(panel);
+            content.appendChild(panel);
+
+            return this;
+        }
+
+        removeTab(index) {
+            if (index < 0 || index >= this.options.tabs.length) {
+                return;
+            }
+
+            this.options.tabs.splice(index, 1);
+
+            if (this.container) {
+                // 移除按钮
+                if (this.tabButtons[index]) {
+                    this.tabButtons[index].remove();
+                    this.tabButtons.splice(index, 1);
+                }
+
+                // 移除面板
+                if (this.tabPanels[index]) {
+                    this.tabPanels[index].remove();
+                    this.tabPanels.splice(index, 1);
+                }
+
+                // 如果删除的是当前激活的tab，切换到前一个或第一个
+                if (this.activeIndex.value === index) {
+                    const newIndex = Math.max(0, Math.min(index - 1, this.options.tabs.length - 1));
+                    this.switchTab(newIndex);
+                } else if (this.activeIndex.value > index) {
+                    // 如果当前激活的tab在删除的后面，需要调整索引
+                    this.activeIndex.value = this.activeIndex.value - 1;
+                }
+            }
+
+            return this;
+        }
+
+        updateTab(index, tab) {
+            if (index < 0 || index >= this.options.tabs.length) {
+                return;
+            }
+
+            this.options.tabs[index] = { ...this.options.tabs[index], ...tab };
+
+            if (this.container) {
+                // 更新按钮文本
+                if (tab.label && this.tabButtons[index]) {
+                    this.tabButtons[index].textContent = tab.label;
+                }
+
+                // 更新面板内容
+                if (tab.content && this.tabPanels[index]) {
+                    const panel = this.tabPanels[index];
+                    panel.innerHTML = '';
+                    
+                    if (tab.content instanceof Node) {
+                        panel.appendChild(tab.content);
+                    } else if (typeof tab.content === 'function') {
+                        const result = tab.content();
+                        if (result instanceof Node) {
+                            panel.appendChild(result);
+                        } else if (typeof result === 'string') {
+                            panel.innerHTML = result;
+                        }
+                    } else if (typeof tab.content === 'string') {
+                        if (tab.allowHtml) {
+                            panel.innerHTML = tab.content;
+                        } else {
+                            panel.textContent = tab.content;
+                        }
+                    }
+                }
+            }
+
+            return this;
+        }
+
+        destroy() {
+            if (this.container && this.container.parentNode) {
+                this.container.parentNode.removeChild(this.container);
+            }
+            this.tabButtons = [];
+            this.tabPanels = [];
+            this.container = null;
+        }
+    }
+
     class FormBuilder {
         constructor(config = {}) {
             this.id = config.id || null;
@@ -2518,6 +3014,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
         }
 
+        tabs(options) {
+            return this.addField({
+                type: 'tabs',
+                ...options
+            });
+        }
+
         space(options) {
             if (typeof options === 'number') {
                 options = { size: options };
@@ -2609,6 +3112,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     return this.renderHiddenArea(field);
                 case 'detail':
                     return this.renderDetail(field);
+                case 'tabs':
+                    return this.renderTabs(field);
                 case 'html':
                     return this.renderHtml(field);
                 case 'element':
@@ -3475,6 +3980,56 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return container;
         }
 
+        renderTabs(field) {
+            const group = utils.createElement('div', { class: 'ckui-root ckui-form-group' });
+            
+            if (field.label) {
+                group.appendChild(utils.createElement('label', {
+                    class: 'ckui-root ckui-label'
+                }, [field.label]));
+            }
+
+            const tabOptions = {
+                tabs: field.tabs || [],
+                activeIndex: field.activeIndex || 0,
+                style: field.style || 'default',
+                width: field.width || '100%',
+                height: field.height || 'auto',
+                noPadding: field.noPadding || false,
+                onChange: (index, tab) => {
+                    // 更新表单值
+                    if (field.name) {
+                        const currentValues = { ...this.values.value };
+                        currentValues[field.name] = index;
+                        this.values.value = currentValues;
+                    }
+
+                    // 调用用户的onChange回调
+                    if (field.onChange) {
+                        field.onChange(index, tab, this.values.value);
+                    }
+                }
+            };
+
+            // 如果提供了响应式变量，使用它
+            if (field.reactive) {
+                tabOptions.reactive = field.reactive;
+            }
+
+            const tabs = new Tabs(tabOptions);
+            const tabsElement = tabs.render();
+
+            // 如果有name字段，初始化表单值
+            if (field.name) {
+                const currentValues = { ...this.values.value };
+                currentValues[field.name] = field.activeIndex || 0;
+                this.values.value = currentValues;
+            }
+
+            group.appendChild(tabsElement);
+            return group;
+        }
+
         renderHtml(field) {
             const container = utils.createElement('div', {
                 class: 'ckui-root ckui-form-group'
@@ -3620,7 +4175,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
     const ckui = {
         __initialized: true,
-        version: '2.4.0',
+        version: '2.5.0',
 
         getInstance(type, id) {
             return instanceManager.get(type, id);
@@ -3809,6 +4364,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return new FloatWindow(options);
         },
 
+        Tabs,
+        tabs(options) {
+            return new Tabs(options);
+        },
+
         FormBuilder,
         form(options) {
 
@@ -3837,6 +4397,36 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                             break;
                         case 'radio':
                             builder.radio(field);
+                            break;
+                        case 'tags':
+                            builder.tags(field);
+                            break;
+                        case 'selectTags':
+                            builder.selectTags(field);
+                            break;
+                        case 'button':
+                            builder.button(field);
+                            break;
+                        case 'hiddenarea':
+                            builder.hiddenarea(field);
+                            break;
+                        case 'detail':
+                            builder.detail(field);
+                            break;
+                        case 'tabs':
+                            builder.tabs(field);
+                            break;
+                        case 'html':
+                            builder.html(field);
+                            break;
+                        case 'element':
+                            builder.element(field);
+                            break;
+                        case 'elements':
+                            builder.elements(field);
+                            break;
+                        case 'space':
+                            builder.space(field);
                             break;
                     }
                 });
@@ -3978,6 +4568,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
             return utils.createElement('button', {
                 class: className.join(' '),
+                type: 'button',
                 onclick: options.onClick,
                 disabled: options.disabled
             }, [options.label || 'Button']);
