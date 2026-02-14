@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.4.1
+// @version      0.4.2
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -265,8 +265,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 manualOffsetTop: 0, 
                 enableFloatButton: true, 
                 showImageInfo: false,
-                saveFormat: 'png', // 'png', 'jpeg', 'webp'
-                saveQuality: 0.95, // 0.0 - 1.0
+                saveFormat: 'jpeg', // 'png', 'jpeg', 'webp'
+                saveQuality: 0.75, // 0.0 - 1.0
                 enabled: true,
                 content: '使用 Barpic Maker 制作',
                 fontSize: 16,
