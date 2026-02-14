@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.5.0
+// @version      2.5.1
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
@@ -18,9 +18,31 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 (function(unsafeWindow, document) {
     'use strict';
     
+    // 版本比较函数
+    const compareVersion = (v1, v2) => {
+        const parts1 = v1.split('.').map(Number);
+        const parts2 = v2.split('.').map(Number);
+        for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const p1 = parts1[i] || 0;
+            const p2 = parts2[i] || 0;
+            if (p1 > p2) return 1;
+            if (p1 < p2) return -1;
+        }
+        return 0;
+    };
+    
+    const currentVersion = '2.5.0';
+    
     if (unsafeWindow.ckui && unsafeWindow.ckui.__initialized) {
-        console.log('[CKUI] Already initialized, skipping...');
-        return;
+        const existingVersion = unsafeWindow.ckui.version || '0.0.0';
+        const comparison = compareVersion(currentVersion, existingVersion);
+        
+        if (comparison <= 0) {
+            console.log(`[CKUI] Version ${existingVersion} already loaded, current version ${currentVersion} is not newer, skipping...`);
+            return;
+        } else {
+            console.log(`[CKUI] Upgrading from version ${existingVersion} to ${currentVersion}...`);
+        }
     }
 
     const globalConfig = {
@@ -4175,7 +4197,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
     const ckui = {
         __initialized: true,
-        version: '2.5.0',
+        version: currentVersion,
 
         getInstance(type, id) {
             return instanceManager.get(type, id);
@@ -4816,5 +4838,5 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
     unsafeWindow.ckui = ckui;
     
-    console.log('[CKUI] Initialized successfully! Version:', ckui.version);
+    console.log(`[CKUI] Initialized successfully! Version: ${ckui.version}`);
 })(unsafeWindow, document);
