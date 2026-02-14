@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.3.0
+// @version      0.4.1
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -251,7 +251,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
     class SettingsManager {
         constructor() {
             this.defaults = {
-                captureMode: 'fixed', // 'fixed' or 'adaptive'
+                captureMode: 'adaptive', // 'fixed' or 'adaptive'
                 fixedWidth: 1280,
                 minWidth: 640,
                 maxWidth: 1920,
@@ -259,16 +259,24 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 topRangeUnit: 'percent', // 'percent' or 'pixel'
                 bottomRange: 50,
                 bottomRangeUnit: 'percent',
-                previewImageWidth: 260, // Preview image width in pixels
-                useLayerCapture: false, // Whether to capture video with overlays using DisplayMedia API
-                manualOffsetLeft: 0, // Manual offset for DisplayMedia capture
-                manualOffsetTop: 0, // Manual offset for DisplayMedia capture
-                enableFloatButton: true, // Enable floating button on page
-                showImageInfo: true, // Show image info button and calculate image size/resolution
-                copyFormat: 'png', // 'png', 'jpeg', 'webp'
-                copyQuality: 0.95, // 0.0 - 1.0
+                previewImageWidth: 260, 
+                useLayerCapture: false, 
+                manualOffsetLeft: 0, 
+                manualOffsetTop: 0, 
+                enableFloatButton: true, 
+                showImageInfo: false,
                 saveFormat: 'png', // 'png', 'jpeg', 'webp'
-                saveQuality: 0.95 // 0.0 - 1.0
+                saveQuality: 0.95, // 0.0 - 1.0
+                enabled: true,
+                content: '使用 Barpic Maker 制作',
+                fontSize: 16,
+                textColor: '#333333',
+                textAlign: 'right',
+                backgroundColor: '#f5f5f5',
+                padding: 20,
+                containerHeight: 0,
+                containerWidth: 0,
+                watermarkApplyMode: 'always' // 'copy', 'save', 'always'
             };
             this.settings = this.load();
         }
@@ -435,9 +443,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.highlightOverlay = null;
             this.rangeOverlay = null;
             this.settingsExpanded = false;
-            this.displayMediaStream = null; // Store the current capture stream
+            this.displayMediaStream = null; 
             this.infoExpanded = false;
             this.imageInfo = { memorySize: 0, copySize: 0, saveSize: 0, width: 0, height: 0 };
+            this.previewDebounceTimer = null;
         }
 
         init() {
@@ -680,8 +689,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 </div>
             `;
             container.appendChild(actionsSection);
-
-            // Only show image info button if enabled in settings
             if (this.settings.get('showImageInfo')) {
                 const infoBtn = document.createElement('button');
                 infoBtn.className = 'ckui-btn';
@@ -703,7 +710,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                             <strong>内存格式：</strong>PNG | <strong>大小：</strong><span id="vbm-info-memory">-</span>
                         </div>
                         <div style="margin-bottom: 8px;">
-                            <strong>复制格式：</strong><span id="vbm-info-copy-format">-</span> | <strong>大小：</strong><span id="vbm-info-copy">-</span>
+                            <strong>复制：</strong>PNG | <strong>大小：</strong><span id="vbm-info-copy">-</span>
                         </div>
                         <div>
                             <strong>保存格式：</strong><span id="vbm-info-save-format">-</span> | <strong>大小：</strong><span id="vbm-info-save">-</span>
@@ -771,30 +778,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                             <option value="percent" ${settings.get('bottomRangeUnit') === 'percent' ? 'selected' : ''}>百分比%</option>
                             <option value="pixel" ${settings.get('bottomRangeUnit') === 'pixel' ? 'selected' : ''}>像素px</option>
                         </select>
-                    </div>
-                </div>
-            `;
-            return div;
-        }
-
-        createCopySettings() {
-            const settings = this.settings;
-            const div = document.createElement('div');
-            div.style.cssText = 'padding: 12px;';
-            div.innerHTML = `
-                <div style="margin-bottom: 12px;">
-                    <label class="ckui-label">图片格式</label>
-                    <select class="ckui-select" id="vbm-copy-format">
-                        <option value="png" ${settings.get('copyFormat') === 'png' ? 'selected' : ''}>PNG</option>
-                        <option value="jpeg" ${settings.get('copyFormat') === 'jpeg' ? 'selected' : ''}>JPEG</option>
-                        <option value="webp" ${settings.get('copyFormat') === 'webp' ? 'selected' : ''}>WebP</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 0;">
-                    <label class="ckui-label">图片质量 (%)</label>
-                    <input type="number" class="ckui-input" id="vbm-copy-quality" value="${Math.round(settings.get('copyQuality') * 100)}" min="1" max="100" step="1">
-                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
-                        PNG 格式质量参数无效，JPEG 和 WebP 格式范围为 1-100
                     </div>
                 </div>
             `;
@@ -874,7 +857,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         在页面上显示一个浮动按钮，方便快速打开工具
                     </div>
                 </div>
-                <div style="margin-bottom: 0;">
+                <div style="margin-bottom: 12px;">
                     <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="vbm-show-image-info" ${settings.get('showImageInfo') ? 'checked' : ''} style="cursor: pointer;">
                         <span>显示截图信息</span>
@@ -883,16 +866,93 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         显示图片信息按钮并计算截图大小和分辨率（关闭可提升截图速度）
                     </div>
                 </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-enable-watermark" ${settings.get('enabled') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>启用文字水印</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        在图片末尾添加自定义文字内容
+                    </div>
+                </div>
+                <div id="vbm-watermark-settings" style="margin-top: 12px; padding: 12px; background: var(--ckui-bg-tertiary); border-radius: var(--ckui-radius); display: ${settings.get('enabled') ? 'block' : 'none'};">
+                    <div style="margin-bottom: 12px;">
+                        <label class="ckui-label">文本内容</label>
+                        <textarea class="ckui-input" id="vbm-watermark-content" rows="3" style="resize: vertical; font-family: monospace;">${this.escapeHtml(settings.get('content'))}</textarea>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label class="ckui-label">何时附加水印</label>
+                        <select class="ckui-select" id="vbm-watermark-apply-mode">
+                            <option value="always" ${settings.get('watermarkApplyMode') === 'always' ? 'selected' : ''}>总是添加</option>
+                            <option value="copy" ${settings.get('watermarkApplyMode') === 'copy' ? 'selected' : ''}>仅复制时</option>
+                            <option value="save" ${settings.get('watermarkApplyMode') === 'save' ? 'selected' : ''}>仅保存时</option>
+                        </select>
+                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                            选择在何种操作时添加水印到图片中
+                        </div>
+                    </div>
+                    <div id="vbm-watermark-text-settings">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">字体大小(px)</label>
+                                <input type="number" class="ckui-input" id="vbm-watermark-fontsize" value="${settings.get('fontSize')}" min="8" max="100">
+                            </div>
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">文字颜色</label>
+                                <input type="color" class="ckui-input" id="vbm-watermark-color" value="${settings.get('textColor')}" style="height: 36px;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">文字对齐</label>
+                                <select class="ckui-select" id="vbm-watermark-align">
+                                    <option value="left" ${settings.get('textAlign') === 'left' ? 'selected' : ''}>左对齐</option>
+                                    <option value="center" ${settings.get('textAlign') === 'center' ? 'selected' : ''}>居中</option>
+                                    <option value="right" ${settings.get('textAlign') === 'right' ? 'selected' : ''}>右对齐</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">背景颜色</label>
+                                <input type="color" class="ckui-input" id="vbm-watermark-bgcolor" value="${settings.get('backgroundColor')}" style="height: 36px;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">内边距(px)</label>
+                                <input type="number" class="ckui-input" id="vbm-watermark-padding" value="${settings.get('padding')}" min="0" max="200">
+                            </div>
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">高度(px, 0=自动)</label>
+                                <input type="number" class="ckui-input" id="vbm-watermark-height" value="${settings.get('containerHeight')}" min="0" max="1000">
+                            </div>
+                            <div>
+                                <label class="ckui-label" style="font-size: 12px;">宽度(px, 0=100%)</label>
+                                <input type="number" class="ckui-input" id="vbm-watermark-width" value="${settings.get('containerWidth')}" min="0" max="5000">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <label class="ckui-label">预览效果</label>
+                        <div id="vbm-watermark-preview-container" style="border: 1px solid var(--ckui-border-color); border-radius: var(--ckui-radius); padding: 8px; background: white; max-height: 300px; overflow: auto; min-height: 60px; display: flex; align-items: center; justify-content: center; color: var(--ckui-text-muted);">
+                            水印预览区域
+                        </div>
+                    </div>
+                </div>
             `;
             return div;
+        }
+        
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         createSettingsPanel() {
             const tabs = Utils.ui.tabs({
                 tabs: [
                     { label: '📷 截图', content: this.createCaptureSettings() },
-                    { label: '📋 复制', content: this.createCopySettings() },
-                    { label: '💾 保存', content: this.createSaveSettings() },
+                    { label: ' 保存', content: this.createSaveSettings() },
                     { label: '🧪 实验', content: this.createExperimentalSettings() },
                     { label: '⚙️ 其他', content: this.createOtherSettings() }
                 ],
@@ -1067,24 +1127,71 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     });
                 }
             });
-
-            const copyFormatSelect = container.querySelector('#vbm-copy-format');
-            copyFormatSelect?.addEventListener('change', (e) => {
-                this.settings.set('copyFormat', e.target.value);
-                if (this.settings.get('showImageInfo')) {
-                    this.updateImageInfo();
+            const watermarkCheckbox = container.querySelector('#vbm-enable-watermark');
+            const watermarkSettings = container.querySelector('#vbm-watermark-settings');
+            watermarkCheckbox?.addEventListener('change', (e) => {
+                this.settings.set('enabled', e.target.checked);
+                watermarkSettings.style.display = e.target.checked ? 'block' : 'none';
+                if (e.target.checked) {
+                    this.debouncedPreviewWatermark();
                 }
             });
 
-            const copyQualityInput = container.querySelector('#vbm-copy-quality');
-            copyQualityInput?.addEventListener('change', (e) => {
-                const quality = Math.max(1, Math.min(100, parseInt(e.target.value) || 95));
-                e.target.value = quality;
-                this.settings.set('copyQuality', quality / 100);
-                if (this.settings.get('showImageInfo')) {
-                    this.updateImageInfo();
-                }
+            const watermarkContent = container.querySelector('#vbm-watermark-content');
+            watermarkContent?.addEventListener('input', (e) => {
+                this.settings.set('content', e.target.value);
+                this.debouncedPreviewWatermark();
             });
+
+            const watermarkApplyMode = container.querySelector('#vbm-watermark-apply-mode');
+            watermarkApplyMode?.addEventListener('change', (e) => {
+                this.settings.set('watermarkApplyMode', e.target.value);
+            });
+
+            const fontSize = container.querySelector('#vbm-watermark-fontsize');
+            fontSize?.addEventListener('input', (e) => {
+                this.settings.set('fontSize', parseInt(e.target.value) || 16);
+                this.debouncedPreviewWatermark();
+            });
+
+            const textColor = container.querySelector('#vbm-watermark-color');
+            textColor?.addEventListener('input', (e) => {
+                this.settings.set('textColor', e.target.value);
+                this.debouncedPreviewWatermark();
+            });
+
+            const textAlign = container.querySelector('#vbm-watermark-align');
+            textAlign?.addEventListener('change', (e) => {
+                this.settings.set('textAlign', e.target.value);
+                this.debouncedPreviewWatermark();
+            });
+
+            const bgColor = container.querySelector('#vbm-watermark-bgcolor');
+            bgColor?.addEventListener('input', (e) => {
+                this.settings.set('backgroundColor', e.target.value);
+                this.debouncedPreviewWatermark();
+            });
+
+            const padding = container.querySelector('#vbm-watermark-padding');
+            padding?.addEventListener('input', (e) => {
+                this.settings.set('padding', parseInt(e.target.value) || 20);
+                this.debouncedPreviewWatermark();
+            });
+
+            const height = container.querySelector('#vbm-watermark-height');
+            height?.addEventListener('input', (e) => {
+                this.settings.set('containerHeight', parseInt(e.target.value) || 0);
+                this.debouncedPreviewWatermark();
+            });
+
+            const width = container.querySelector('#vbm-watermark-width');
+            width?.addEventListener('input', (e) => {
+                this.settings.set('containerWidth', parseInt(e.target.value) || 0);
+                this.debouncedPreviewWatermark();
+            });
+            if (this.settings.get('enabled')) {
+                setTimeout(() => this.previewWatermark(), 100);
+            }
 
             const saveFormatSelect = container.querySelector('#vbm-save-format');
             saveFormatSelect?.addEventListener('change', (e) => {
@@ -1262,6 +1369,132 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.rangeOverlay = null;
             }
         }
+        debouncedPreviewWatermark() {
+            if (this.previewDebounceTimer) {
+                clearTimeout(this.previewDebounceTimer);
+            }
+            this.previewDebounceTimer = setTimeout(() => {
+                this.previewWatermark();
+            }, 300);
+        }
+        async previewWatermark() {
+            try {
+                const previewContainer = this.toolbarContainer?.querySelector('#vbm-watermark-preview-container');
+                
+                if (!previewContainer) return;
+                
+                previewContainer.innerHTML = '';
+                previewContainer.style.display = 'flex';
+                previewContainer.style.alignItems = 'center';
+                previewContainer.style.justifyContent = 'center';
+                const canvasWidth = this.canvas.canvas?.width || this.canvas.firstWidth || 1280;
+                const watermarkCanvas = this.drawTextWatermarkToCanvas(canvasWidth);
+                const img = document.createElement('img');
+                img.src = watermarkCanvas.toDataURL();
+                img.style.cssText = 'width: 100%; height: auto; display: block;';
+                previewContainer.appendChild(img);
+            } catch (error) {
+                logger.error('Preview watermark failed:', error);
+                const previewContainer = this.toolbarContainer?.querySelector('#vbm-watermark-preview-container');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '<span style="color: var(--ckui-error);">预览失败</span>';
+                }
+            }
+        }
+        async generateFinalCanvas(action = 'always') {
+            if (!this.canvas.canvas) {
+                throw new Error('No canvas available');
+            }
+
+            const enabled = this.settings.get('enabled');
+            const watermarkApplyMode = this.settings.get('watermarkApplyMode');
+            
+            // Determine if watermark should be applied
+            const shouldApplyWatermark = enabled && (
+                watermarkApplyMode === 'always' || 
+                (watermarkApplyMode === 'copy' && action === 'copy') ||
+                (watermarkApplyMode === 'save' && action === 'save')
+            );
+            
+            if (!shouldApplyWatermark) {
+                return this.canvas.canvas;
+            }
+
+            try {
+                const originalCanvas = this.canvas.canvas;
+                const watermarkCanvas = this.drawTextWatermarkToCanvas(originalCanvas.width);
+                const finalCanvas = document.createElement('canvas');
+                finalCanvas.width = originalCanvas.width;
+                finalCanvas.height = originalCanvas.height + watermarkCanvas.height;
+                
+                const ctx = finalCanvas.getContext('2d');
+                ctx.drawImage(originalCanvas, 0, 0);
+                ctx.drawImage(watermarkCanvas, 0, originalCanvas.height);
+                
+                return finalCanvas;
+            } catch (error) {
+                logger.error('Generate final canvas with watermark failed:', error);
+                Utils.ui.notify({
+                    type: 'warning',
+                    title: '水印添加失败',
+                    message: '将使用原图进行操作',
+                    shadow: true
+                });
+                return this.canvas.canvas;
+            }
+        }
+        drawTextWatermarkToCanvas(width) {
+            const settings = this.settings;
+            const content = settings.get('content');
+            const fontSize = settings.get('fontSize');
+            const textColor = settings.get('textColor');
+            const textAlign = settings.get('textAlign');
+            const backgroundColor = settings.get('backgroundColor');
+            const padding = settings.get('padding');
+            const containerWidth = settings.get('containerWidth') || width;
+            const containerHeight = settings.get('containerHeight');
+            const lines = content.split('\n');
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+            const lineHeight = fontSize * 1.5; // 行高为字体大小的 1.5 倍
+            let maxLineWidth = 0;
+            const measuredLines = lines.map(line => {
+                const metrics = tempCtx.measureText(line);
+                maxLineWidth = Math.max(maxLineWidth, metrics.width);
+                return { text: line, width: metrics.width };
+            });
+            const contentHeight = lines.length * lineHeight;
+            const actualHeight = containerHeight || (contentHeight + padding * 2);
+            const canvas = document.createElement('canvas');
+            canvas.width = containerWidth;
+            canvas.height = actualHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+            ctx.fillStyle = textColor;
+            ctx.textBaseline = 'top';
+            let x;
+            if (textAlign === 'left') {
+                ctx.textAlign = 'left';
+                x = padding;
+            } else if (textAlign === 'center') {
+                ctx.textAlign = 'center';
+                x = canvas.width / 2;
+            } else if (textAlign === 'right') {
+                ctx.textAlign = 'right';
+                x = canvas.width - padding;
+            }
+            const startY = padding;
+            measuredLines.forEach((line, index) => {
+                const y = startY + index * lineHeight;
+                ctx.fillText(line.text, x, y);
+            });
+            
+            return canvas;
+        }
+
         async captureVideoWithLayers(mode) {
             const video = this.selectedVideo;
             const rect = video.getBoundingClientRect();
@@ -1391,7 +1624,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         targetWidth = firstWidth;
                     }
                 } else {
-                    // Fallback to first width for backward compatibility
                     targetWidth = this.canvas.firstWidth || imageData.width;
                 }
 
@@ -1527,7 +1759,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         targetWidth = firstWidth;
                     }
                 } else {
-                    // Fallback to first width for backward compatibility
                     targetWidth = this.canvas.firstWidth || imageData.width;
                 }
                 
@@ -1574,7 +1805,6 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.previewContainer.appendChild(img);
                 
                 this.scrollPreviewToBottom();
-                // Only calculate image info if enabled in settings
                 if (this.settings.get('showImageInfo')) {
                     this.updateImageInfo();
                 }
@@ -1595,13 +1825,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const info = this.canvas.getImageInfo();
             if (!info) return;
             
-            const copyFormat = this.settings.get('copyFormat');
-            const copyQuality = this.settings.get('copyQuality');
             const saveFormat = this.settings.get('saveFormat');
             const saveQuality = this.settings.get('saveQuality');
             
             const memorySize = await this.canvas.calculateSize('png', 1.0);
-            const copySize = await this.canvas.calculateSize(copyFormat, copyQuality);
+            const copySize = await this.canvas.calculateSize('png', 1.0);
             const saveSize = await this.canvas.calculateSize(saveFormat, saveQuality);
             
             this.imageInfo = {
@@ -1617,14 +1845,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 const memoryEl = this.toolbarContainer.querySelector('#vbm-info-memory');
                 const copyEl = this.toolbarContainer.querySelector('#vbm-info-copy');
                 const saveEl = this.toolbarContainer.querySelector('#vbm-info-save');
-                const copyFormatEl = this.toolbarContainer.querySelector('#vbm-info-copy-format');
                 const saveFormatEl = this.toolbarContainer.querySelector('#vbm-info-save-format');
                 
                 if (dimensionsEl) dimensionsEl.textContent = `${info.width} × ${info.height}`;
                 if (memoryEl) memoryEl.textContent = this.formatFileSize(memorySize);
                 if (copyEl) copyEl.textContent = this.formatFileSize(copySize);
                 if (saveEl) saveEl.textContent = this.formatFileSize(saveSize);
-                if (copyFormatEl) copyFormatEl.textContent = `${copyFormat.toUpperCase()}${copyFormat !== 'png' ? ` (${Math.round(copyQuality * 100)}%)` : ''}`;
                 if (saveFormatEl) saveFormatEl.textContent = `${saveFormat.toUpperCase()}${saveFormat !== 'png' ? ` (${Math.round(saveQuality * 100)}%)` : ''}`;
             }
         }
@@ -1708,10 +1934,14 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         async copyToClipboard() {
             try {
-                const format = this.settings.get('copyFormat');
-                const quality = this.settings.get('copyQuality');
-                const blob = await this.canvas.toBlob(format, quality);
-                const mimeType = `image/${format}`;
+                const finalCanvas = await this.generateFinalCanvas('copy');
+                const blob = await new Promise((resolve) => {
+                    finalCanvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/png', 1.0);
+                });
+                
+                const mimeType = 'image/png';
                 
                 await navigator.clipboard.write([
                     new ClipboardItem({ [mimeType]: blob })
@@ -1720,7 +1950,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 Utils.ui.notify({
                     type: 'success',
                     title: '复制成功',
-                    message: `图片已复制到剪贴板 (${format.toUpperCase()})`,
+                    message: '图片已复制到剪贴板 (PNG)',
                     shadow: true
                 });
             } catch (error) {
@@ -1738,7 +1968,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             try {
                 const format = this.settings.get('saveFormat');
                 const quality = this.settings.get('saveQuality');
-                const blob = await this.canvas.toBlob(format, quality);
+                const finalCanvas = await this.generateFinalCanvas('save');
+                const blob = await new Promise((resolve) => {
+                    finalCanvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, `image/${format}`, quality);
+                });
+                
                 const filename = `video-barpic-${Date.now()}.${format}`;
                 Utils.downloadBlob(filename, blob);
                 
