@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.2.2
+// @version      0.3.0
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -16,7 +16,7 @@
 // @grant        GM_registerMenuCommand
 // @license      Apache-2.0
 // @run-at       document-end
-// @require https://update.greasyfork.org/scripts/564901/1754060/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1754426/CKUI.js
 // ==/UserScript==
 
 if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
@@ -246,6 +246,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         trash: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
         undo: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></g></svg>',
         redo: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 14l5-5l-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></g></svg>',
+        image: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g></svg>',
     };
     class SettingsManager {
         constructor() {
@@ -262,7 +263,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 useLayerCapture: false, // Whether to capture video with overlays using DisplayMedia API
                 manualOffsetLeft: 0, // Manual offset for DisplayMedia capture
                 manualOffsetTop: 0, // Manual offset for DisplayMedia capture
-                enableFloatButton: true // Enable floating button on page
+                enableFloatButton: true, // Enable floating button on page
+                showImageInfo: true, // Show image info button and calculate image size/resolution
+                copyFormat: 'png', // 'png', 'jpeg', 'webp'
+                copyQuality: 0.95, // 0.0 - 1.0
+                saveFormat: 'png', // 'png', 'jpeg', 'webp'
+                saveQuality: 0.95 // 0.0 - 1.0
             };
             this.settings = this.load();
         }
@@ -390,14 +396,30 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.firstWidth = null;
         }
 
-        toBlob() {
+        toBlob(format = 'png', quality = 0.95) {
             return new Promise(resolve => {
-                this.canvas.toBlob(resolve, 'image/png');
+                const mimeType = `image/${format}`;
+                this.canvas.toBlob(resolve, mimeType, quality);
             });
         }
 
-        toDataURL() {
-            return this.canvas.toDataURL('image/png');
+        toDataURL(format = 'png', quality = 0.95) {
+            const mimeType = `image/${format}`;
+            return this.canvas.toDataURL(mimeType, quality);
+        }
+
+        async calculateSize(format = 'png', quality = 0.95) {
+            if (!this.canvas) return 0;
+            const blob = await this.toBlob(format, quality);
+            return blob ? blob.size : 0;
+        }
+
+        getImageInfo() {
+            if (!this.canvas) return null;
+            return {
+                width: this.canvas.width,
+                height: this.canvas.height
+            };
         }
     }
     class VideoBarpicMaker {
@@ -414,6 +436,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.rangeOverlay = null;
             this.settingsExpanded = false;
             this.displayMediaStream = null; // Store the current capture stream
+            this.infoExpanded = false;
+            this.imageInfo = { memorySize: 0, copySize: 0, saveSize: 0, width: 0, height: 0 };
         }
 
         init() {
@@ -567,7 +591,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.toolbarWindow = Utils.ui.floatWindow({
                 title: '视频截图工具',
                 content: this.toolbarContainer,
-                width: 800,
+                width: "500px",
                 position: { x: 100, y: 100 },
                 shadow: true,
                 onClose: () => {
@@ -625,7 +649,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const settingsPanel = document.createElement('div');
             settingsPanel.id = 'vbm-settings-panel';
             settingsPanel.style.display = 'none';
-            settingsPanel.innerHTML = this.createSettingsPanel();
+            settingsPanel.appendChild(this.createSettingsPanel());
             container.appendChild(settingsPanel);
             const divider = document.createElement('div');
             divider.className = 'ckui-divider';
@@ -656,103 +680,229 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 </div>
             `;
             container.appendChild(actionsSection);
+
+            // Only show image info button if enabled in settings
+            if (this.settings.get('showImageInfo')) {
+                const infoBtn = document.createElement('button');
+                infoBtn.className = 'ckui-btn';
+                infoBtn.id = 'vbm-info-toggle';
+                infoBtn.innerHTML = `${Icons.image} <span style="margin-left: 6px;vertical-align: super;">图片信息</span>`;
+                infoBtn.style.width = '100%';
+                infoBtn.style.display = 'none';
+                container.appendChild(infoBtn);
+
+                const infoPanel = document.createElement('div');
+                infoPanel.id = 'vbm-info-panel';
+                infoPanel.style.display = 'none';
+                infoPanel.innerHTML = `
+                    <div style="padding: 12px; background: var(--ckui-bg-secondary); border-radius: var(--ckui-radius); margin-top: 8px; font-size: 12px;">
+                        <div style="margin-bottom: 8px;">
+                            <strong>尺寸：</strong><span id="vbm-info-dimensions">-</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>内存格式：</strong>PNG | <strong>大小：</strong><span id="vbm-info-memory">-</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>复制格式：</strong><span id="vbm-info-copy-format">-</span> | <strong>大小：</strong><span id="vbm-info-copy">-</span>
+                        </div>
+                        <div>
+                            <strong>保存格式：</strong><span id="vbm-info-save-format">-</span> | <strong>大小：</strong><span id="vbm-info-save">-</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(infoPanel);
+            }
             setTimeout(() => this.bindToolbarEvents(container), 0);
 
             return container;
         }
 
-        createSettingsPanel() {
+        createCaptureSettings() {
             const settings = this.settings;
-            return `
-                <div style="padding: 12px; background: var(--ckui-bg-secondary); border-radius: var(--ckui-radius); margin-top: 8px;">
-                    <div style="margin-bottom: 12px;">
-                        <label class="ckui-label">画布宽度模式</label>
-                        <select class="ckui-select" id="vbm-capture-mode">
-                            <option value="fixed" ${settings.get('captureMode') === 'fixed' ? 'selected' : ''}>固定宽度</option>
-                            <option value="adaptive" ${settings.get('captureMode') === 'adaptive' ? 'selected' : ''}>自适应宽度</option>
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            div.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label">画布宽度模式</label>
+                    <select class="ckui-select" id="vbm-capture-mode">
+                        <option value="fixed" ${settings.get('captureMode') === 'fixed' ? 'selected' : ''}>固定宽度</option>
+                        <option value="adaptive" ${settings.get('captureMode') === 'adaptive' ? 'selected' : ''}>自适应宽度</option>
+                    </select>
+                </div>
+                <div id="vbm-fixed-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'fixed' ? ' display:none;' : ''}">
+                    <label class="ckui-label">固定宽度(px)</label>
+                    <input type="number" class="ckui-input" id="vbm-fixed-width" value="${settings.get('fixedWidth')}" min="100" max="3840">
+                </div>
+                <div id="vbm-adaptive-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'adaptive' ? ' display:none;' : ''}">
+                    <label class="ckui-label">自适应宽度范围(px)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div>
+                            <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最小宽度</label>
+                            <input type="number" class="ckui-input" id="vbm-min-width" value="${settings.get('minWidth')}" min="100" max="3840">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最大宽度</label>
+                            <input type="number" class="ckui-input" id="vbm-max-width" value="${settings.get('maxWidth')}" min="100" max="3840">
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                        第一张截图宽度在此范围内时使用原宽度，否则限制到边界
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label">预览图片宽度(px)</label>
+                    <input type="number" class="ckui-input" id="vbm-preview-width" value="${settings.get('previewImageWidth')}" min="100" max="800">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label">上部分截图范围</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" class="ckui-input" id="vbm-top-range" value="${settings.get('topRange')}" min="1" style="flex: 1;">
+                        <select class="ckui-select" id="vbm-top-range-unit" style="width: 100px;">
+                            <option value="percent" ${settings.get('topRangeUnit') === 'percent' ? 'selected' : ''}>百分比%</option>
+                            <option value="pixel" ${settings.get('topRangeUnit') === 'pixel' ? 'selected' : ''}>像素px</option>
                         </select>
                     </div>
-                    <div id="vbm-fixed-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'fixed' ? ' display:none;' : ''}">
-                        <label class="ckui-label">固定宽度(px)</label>
-                        <input type="number" class="ckui-input" id="vbm-fixed-width" value="${settings.get('fixedWidth')}" min="100" max="3840">
-                    </div>
-                    <div id="vbm-adaptive-width-container" style="margin-bottom: 12px;${settings.get('captureMode') !== 'adaptive' ? ' display:none;' : ''}">
-                        <label class="ckui-label">自适应宽度范围(px)</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div>
-                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最小宽度</label>
-                                <input type="number" class="ckui-input" id="vbm-min-width" value="${settings.get('minWidth')}" min="100" max="3840">
-                            </div>
-                            <div>
-                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">最大宽度</label>
-                                <input type="number" class="ckui-input" id="vbm-max-width" value="${settings.get('maxWidth')}" min="100" max="3840">
-                            </div>
-                        </div>
-                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
-                            第一张截图宽度在此范围内时使用原宽度，否则限制到边界
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label class="ckui-label">预览图片宽度(px)</label>
-                        <input type="number" class="ckui-input" id="vbm-preview-width" value="${settings.get('previewImageWidth')}" min="100" max="800">
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label class="ckui-label">上部分范围</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="number" class="ckui-input" id="vbm-top-range" value="${settings.get('topRange')}" min="1" style="flex: 1;">
-                            <select class="ckui-select" id="vbm-top-range-unit" style="width: 100px;">
-                                <option value="percent" ${settings.get('topRangeUnit') === 'percent' ? 'selected' : ''}>百分比%</option>
-                                <option value="pixel" ${settings.get('topRangeUnit') === 'pixel' ? 'selected' : ''}>像素px</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label class="ckui-label">下部分范围</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="number" class="ckui-input" id="vbm-bottom-range" value="${settings.get('bottomRange')}" min="1" style="flex: 1;">
-                            <select class="ckui-select" id="vbm-bottom-range-unit" style="width: 100px;">
-                                <option value="percent" ${settings.get('bottomRangeUnit') === 'percent' ? 'selected' : ''}>百分比%</option>
-                                <option value="pixel" ${settings.get('bottomRangeUnit') === 'pixel' ? 'selected' : ''}>像素px</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="vbm-use-layer-capture" ${settings.get('useLayerCapture') ? 'checked' : ''} style="cursor: pointer;">
-                            <span>叠层截图模式（捕获浮层）</span>
-                            <span style="font-size: 10px; padding: 2px 6px; background: var(--ckui-warning); color: white; border-radius: 3px; margin-left: 4px;">实验性</span>
-                        </label>
-                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
-                            启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。
-                        </div>
-                    </div>
-                    <div id="vbm-manual-offset-container" style="margin-bottom: 12px;${!settings.get('useLayerCapture') ? ' display:none;' : ''}">
-                        <label class="ckui-label">DisplayMedia 手动偏移补偿</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div>
-                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">左偏移(px)</label>
-                                <input type="number" class="ckui-input" id="vbm-offset-left" value="${settings.get('manualOffsetLeft')}" ${!settings.get('useLayerCapture') ? 'disabled' : ''}>
-                            </div>
-                            <div>
-                                <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">上偏移(px)</label>
-                                <input type="number" class="ckui-input" id="vbm-offset-top" value="${settings.get('manualOffsetTop')}" ${!settings.get('useLayerCapture') ? 'disabled' : ''}>
-                            </div>
-                        </div>
-                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
-                            手动设置偏移值以修正 DisplayMedia 截图位置偏差
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 0;">
-                        <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="vbm-enable-float-button" ${settings.get('enableFloatButton') ? 'checked' : ''} style="cursor: pointer;">
-                            <span>启用页面浮动按钮</span>
-                        </label>
-                        <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
-                            在页面上显示一个浮动按钮，方便快速打开工具
-                        </div>
+                </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label">下部分截图范围</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" class="ckui-input" id="vbm-bottom-range" value="${settings.get('bottomRange')}" min="1" style="flex: 1;">
+                        <select class="ckui-select" id="vbm-bottom-range-unit" style="width: 100px;">
+                            <option value="percent" ${settings.get('bottomRangeUnit') === 'percent' ? 'selected' : ''}>百分比%</option>
+                            <option value="pixel" ${settings.get('bottomRangeUnit') === 'pixel' ? 'selected' : ''}>像素px</option>
+                        </select>
                     </div>
                 </div>
             `;
+            return div;
+        }
+
+        createCopySettings() {
+            const settings = this.settings;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            div.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label">图片格式</label>
+                    <select class="ckui-select" id="vbm-copy-format">
+                        <option value="png" ${settings.get('copyFormat') === 'png' ? 'selected' : ''}>PNG</option>
+                        <option value="jpeg" ${settings.get('copyFormat') === 'jpeg' ? 'selected' : ''}>JPEG</option>
+                        <option value="webp" ${settings.get('copyFormat') === 'webp' ? 'selected' : ''}>WebP</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label">图片质量 (%)</label>
+                    <input type="number" class="ckui-input" id="vbm-copy-quality" value="${Math.round(settings.get('copyQuality') * 100)}" min="1" max="100" step="1">
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                        PNG 格式质量参数无效，JPEG 和 WebP 格式范围为 1-100
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        createSaveSettings() {
+            const settings = this.settings;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            div.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label">图片格式</label>
+                    <select class="ckui-select" id="vbm-save-format">
+                        <option value="png" ${settings.get('saveFormat') === 'png' ? 'selected' : ''}>PNG</option>
+                        <option value="jpeg" ${settings.get('saveFormat') === 'jpeg' ? 'selected' : ''}>JPEG</option>
+                        <option value="webp" ${settings.get('saveFormat') === 'webp' ? 'selected' : ''}>WebP</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label">图片质量 (%)</label>
+                    <input type="number" class="ckui-input" id="vbm-save-quality" value="${Math.round(settings.get('saveQuality') * 100)}" min="1" max="100" step="1">
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                        PNG 格式质量参数无效，JPEG 和 WebP 格式范围为 1-100
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        createExperimentalSettings() {
+            const settings = this.settings;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            div.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-use-layer-capture" ${settings.get('useLayerCapture') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>叠层截图模式（捕获浮层）</span>
+                        <span style="font-size: 10px; padding: 2px 6px; background: var(--ckui-warning); color: white; border-radius: 3px; margin-left: 4px;">实验性</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。
+                    </div>
+                </div>
+                <div id="vbm-manual-offset-container" style="margin-bottom: 0;${!settings.get('useLayerCapture') ? ' display:none;' : ''}">
+                    <label class="ckui-label">DisplayMedia 手动偏移补偿</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div>
+                            <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">左偏移(px)</label>
+                            <input type="number" class="ckui-input" id="vbm-offset-left" value="${settings.get('manualOffsetLeft')}" ${!settings.get('useLayerCapture') ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: var(--ckui-text-secondary); display: block; margin-bottom: 4px;">上偏移(px)</label>
+                            <input type="number" class="ckui-input" id="vbm-offset-top" value="${settings.get('manualOffsetTop')}" ${!settings.get('useLayerCapture') ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px;">
+                        手动设置偏移值以修正 DisplayMedia 截图位置偏差
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        createOtherSettings() {
+            const settings = this.settings;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            div.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-enable-float-button" ${settings.get('enableFloatButton') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>启用页面浮动按钮</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        在页面上显示一个浮动按钮，方便快速打开工具
+                    </div>
+                </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-show-image-info" ${settings.get('showImageInfo') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>显示截图信息</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        显示图片信息按钮并计算截图大小和分辨率（关闭可提升截图速度）
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        createSettingsPanel() {
+            const tabs = Utils.ui.tabs({
+                tabs: [
+                    { label: '📷 截图', content: this.createCaptureSettings() },
+                    { label: '📋 复制', content: this.createCopySettings() },
+                    { label: '💾 保存', content: this.createSaveSettings() },
+                    { label: '🧪 实验', content: this.createExperimentalSettings() },
+                    { label: '⚙️ 其他', content: this.createOtherSettings() }
+                ],
+                style: 'pills'
+            });
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'background: var(--ckui-bg-secondary); border-radius: var(--ckui-radius); margin-top: 8px;';
+            container.appendChild(tabs.render());
+            return container;
         }
 
         bindToolbarEvents(container) {
@@ -894,6 +1044,66 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     });
                 }
             });
+
+            const showImageInfoCheckbox = container.querySelector('#vbm-show-image-info');
+            showImageInfoCheckbox?.addEventListener('change', (e) => {
+                this.settings.set('showImageInfo', e.target.checked);
+                
+                if (e.target.checked) {
+                    Utils.ui.notify({
+                        type: 'info',
+                        title: '截图信息已启用',
+                        message: '重新打开工具窗口后生效',
+                        shadow: true,
+                        duration: 3000
+                    });
+                } else {
+                    Utils.ui.notify({
+                        type: 'info',
+                        title: '截图信息已禁用',
+                        message: '重新打开工具窗口后生效',
+                        shadow: true,
+                        duration: 3000
+                    });
+                }
+            });
+
+            const copyFormatSelect = container.querySelector('#vbm-copy-format');
+            copyFormatSelect?.addEventListener('change', (e) => {
+                this.settings.set('copyFormat', e.target.value);
+                if (this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
+            });
+
+            const copyQualityInput = container.querySelector('#vbm-copy-quality');
+            copyQualityInput?.addEventListener('change', (e) => {
+                const quality = Math.max(1, Math.min(100, parseInt(e.target.value) || 95));
+                e.target.value = quality;
+                this.settings.set('copyQuality', quality / 100);
+                if (this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
+            });
+
+            const saveFormatSelect = container.querySelector('#vbm-save-format');
+            saveFormatSelect?.addEventListener('change', (e) => {
+                this.settings.set('saveFormat', e.target.value);
+                if (this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
+            });
+
+            const saveQualityInput = container.querySelector('#vbm-save-quality');
+            saveQualityInput?.addEventListener('change', (e) => {
+                const quality = Math.max(1, Math.min(100, parseInt(e.target.value) || 95));
+                e.target.value = quality;
+                this.settings.set('saveQuality', quality / 100);
+                if (this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
+            });
+
             const undoBtn = container.querySelector('#vbm-undo');
             const redoBtn = container.querySelector('#vbm-redo');
             const copyBtn = container.querySelector('#vbm-copy');
@@ -905,6 +1115,18 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             copyBtn?.addEventListener('click', () => this.copyToClipboard());
             saveBtn?.addEventListener('click', () => this.saveToFile());
             clearBtn?.addEventListener('click', () => this.clearCanvas());
+
+            const infoToggleBtn = container.querySelector('#vbm-info-toggle');
+            infoToggleBtn?.addEventListener('click', () => {
+                this.infoExpanded = !this.infoExpanded;
+                const infoPanel = container.querySelector('#vbm-info-panel');
+                if (infoPanel) {
+                    infoPanel.style.display = this.infoExpanded ? 'block' : 'none';
+                }
+                if (this.infoExpanded && this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
+            });
         }
 
         startVideoSelection() {
@@ -1179,10 +1401,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     if (actionsSection) {
                         actionsSection.style.display = 'block';
                     }
+                    if (this.settings.get('showImageInfo')) {
+                        const infoBtn = this.toolbarContainer.querySelector('#vbm-info-toggle');
+                        if (infoBtn) {
+                            infoBtn.style.display = 'block';
+                        }
+                    }
                 }
 
                 this.updatePreview();
                 this.updateActionButtons();
+                this.scrollPreviewToBottom();
 
             } catch (error) {
                 if (this.toolbarWindow && this.toolbarWindow.show) {
@@ -1308,10 +1537,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     if (actionsSection) {
                         actionsSection.style.display = 'block';
                     }
+                    if (this.settings.get('showImageInfo')) {
+                        const infoBtn = this.toolbarContainer.querySelector('#vbm-info-toggle');
+                        if (infoBtn) {
+                            infoBtn.style.display = 'block';
+                        }
+                    }
                 }
                 
                 this.updatePreview();
                 this.updateActionButtons();
+                this.scrollPreviewToBottom();
                 
             } catch (error) {
                 logger.error('Capture failed:', error);
@@ -1336,7 +1572,69 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 const previewWidth = this.settings.get('previewImageWidth');
                 img.style.cssText = `width: ${previewWidth}px; height: auto; display: block;`;
                 this.previewContainer.appendChild(img);
+                
+                this.scrollPreviewToBottom();
+                // Only calculate image info if enabled in settings
+                if (this.settings.get('showImageInfo')) {
+                    this.updateImageInfo();
+                }
             }
+        }
+
+        scrollPreviewToBottom() {
+            if (this.previewContainer) {
+                setTimeout(() => {
+                    this.previewContainer.scrollTop = this.previewContainer.scrollHeight;
+                }, 50);
+            }
+        }
+
+        async updateImageInfo() {
+            if (!this.canvas.canvas || !this.infoExpanded) return;
+            
+            const info = this.canvas.getImageInfo();
+            if (!info) return;
+            
+            const copyFormat = this.settings.get('copyFormat');
+            const copyQuality = this.settings.get('copyQuality');
+            const saveFormat = this.settings.get('saveFormat');
+            const saveQuality = this.settings.get('saveQuality');
+            
+            const memorySize = await this.canvas.calculateSize('png', 1.0);
+            const copySize = await this.canvas.calculateSize(copyFormat, copyQuality);
+            const saveSize = await this.canvas.calculateSize(saveFormat, saveQuality);
+            
+            this.imageInfo = {
+                width: info.width,
+                height: info.height,
+                memorySize,
+                copySize,
+                saveSize
+            };
+            
+            if (this.toolbarContainer) {
+                const dimensionsEl = this.toolbarContainer.querySelector('#vbm-info-dimensions');
+                const memoryEl = this.toolbarContainer.querySelector('#vbm-info-memory');
+                const copyEl = this.toolbarContainer.querySelector('#vbm-info-copy');
+                const saveEl = this.toolbarContainer.querySelector('#vbm-info-save');
+                const copyFormatEl = this.toolbarContainer.querySelector('#vbm-info-copy-format');
+                const saveFormatEl = this.toolbarContainer.querySelector('#vbm-info-save-format');
+                
+                if (dimensionsEl) dimensionsEl.textContent = `${info.width} × ${info.height}`;
+                if (memoryEl) memoryEl.textContent = this.formatFileSize(memorySize);
+                if (copyEl) copyEl.textContent = this.formatFileSize(copySize);
+                if (saveEl) saveEl.textContent = this.formatFileSize(saveSize);
+                if (copyFormatEl) copyFormatEl.textContent = `${copyFormat.toUpperCase()}${copyFormat !== 'png' ? ` (${Math.round(copyQuality * 100)}%)` : ''}`;
+                if (saveFormatEl) saveFormatEl.textContent = `${saveFormat.toUpperCase()}${saveFormat !== 'png' ? ` (${Math.round(saveQuality * 100)}%)` : ''}`;
+            }
+        }
+
+        formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
         createPreviewWindow() {
@@ -1396,6 +1694,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (this.canvas.undo()) {
                 this.updatePreview();
                 this.updateActionButtons();
+                this.scrollPreviewToBottom();
             }
         }
 
@@ -1403,20 +1702,25 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (this.canvas.redo()) {
                 this.updatePreview();
                 this.updateActionButtons();
+                this.scrollPreviewToBottom();
             }
         }
 
         async copyToClipboard() {
             try {
-                const blob = await this.canvas.toBlob();
+                const format = this.settings.get('copyFormat');
+                const quality = this.settings.get('copyQuality');
+                const blob = await this.canvas.toBlob(format, quality);
+                const mimeType = `image/${format}`;
+                
                 await navigator.clipboard.write([
-                    new ClipboardItem({ 'image/png': blob })
+                    new ClipboardItem({ [mimeType]: blob })
                 ]);
                 
                 Utils.ui.notify({
                     type: 'success',
                     title: '复制成功',
-                    message: '图片已复制到剪贴板',
+                    message: `图片已复制到剪贴板 (${format.toUpperCase()})`,
                     shadow: true
                 });
             } catch (error) {
@@ -1432,8 +1736,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
 
         async saveToFile() {
             try {
-                const blob = await this.canvas.toBlob();
-                const filename = `video-barpic-${Date.now()}.png`;
+                const format = this.settings.get('saveFormat');
+                const quality = this.settings.get('saveQuality');
+                const blob = await this.canvas.toBlob(format, quality);
+                const filename = `video-barpic-${Date.now()}.${format}`;
                 Utils.downloadBlob(filename, blob);
                 
                 Utils.ui.notify({
@@ -1474,7 +1780,17 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 if (actionsSection) {
                     actionsSection.style.display = 'none';
                 }
+                const infoBtn = this.toolbarContainer.querySelector('#vbm-info-toggle');
+                if (infoBtn) {
+                    infoBtn.style.display = 'none';
+                }
+                const infoPanel = this.toolbarContainer.querySelector('#vbm-info-panel');
+                if (infoPanel) {
+                    infoPanel.style.display = 'none';
+                }
             }
+            this.infoExpanded = false;
+            this.imageInfo = { memorySize: 0, copySize: 0, saveSize: 0, width: 0, height: 0 };
             this.updateActionButtons();
             logger.log('Canvas cleared successfully', {
                 canvasExists: !!this.canvas.canvas,
