@@ -956,7 +956,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         <span>截取字幕</span>
                     </label>
                     <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
-                        截图时也截取字幕（查找 .ytp-caption-window-container）
+                        截图时也截取字幕（不支持第三方插件字幕）
                     </div>
                 </div>
             `;
