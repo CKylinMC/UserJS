@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         CKUI
 // @namespace    ckylin-script-lib-ckui
-// @version      2.5.1
+// @version      2.5.2
 // @description  A modern, dependency-free UI library for Tampermonkey scripts
 // @match        http://*
 // @match        https://*
 // @grant        unsafeWindow
 // @author       CKylinMC
-// @license      GPL-3.0-only
+// @license      Apache-2.0
 // ==/UserScript==
 
 // 调试用
