@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.5.3
+// @version      0.5.4
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -17,7 +17,7 @@
 // @grant        GM_info
 // @license      Apache-2.0
 // @run-at       document-end
-// @require https://update.greasyfork.org/scripts/564901/1754426/CKUI.js
+// @require https://update.greasyfork.org/scripts/564901/1760684/CKUI.js
 // @require https://unpkg.com/@zumer/snapdom/dist/snapdom.js
 // ==/UserScript==
  
