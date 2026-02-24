@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.5.2
+// @version      0.5.3
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -14,6 +14,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_listValues
 // @grant        GM_registerMenuCommand
+// @grant        GM_info
 // @license      Apache-2.0
 // @run-at       document-end
 // @require https://update.greasyfork.org/scripts/564901/1754426/CKUI.js
@@ -855,7 +856,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         <span style="font-size: 10px; padding: 2px 6px; background: var(--ckui-warning); color: white; border-radius: 3px; margin-left: 4px;">实验性</span>
                     </label>
                     <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
-                        启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。
+                        启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。（方案已废弃，不推荐使用）
                     </div>
                 </div>
                 <div style="margin-bottom: 12px;">
@@ -1120,6 +1121,28 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return div.innerHTML;
         }
  
+        createAboutSettings() {
+            const version = (typeof GM_info !== 'undefined' && GM_info?.script?.version) || '未知';
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 16px;';
+            div.innerHTML = `
+                <div style="text-align: center; padding: 16px 0 20px;">
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">视频字幕截图制作工具</div>
+                    <div style="font-size: 13px; color: var(--ckui-text-secondary);">版本 ${version}</div>
+                </div>
+                <div style="border-top: 1px solid var(--ckui-border-color); padding-top: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ckui-text-secondary);">开源致谢</div>
+                    <div style="padding: 12px; background: var(--ckui-bg-tertiary); border-radius: var(--ckui-radius); font-size: 12px; line-height: 1.6;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">snapdom.js</div>
+                        <div style="color: var(--ckui-text-secondary); margin-bottom: 6px;">Fast and Accurate HTML Conversion</div>
+                        <a href="https://github.com/zumerlab/snapdom" target="_blank" style="color: var(--ckui-primary); text-decoration: none; word-break: break-all;">https://github.com/zumerlab/snapdom</a>
+                        <div style="margin-top: 6px; color: var(--ckui-text-muted);">MIT License</div>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
         createSettingsPanel() {
             const tabs = Utils.ui.tabs({
                 tabs: [
@@ -1127,7 +1150,8 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     { label: '💾 保存', content: this.createSaveSettings() },
                     { label: '🧪 实验', content: this.createExperimentalSettings() },
                     { label: '🎯 特调', content: this.createSpecialSettings() },
-                    { label: '⚙️ 其他', content: this.createOtherSettings() }
+                    { label: '⚙️ 其他', content: this.createOtherSettings() },
+                    { label: 'ℹ️ 关于', content: this.createAboutSettings() }
                 ],
                 style: 'pills'
             });
