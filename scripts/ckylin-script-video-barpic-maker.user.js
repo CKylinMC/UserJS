@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.5.0
+// @version      0.5.1
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -279,7 +279,9 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 containerWidth: 0,
                 watermarkApplyMode: 'always', // 'copy', 'save', 'always'
                 captureDanmakuOnBilibili: false, 
-                captureSubtitleOnBilibili: false 
+                captureSubtitleOnBilibili: false,
+                captureSubtitleOnYoutube: false,
+                bypassCSP: false 
             };
             this.settings = this.load();
         }
@@ -455,8 +457,38 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
         init() {
             logger.log('Initializing Video Barpic Maker...');
             GM_registerMenuCommand('📷 打开视频截图工具', () => this.showToolbar());
+            if (this.settings.get('bypassCSP')) {
+                this.tryBypassCSP();
+            }
             if (this.settings.get('enableFloatButton')) {
                 this.initFloatButton();
+            }
+        }
+
+        tryBypassCSP() {
+            try {
+                const testEl = document.createElement('div');
+                testEl.innerHTML = '<span></span>';
+                logger.log('CSP check: innerHTML is allowed, bypass not needed.');
+            } catch (e) {
+                logger.warn('CSP check: innerHTML blocked, attempting TrustedTypes policy injection...', e);
+                try {
+                    const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                    if (win.trustedTypes && win.trustedTypes.createPolicy) {
+                        if (!win.trustedTypes.defaultPolicy) {
+                            win.trustedTypes.createPolicy('default', {
+                                createHTML: (string) => string,
+                            });
+                            logger.log('CSP bypass: TrustedTypes default policy injected successfully.');
+                        } else {
+                            logger.log('CSP bypass: TrustedTypes default policy already exists.');
+                        }
+                    } else {
+                        logger.warn('CSP bypass: TrustedTypes API not available, cannot inject policy.');
+                    }
+                } catch (policyErr) {
+                    logger.error('CSP bypass: Failed to inject TrustedTypes policy:', policyErr);
+                }
             }
         }
         
@@ -826,6 +858,16 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         启用后将使用屏幕捕获API，可以截取视频上的弹幕、控制栏等浮层内容。首次使用时需要授权。
                     </div>
                 </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-bypass-csp" ${settings.get('bypassCSP') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>尝试自动绕过CSP策略</span>
+                        <span style="font-size: 10px; padding: 2px 6px; background: var(--ckui-warning); color: white; border-radius: 3px; margin-left: 4px;">实验性</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        部分网站具有默认策略拦截，尝试绕过（可能导致安全性降级）。启用后将在页面加载时自动执行。
+                    </div>
+                </div>
                 <div id="vbm-manual-offset-container" style="margin-bottom: 0;${!settings.get('useLayerCapture') ? ' display:none;' : ''}">
                     <label class="ckui-label">DisplayMedia 手动偏移补偿</label>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -850,14 +892,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const settings = this.settings;
             const div = document.createElement('div');
             div.style.cssText = 'padding: 12px;';
-            
-            // Description text
+
             const description = document.createElement('div');
             description.style.cssText = 'margin-bottom: 16px; padding: 12px; background: var(--ckui-bg-tertiary); border-radius: var(--ckui-radius); font-size: 13px; color: var(--ckui-text-secondary); line-height: 1.5;';
             description.textContent = '这里是针对特定网站的特殊适配选项。这些功能仅在对应网站上生效。';
             div.appendChild(description);
-            
-            // Bilibili collapsible section
+
             const bilibiliSection = document.createElement('div');
             bilibiliSection.style.cssText = 'margin-bottom: 12px; border: 1px solid var(--ckui-border-color); border-radius: var(--ckui-radius); overflow: hidden;';
             
@@ -895,8 +935,36 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             bilibiliSection.appendChild(bilibiliHeader);
             bilibiliSection.appendChild(bilibiliContent);
             div.appendChild(bilibiliSection);
-            
-            // Bind toggle event
+
+            const youtubeSection = document.createElement('div');
+            youtubeSection.style.cssText = 'margin-bottom: 12px; border: 1px solid var(--ckui-border-color); border-radius: var(--ckui-radius); overflow: hidden;';
+
+            const youtubeHeader = document.createElement('div');
+            youtubeHeader.style.cssText = 'padding: 12px; background: var(--ckui-bg-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;';
+            youtubeHeader.innerHTML = `
+                <span style="font-weight: 500;">▶️ YouTube</span>
+                <span id="vbm-youtube-toggle-icon" style="transition: transform 0.2s;">▼</span>
+            `;
+
+            const youtubeContent = document.createElement('div');
+            youtubeContent.id = 'vbm-youtube-content';
+            youtubeContent.style.cssText = 'display: none; padding: 12px; border-top: 1px solid var(--ckui-border-color);';
+            youtubeContent.innerHTML = `
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-capture-subtitle-youtube" ${settings.get('captureSubtitleOnYoutube') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>截取字幕</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        截图时也截取字幕（查找 .ytp-caption-window-container）
+                    </div>
+                </div>
+            `;
+
+            youtubeSection.appendChild(youtubeHeader);
+            youtubeSection.appendChild(youtubeContent);
+            div.appendChild(youtubeSection);
+
             setTimeout(() => {
                 bilibiliHeader.addEventListener('click', () => {
                     const content = bilibiliContent;
@@ -922,6 +990,25 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 subtitleCheckbox?.addEventListener('change', (e) => {
                     settings.set('captureSubtitleOnBilibili', e.target.checked);
                     logger.log('Capture subtitle on Bilibili:', e.target.checked);
+                });
+
+                youtubeHeader.addEventListener('click', () => {
+                    const content = youtubeContent;
+                    const icon = youtubeHeader.querySelector('#vbm-youtube-toggle-icon');
+                    const isExpanded = content.style.display !== 'none';
+                    if (isExpanded) {
+                        content.style.display = 'none';
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        content.style.display = 'block';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+
+                const youtubeSubtitleCheckbox = div.querySelector('#vbm-capture-subtitle-youtube');
+                youtubeSubtitleCheckbox?.addEventListener('change', (e) => {
+                    settings.set('captureSubtitleOnYoutube', e.target.checked);
+                    logger.log('Capture subtitle on YouTube:', e.target.checked);
                 });
             }, 0);
             
@@ -1121,6 +1208,22 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.settings.set('bottomRangeUnit', e.target.value);
                 this.showRangePreview('bottom');
             });
+            const bypassCSPCheckbox = container.querySelector('#vbm-bypass-csp');
+            bypassCSPCheckbox?.addEventListener('change', (e) => {
+                const enabled = e.target.checked;
+                this.settings.set('bypassCSP', enabled);
+                if (enabled) {
+                    this.tryBypassCSP();
+                    Utils.ui.notify({
+                        type: 'warning',
+                        title: 'CSP 绕过已启用',
+                        message: '已尝试注入 TrustedTypes 策略，下次页面加载时会自动执行',
+                        shadow: true,
+                        duration: 4000
+                    });
+                }
+            });
+
             const layerCaptureCheckbox = container.querySelector('#vbm-use-layer-capture');
             const manualOffsetContainer = container.querySelector('#vbm-manual-offset-container');
             const offsetLeftInput = container.querySelector('#vbm-offset-left');
@@ -1580,6 +1683,33 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return canvas;
         }
 
+        async captureYoutubeSubtitleLayer(videoRect) {
+            try {
+                const subtitleElement = document.querySelector('.ytp-caption-window-container') ||
+                    document.querySelector('#ytp-caption-window-container');
+                if (!subtitleElement) {
+                    logger.log('YouTube subtitle element not found');
+                    return null;
+                }
+
+                logger.log('Capturing YouTube subtitle layer...');
+
+                if (typeof snapdom === 'undefined') {
+                    logger.warn('snapdom library not available');
+                    return null;
+                }
+
+                const result = await snapdom(subtitleElement, { fast: true });
+                const img = await result.toPng({ backgroundColor: '#00000000' });
+
+                logger.log('YouTube subtitle layer captured');
+                return img;
+            } catch (error) {
+                logger.error('Failed to capture YouTube subtitle layer:', error);
+                return null;
+            }
+        }
+
         async captureSubtitleLayer(videoRect) {
             try {
                 const subtitleElement = document.querySelector('.bili-subtitle-x-subtitle-panel');
@@ -1638,8 +1768,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
 
                 logger.log('Capturing danmaku layer...');
-                
-                // Use snapdom to capture the danmaku layer
+
                 if (typeof snapdom === 'undefined') {
                     logger.warn('snapdom library not available');
                     return null;
@@ -1649,8 +1778,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 const img = await result.toPng({ backgroundColor: '#00000000' });
                 
                 logger.log('Danmaku layer captured');
-                
-                // toPng() already returns an HTMLImageElement
+
                 return img;
             } catch (error) {
                 logger.error('Failed to capture danmaku layer:', error);
@@ -1853,6 +1981,26 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         logger.warn('Subtitle overlay failed (layers mode), continuing without it:', subtitleError);
                     }
                 }
+
+                if (this.settings.get('captureSubtitleOnYoutube') && 
+                    window.location.hostname.includes('youtube.com')) {
+                    try {
+                        const subtitleImg = await this.captureYoutubeSubtitleLayer(rect);
+                        if (subtitleImg) {
+                            const srcYRatio = (finalCropY - cropY) / cropHeight;
+                            const srcHeightRatio = finalCropHeight / cropHeight;
+                            await this.overlaySubtitleOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                subtitleImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (subtitleError) {
+                        logger.warn('YouTube subtitle overlay failed (layers mode), continuing without it:', subtitleError);
+                    }
+                }
                 
                 if (this.toolbarContainer) {
                     const actionsSection = this.toolbarContainer.querySelector('#vbm-actions-section');
@@ -2030,6 +2178,26 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         }
                     } catch (subtitleError) {
                         logger.warn('Subtitle overlay failed (normal mode), continuing without it:', subtitleError);
+                    }
+                }
+
+                if (this.settings.get('captureSubtitleOnYoutube') && 
+                    window.location.hostname.includes('youtube.com')) {
+                    try {
+                        const subtitleImg = await this.captureYoutubeSubtitleLayer(rect);
+                        if (subtitleImg) {
+                            const srcYRatio = cropStartY / tempCanvas.height;
+                            const srcHeightRatio = imageData.height / tempCanvas.height;
+                            await this.overlaySubtitleOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                subtitleImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (subtitleError) {
+                        logger.warn('YouTube subtitle overlay failed (normal mode), continuing without it:', subtitleError);
                     }
                 }
                 
