@@ -2,7 +2,7 @@
 // @name         Video Barpic Maker
 // @name:zh-CN   视频字幕截图制作工具
 // @namespace    ckylin-script-video-barpic-maker
-// @version      0.4.2
+// @version      0.5.0
 // @description  A simple script to create video barpics.
 // @description:zh-CN 一个可以制作视频字幕截图的工具。
 // @author       CKylinMC
@@ -17,12 +17,13 @@
 // @license      Apache-2.0
 // @run-at       document-end
 // @require https://update.greasyfork.org/scripts/564901/1754426/CKUI.js
+// @require https://unpkg.com/@zumer/snapdom/dist/snapdom.js
 // ==/UserScript==
-
+ 
 if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
     window.unsafeWindow = window;
 }
-
+ 
 (function (unsafeWindow, document) {
     if (typeof (GM_addStyle) === 'undefined') {
         unsafeWindow.GM_addStyle = function (css) {
@@ -42,7 +43,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             console.warn('[VideoBarpicMaker]', ...args);
         },
     }
-
+ 
     class Utils{
         static wait(ms = 0) {
             return new Promise(resolve => setTimeout(resolve, ms));
@@ -276,11 +277,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 padding: 20,
                 containerHeight: 0,
                 containerWidth: 0,
-                watermarkApplyMode: 'always' // 'copy', 'save', 'always'
+                watermarkApplyMode: 'always', // 'copy', 'save', 'always'
+                captureDanmakuOnBilibili: false, 
+                captureSubtitleOnBilibili: false 
             };
             this.settings = this.load();
         }
-
+ 
         load() {
             try {
                 const saved = GM_getValue('vbm_settings', null);
@@ -290,7 +293,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 return { ...this.defaults };
             }
         }
-
+ 
         save() {
             try {
                 GM_setValue('vbm_settings', JSON.stringify(this.settings));
@@ -298,11 +301,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 logger.error('Failed to save settings:', e);
             }
         }
-
+ 
         get(key) {
             return this.settings[key];
         }
-
+ 
         set(key, value) {
             this.settings[key] = value;
             this.save();
@@ -316,7 +319,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.historyIndex = -1;
             this.firstWidth = null;
         }
-
+ 
         init(width, height) {
             if (!this.canvas) {
                 this.canvas = document.createElement('canvas');
@@ -326,7 +329,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.canvas.height = height;
             this.firstWidth = width;
         }
-
+ 
         appendImage(imageData, targetWidth) {
             if (!this.canvas) {
                 this.init(targetWidth, imageData.height);
@@ -346,7 +349,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             this.saveState();
         }
-
+ 
         saveState() {
             if (this.historyIndex < this.history.length - 1) {
                 this.history = this.history.slice(0, this.historyIndex + 1);
@@ -363,7 +366,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.historyIndex--;
             }
         }
-
+ 
         undo() {
             if (this.historyIndex > 0) {
                 this.historyIndex--;
@@ -375,7 +378,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             return false;
         }
-
+ 
         redo() {
             if (this.historyIndex < this.history.length - 1) {
                 this.historyIndex++;
@@ -387,15 +390,15 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             }
             return false;
         }
-
+ 
         canUndo() {
             return this.historyIndex > 0;
         }
-
+ 
         canRedo() {
             return this.historyIndex < this.history.length - 1;
         }
-
+ 
         clear() {
             this.canvas = null;
             this.ctx = null;
@@ -403,25 +406,25 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.historyIndex = -1;
             this.firstWidth = null;
         }
-
+ 
         toBlob(format = 'png', quality = 0.95) {
             return new Promise(resolve => {
                 const mimeType = `image/${format}`;
                 this.canvas.toBlob(resolve, mimeType, quality);
             });
         }
-
+ 
         toDataURL(format = 'png', quality = 0.95) {
             const mimeType = `image/${format}`;
             return this.canvas.toDataURL(mimeType, quality);
         }
-
+ 
         async calculateSize(format = 'png', quality = 0.95) {
             if (!this.canvas) return 0;
             const blob = await this.toBlob(format, quality);
             return blob ? blob.size : 0;
         }
-
+ 
         getImageInfo() {
             if (!this.canvas) return null;
             return {
@@ -448,7 +451,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.imageInfo = { memorySize: 0, copySize: 0, saveSize: 0, width: 0, height: 0 };
             this.previewDebounceTimer = null;
         }
-
+ 
         init() {
             logger.log('Initializing Video Barpic Maker...');
             GM_registerMenuCommand('📷 打开视频截图工具', () => this.showToolbar());
@@ -541,7 +544,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
             }
             `,);
-
+ 
             const toggle = document.createElement("div");
             toggle.id = "CKVIDBARPIC-floatbtn";
             toggle.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block;"><circle cx="12" cy="12" r="3"/><path d="M19 19H5V5h14v14z"/><path d="M3 3h18v18H3z" opacity="0.3"/></svg>`;
@@ -590,12 +593,12 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 isManual: false
             };
         }
-
+ 
         showToolbar() {
             if (this.toolbarWindow) {
                 return;
             }
-
+ 
             this.toolbarContainer = this.createToolbar();
             this.toolbarWindow = Utils.ui.floatWindow({
                 title: '视频截图工具',
@@ -612,7 +615,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             this.toolbarWindow.show();
             logger.log('Toolbar shown');
         }
-
+ 
         createToolbar() {
             const container = document.createElement('div');
             container.style.cssText = 'display: flex; flex-direction: column; gap: 12px; min-width: 400px';
@@ -697,7 +700,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 infoBtn.style.width = '100%';
                 infoBtn.style.display = 'none';
                 container.appendChild(infoBtn);
-
+ 
                 const infoPanel = document.createElement('div');
                 infoPanel.id = 'vbm-info-panel';
                 infoPanel.style.display = 'none';
@@ -720,10 +723,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 container.appendChild(infoPanel);
             }
             setTimeout(() => this.bindToolbarEvents(container), 0);
-
+ 
             return container;
         }
-
+ 
         createCaptureSettings() {
             const settings = this.settings;
             const div = document.createElement('div');
@@ -783,7 +786,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             `;
             return div;
         }
-
+ 
         createSaveSettings() {
             const settings = this.settings;
             const div = document.createElement('div');
@@ -807,7 +810,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             `;
             return div;
         }
-
+ 
         createExperimentalSettings() {
             const settings = this.settings;
             const div = document.createElement('div');
@@ -840,6 +843,88 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     </div>
                 </div>
             `;
+            return div;
+        }
+ 
+        createSpecialSettings() {
+            const settings = this.settings;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px;';
+            
+            // Description text
+            const description = document.createElement('div');
+            description.style.cssText = 'margin-bottom: 16px; padding: 12px; background: var(--ckui-bg-tertiary); border-radius: var(--ckui-radius); font-size: 13px; color: var(--ckui-text-secondary); line-height: 1.5;';
+            description.textContent = '这里是针对特定网站的特殊适配选项。这些功能仅在对应网站上生效。';
+            div.appendChild(description);
+            
+            // Bilibili collapsible section
+            const bilibiliSection = document.createElement('div');
+            bilibiliSection.style.cssText = 'margin-bottom: 12px; border: 1px solid var(--ckui-border-color); border-radius: var(--ckui-radius); overflow: hidden;';
+            
+            const bilibiliHeader = document.createElement('div');
+            bilibiliHeader.style.cssText = 'padding: 12px; background: var(--ckui-bg-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;';
+            bilibiliHeader.innerHTML = `
+                <span style="font-weight: 500;">📺 哔哩哔哩</span>
+                <span id="vbm-bilibili-toggle-icon" style="transition: transform 0.2s;">▼</span>
+            `;
+            
+            const bilibiliContent = document.createElement('div');
+            bilibiliContent.id = 'vbm-bilibili-content';
+            bilibiliContent.style.cssText = 'display: none; padding: 12px; border-top: 1px solid var(--ckui-border-color);';
+            bilibiliContent.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-capture-danmaku-bilibili" ${settings.get('captureDanmakuOnBilibili') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>截取弹幕</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        截图时也尝试截取弹幕层
+                    </div>
+                </div>
+                <div style="margin-bottom: 0;">
+                    <label class="ckui-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="vbm-capture-subtitle-bilibili" ${settings.get('captureSubtitleOnBilibili') ? 'checked' : ''} style="cursor: pointer;">
+                        <span>截取字幕</span>
+                    </label>
+                    <div style="font-size: 11px; color: var(--ckui-text-muted); margin-top: 4px; padding-left: 24px;">
+                        截图时也尝试包含字幕
+                    </div>
+                </div>
+            `;
+            
+            bilibiliSection.appendChild(bilibiliHeader);
+            bilibiliSection.appendChild(bilibiliContent);
+            div.appendChild(bilibiliSection);
+            
+            // Bind toggle event
+            setTimeout(() => {
+                bilibiliHeader.addEventListener('click', () => {
+                    const content = bilibiliContent;
+                    const icon = bilibiliHeader.querySelector('#vbm-bilibili-toggle-icon');
+                    const isExpanded = content.style.display !== 'none';
+                    
+                    if (isExpanded) {
+                        content.style.display = 'none';
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        content.style.display = 'block';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+                
+                const checkbox = div.querySelector('#vbm-capture-danmaku-bilibili');
+                checkbox?.addEventListener('change', (e) => {
+                    settings.set('captureDanmakuOnBilibili', e.target.checked);
+                    logger.log('Capture danmaku on Bilibili:', e.target.checked);
+                });
+
+                const subtitleCheckbox = div.querySelector('#vbm-capture-subtitle-bilibili');
+                subtitleCheckbox?.addEventListener('change', (e) => {
+                    settings.set('captureSubtitleOnBilibili', e.target.checked);
+                    logger.log('Capture subtitle on Bilibili:', e.target.checked);
+                });
+            }, 0);
+            
             return div;
         }
 
@@ -947,13 +1032,14 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             div.textContent = text;
             return div.innerHTML;
         }
-
+ 
         createSettingsPanel() {
             const tabs = Utils.ui.tabs({
                 tabs: [
                     { label: '📷 截图', content: this.createCaptureSettings() },
-                    { label: ' 保存', content: this.createSaveSettings() },
+                    { label: '💾 保存', content: this.createSaveSettings() },
                     { label: '🧪 实验', content: this.createExperimentalSettings() },
+                    { label: '🎯 特调', content: this.createSpecialSettings() },
                     { label: '⚙️ 其他', content: this.createOtherSettings() }
                 ],
                 style: 'pills'
@@ -964,14 +1050,14 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             container.appendChild(tabs.render());
             return container;
         }
-
+ 
         bindToolbarEvents(container) {
             const selectBtn = container.querySelector('#vbm-select-video');
             selectBtn?.addEventListener('click', () => this.startVideoSelection());
             const captureFull = container.querySelector('#vbm-capture-full');
             const captureBottom = container.querySelector('#vbm-capture-bottom');
             const captureTop = container.querySelector('#vbm-capture-top');
-
+ 
             captureFull?.addEventListener('click', () => this.captureVideo('full'));
             captureBottom?.addEventListener('click', () => this.captureVideo('bottom'));
             captureTop?.addEventListener('click', () => this.captureVideo('top'));
@@ -991,46 +1077,46 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const topRangeUnit = container.querySelector('#vbm-top-range-unit');
             const bottomRangeInput = container.querySelector('#vbm-bottom-range');
             const bottomRangeUnit = container.querySelector('#vbm-bottom-range-unit');
-
+ 
             captureModeSelect?.addEventListener('change', (e) => {
                 this.settings.set('captureMode', e.target.value);
                 fixedWidthContainer.style.display = e.target.value === 'fixed' ? 'block' : 'none';
                 adaptiveWidthContainer.style.display = e.target.value === 'adaptive' ? 'block' : 'none';
             });
-
+ 
             fixedWidthInput?.addEventListener('change', (e) => {
                 this.settings.set('fixedWidth', parseInt(e.target.value) || 1280);
             });
-
+ 
             minWidthInput?.addEventListener('change', (e) => {
                 this.settings.set('minWidth', parseInt(e.target.value) || 640);
             });
-
+ 
             maxWidthInput?.addEventListener('change', (e) => {
                 this.settings.set('maxWidth', parseInt(e.target.value) || 1920);
             });
-
+ 
             const previewWidthInput = container.querySelector('#vbm-preview-width');
             previewWidthInput?.addEventListener('change', (e) => {
                 this.settings.set('previewImageWidth', parseInt(e.target.value) || 260);
                 this.updatePreview(); // Update preview with new width
             });
-
+ 
             topRangeInput?.addEventListener('input', (e) => {
                 this.settings.set('topRange', parseInt(e.target.value) || 50);
                 this.showRangePreview('top');
             });
-
+ 
             topRangeUnit?.addEventListener('change', (e) => {
                 this.settings.set('topRangeUnit', e.target.value);
                 this.showRangePreview('top');
             });
-
+ 
             bottomRangeInput?.addEventListener('input', (e) => {
                 this.settings.set('bottomRange', parseInt(e.target.value) || 50);
                 this.showRangePreview('bottom');
             });
-
+ 
             bottomRangeUnit?.addEventListener('change', (e) => {
                 this.settings.set('bottomRangeUnit', e.target.value);
                 this.showRangePreview('bottom');
@@ -1104,7 +1190,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     });
                 }
             });
-
+ 
             const showImageInfoCheckbox = container.querySelector('#vbm-show-image-info');
             showImageInfoCheckbox?.addEventListener('change', (e) => {
                 this.settings.set('showImageInfo', e.target.checked);
@@ -1136,54 +1222,54 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     this.debouncedPreviewWatermark();
                 }
             });
-
+ 
             const watermarkContent = container.querySelector('#vbm-watermark-content');
             watermarkContent?.addEventListener('input', (e) => {
                 this.settings.set('content', e.target.value);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const watermarkApplyMode = container.querySelector('#vbm-watermark-apply-mode');
             watermarkApplyMode?.addEventListener('change', (e) => {
                 this.settings.set('watermarkApplyMode', e.target.value);
             });
-
+ 
             const fontSize = container.querySelector('#vbm-watermark-fontsize');
             fontSize?.addEventListener('input', (e) => {
                 this.settings.set('fontSize', parseInt(e.target.value) || 16);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const textColor = container.querySelector('#vbm-watermark-color');
             textColor?.addEventListener('input', (e) => {
                 this.settings.set('textColor', e.target.value);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const textAlign = container.querySelector('#vbm-watermark-align');
             textAlign?.addEventListener('change', (e) => {
                 this.settings.set('textAlign', e.target.value);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const bgColor = container.querySelector('#vbm-watermark-bgcolor');
             bgColor?.addEventListener('input', (e) => {
                 this.settings.set('backgroundColor', e.target.value);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const padding = container.querySelector('#vbm-watermark-padding');
             padding?.addEventListener('input', (e) => {
                 this.settings.set('padding', parseInt(e.target.value) || 20);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const height = container.querySelector('#vbm-watermark-height');
             height?.addEventListener('input', (e) => {
                 this.settings.set('containerHeight', parseInt(e.target.value) || 0);
                 this.debouncedPreviewWatermark();
             });
-
+ 
             const width = container.querySelector('#vbm-watermark-width');
             width?.addEventListener('input', (e) => {
                 this.settings.set('containerWidth', parseInt(e.target.value) || 0);
@@ -1192,7 +1278,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (this.settings.get('enabled')) {
                 setTimeout(() => this.previewWatermark(), 100);
             }
-
+ 
             const saveFormatSelect = container.querySelector('#vbm-save-format');
             saveFormatSelect?.addEventListener('change', (e) => {
                 this.settings.set('saveFormat', e.target.value);
@@ -1200,7 +1286,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     this.updateImageInfo();
                 }
             });
-
+ 
             const saveQualityInput = container.querySelector('#vbm-save-quality');
             saveQualityInput?.addEventListener('change', (e) => {
                 const quality = Math.max(1, Math.min(100, parseInt(e.target.value) || 95));
@@ -1210,19 +1296,19 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     this.updateImageInfo();
                 }
             });
-
+ 
             const undoBtn = container.querySelector('#vbm-undo');
             const redoBtn = container.querySelector('#vbm-redo');
             const copyBtn = container.querySelector('#vbm-copy');
             const saveBtn = container.querySelector('#vbm-save');
             const clearBtn = container.querySelector('#vbm-clear');
-
+ 
             undoBtn?.addEventListener('click', () => this.undo());
             redoBtn?.addEventListener('click', () => this.redo());
             copyBtn?.addEventListener('click', () => this.copyToClipboard());
             saveBtn?.addEventListener('click', () => this.saveToFile());
             clearBtn?.addEventListener('click', () => this.clearCanvas());
-
+ 
             const infoToggleBtn = container.querySelector('#vbm-info-toggle');
             infoToggleBtn?.addEventListener('click', () => {
                 this.infoExpanded = !this.infoExpanded;
@@ -1235,10 +1321,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
             });
         }
-
+ 
         startVideoSelection() {
             if (this.isSelectingVideo) return;
-
+ 
             this.isSelectingVideo = true;
             Utils.ui.notify({
                 type: 'info',
@@ -1246,13 +1332,13 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 message: '请将鼠标悬停在视频上，然后点击选择',
                 shadow: true
             });
-
+ 
             this.createHighlightOverlay();
             
             document.addEventListener('mouseover', this.handleMouseOver);
             document.addEventListener('click', this.handleVideoClick, true);
         }
-
+ 
         handleMouseOver = (e) => {
             if (!this.isSelectingVideo) return;
             
@@ -1275,7 +1361,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.highlightOverlay.style.display = 'none';
             }
         };
-
+ 
         handleVideoClick = (e) => {
             if (!this.isSelectingVideo) return;
             
@@ -1302,7 +1388,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         captureSection.style.display = 'block';
                     }
                 }
-
+ 
                 Utils.ui.notify({
                     type: 'success',
                     title: '视频已选择',
@@ -1311,23 +1397,23 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 });
             }
         };
-
+ 
         createHighlightOverlay() {
             if (this.highlightOverlay) return;
             this.highlightOverlay = document.createElement('div');
             document.body.appendChild(this.highlightOverlay);
         }
-
+ 
         removeHighlightOverlay() {
             if (this.highlightOverlay) {
                 this.highlightOverlay.remove();
                 this.highlightOverlay = null;
             }
         }
-
+ 
         showRangePreview(type) {
             if (!this.selectedVideo) return;
-
+ 
             this.removeRangeOverlay();
             
             const video = this.selectedVideo;
@@ -1362,7 +1448,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             
             setTimeout(() => this.removeRangeOverlay(), 1000);
         }
-
+ 
         removeRangeOverlay() {
             if (this.rangeOverlay) {
                 this.rangeOverlay.remove();
@@ -1405,11 +1491,10 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (!this.canvas.canvas) {
                 throw new Error('No canvas available');
             }
-
+ 
             const enabled = this.settings.get('enabled');
             const watermarkApplyMode = this.settings.get('watermarkApplyMode');
             
-            // Determine if watermark should be applied
             const shouldApplyWatermark = enabled && (
                 watermarkApplyMode === 'always' || 
                 (watermarkApplyMode === 'copy' && action === 'copy') ||
@@ -1419,7 +1504,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (!shouldApplyWatermark) {
                 return this.canvas.canvas;
             }
-
+ 
             try {
                 const originalCanvas = this.canvas.canvas;
                 const watermarkCanvas = this.drawTextWatermarkToCanvas(originalCanvas.width);
@@ -1457,7 +1542,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
-            const lineHeight = fontSize * 1.5; // 行高为字体大小的 1.5 倍
+            const lineHeight = fontSize * 1.5; 
             let maxLineWidth = 0;
             const measuredLines = lines.map(line => {
                 const metrics = tempCtx.measureText(line);
@@ -1495,12 +1580,112 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             return canvas;
         }
 
+        async captureSubtitleLayer(videoRect) {
+            try {
+                const subtitleElement = document.querySelector('.bili-subtitle-x-subtitle-panel');
+                if (!subtitleElement) {
+                    logger.log('Subtitle element not found');
+                    return null;
+                }
+
+                logger.log('Capturing subtitle layer...');
+
+                if (typeof snapdom === 'undefined') {
+                    logger.warn('snapdom library not available');
+                    return null;
+                }
+
+                const result = await snapdom(subtitleElement, { fast: true });
+                const img = await result.toPng({ backgroundColor: '#00000000' });
+
+                logger.log('Subtitle layer captured');
+                return img;
+            } catch (error) {
+                logger.error('Failed to capture subtitle layer:', error);
+                return null;
+            }
+        }
+
+        async overlaySubtitleOnCanvas(canvasWidth, height, subtitleImg, srcYRatio, srcHeightRatio) {
+            try {
+                if (!subtitleImg) return;
+
+                const imgW = subtitleImg.naturalWidth || subtitleImg.width;
+                const imgH = subtitleImg.naturalHeight || subtitleImg.height;
+
+                const srcY = srcYRatio * imgH;
+                const srcH = srcHeightRatio * imgH;
+                const yPos = this.canvas.canvas.height - height;
+
+                this.canvas.ctx.drawImage(
+                    subtitleImg,
+                    0, srcY, imgW, srcH,
+                    0, yPos, canvasWidth, height
+                );
+
+                logger.log('Subtitle layer overlaid successfully');
+            } catch (error) {
+                logger.error('Failed to overlay subtitle:', error);
+            }
+        }
+
+        async captureDanmakuLayer(videoRect) {
+            try {
+                const danmakuElement = document.querySelector('.bpx-player-dm-mask-wrap');
+                if (!danmakuElement) {
+                    logger.log('Danmaku element not found');
+                    return null;
+                }
+
+                logger.log('Capturing danmaku layer...');
+                
+                // Use snapdom to capture the danmaku layer
+                if (typeof snapdom === 'undefined') {
+                    logger.warn('snapdom library not available');
+                    return null;
+                }
+
+                const result = await snapdom(danmakuElement, { fast: true });
+                const img = await result.toPng({ backgroundColor: '#00000000' });
+                
+                logger.log('Danmaku layer captured');
+                
+                // toPng() already returns an HTMLImageElement
+                return img;
+            } catch (error) {
+                logger.error('Failed to capture danmaku layer:', error);
+                return null;
+            }
+        }
+
+        async overlayDanmakuOnCanvas(canvasWidth, height, danmakuImg, srcYRatio, srcHeightRatio) {
+            try {
+                if (!danmakuImg) return;
+
+                const imgW = danmakuImg.naturalWidth || danmakuImg.width;
+                const imgH = danmakuImg.naturalHeight || danmakuImg.height;
+
+                const srcY = srcYRatio * imgH;
+                const srcH = srcHeightRatio * imgH;
+                const yPos = this.canvas.canvas.height - height;
+                this.canvas.ctx.drawImage(
+                    danmakuImg,
+                    0, srcY, imgW, srcH,
+                    0, yPos, canvasWidth, height
+                );
+
+                logger.log('Danmaku layer overlaid successfully');
+            } catch (error) {
+                logger.error('Failed to overlay danmaku:', error);
+            }
+        }
+ 
         async captureVideoWithLayers(mode) {
             const video = this.selectedVideo;
             const rect = video.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
             const uiOffset = this.detectBrowserUIOffset();
-
+ 
             try {
                 const toolbarShowing = !!this.toolbarWindow;
                 const previewShowing = !!this.previewWindow;
@@ -1521,7 +1706,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     audio: false,
                     preferCurrentTab: true
                 });
-
+ 
                 const videoTrack = stream.getVideoTracks()[0];
                 const imageCapture = new ImageCapture(videoTrack);
                 const bitmap = await imageCapture.grabFrame();
@@ -1573,7 +1758,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
                 let finalCropY = cropY;
                 let finalCropHeight = cropHeight;
-
+ 
                 if (mode === 'top') {
                     const rangeValue = this.settings.get('topRange');
                     const rangeUnit = this.settings.get('topRangeUnit');
@@ -1626,8 +1811,49 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 } else {
                     targetWidth = this.canvas.firstWidth || imageData.width;
                 }
-
+ 
                 this.canvas.appendImage(imageData, targetWidth);
+                
+                if (this.settings.get('captureDanmakuOnBilibili') && 
+                    window.location.hostname.includes('bilibili.com')) {
+                    try {
+                        const danmakuImg = await this.captureDanmakuLayer(rect);
+                        if (danmakuImg) {
+                            const srcYRatio = (finalCropY - cropY) / cropHeight;
+                            const srcHeightRatio = finalCropHeight / cropHeight;
+                            await this.overlayDanmakuOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                danmakuImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (danmakuError) {
+                        logger.warn('Danmaku overlay failed (layers mode), continuing without it:', danmakuError);
+                    }
+                }
+
+                if (this.settings.get('captureSubtitleOnBilibili') && 
+                    window.location.hostname.includes('bilibili.com')) {
+                    try {
+                        const subtitleImg = await this.captureSubtitleLayer(rect);
+                        if (subtitleImg) {
+                            const srcYRatio = (finalCropY - cropY) / cropHeight;
+                            const srcHeightRatio = finalCropHeight / cropHeight;
+                            await this.overlaySubtitleOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                subtitleImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (subtitleError) {
+                        logger.warn('Subtitle overlay failed (layers mode), continuing without it:', subtitleError);
+                    }
+                }
+                
                 if (this.toolbarContainer) {
                     const actionsSection = this.toolbarContainer.querySelector('#vbm-actions-section');
                     if (actionsSection) {
@@ -1640,11 +1866,11 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                         }
                     }
                 }
-
+ 
                 this.updatePreview();
                 this.updateActionButtons();
                 this.scrollPreviewToBottom();
-
+ 
             } catch (error) {
                 if (this.toolbarWindow && this.toolbarWindow.show) {
                     this.toolbarWindow.show();
@@ -1652,7 +1878,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 if (this.previewWindow && this.previewWindow.show) {
                     this.previewWindow.show();
                 }
-
+ 
                 logger.error('Layer capture failed:', error);
                 
                 if (error.name === 'NotAllowedError') {
@@ -1686,7 +1912,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
             }
         }
-
+ 
         async captureVideo(mode) {
             if (!this.selectedVideo) {
                 Utils.ui.notify({
@@ -1697,13 +1923,14 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 });
                 return;
             }
-
+ 
             try {
                 if (this.settings.get('useLayerCapture')) {
                     await this.captureVideoWithLayers(mode);
                     return;
                 }
                 const video = this.selectedVideo;
+                const rect = video.getBoundingClientRect();
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
                 
@@ -1713,6 +1940,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
                 
                 let imageData;
+                let cropStartY = 0;
                 
                 if (mode === 'full') {
                     imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
@@ -1740,6 +1968,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                     }
                     
                     const startY = tempCanvas.height - height;
+                    cropStartY = startY;
                     imageData = tempCtx.getImageData(0, startY, tempCanvas.width, height);
                 }
                 let targetWidth;
@@ -1763,6 +1992,47 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
                 
                 this.canvas.appendImage(imageData, targetWidth);
+                
+                if (this.settings.get('captureDanmakuOnBilibili') && 
+                    window.location.hostname.includes('bilibili.com')) {
+                    try {
+                        const danmakuImg = await this.captureDanmakuLayer(rect);
+                        if (danmakuImg) {
+                            const srcYRatio = cropStartY / tempCanvas.height;
+                            const srcHeightRatio = imageData.height / tempCanvas.height;
+                            await this.overlayDanmakuOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                danmakuImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (danmakuError) {
+                        logger.warn('Danmaku overlay failed (normal mode), continuing without it:', danmakuError);
+                    }
+                }
+
+                if (this.settings.get('captureSubtitleOnBilibili') && 
+                    window.location.hostname.includes('bilibili.com')) {
+                    try {
+                        const subtitleImg = await this.captureSubtitleLayer(rect);
+                        if (subtitleImg) {
+                            const srcYRatio = cropStartY / tempCanvas.height;
+                            const srcHeightRatio = imageData.height / tempCanvas.height;
+                            await this.overlaySubtitleOnCanvas(
+                                targetWidth,
+                                imageData.height,
+                                subtitleImg,
+                                srcYRatio,
+                                srcHeightRatio
+                            );
+                        }
+                    } catch (subtitleError) {
+                        logger.warn('Subtitle overlay failed (normal mode), continuing without it:', subtitleError);
+                    }
+                }
+                
                 if (this.toolbarContainer) {
                     const actionsSection = this.toolbarContainer.querySelector('#vbm-actions-section');
                     if (actionsSection) {
@@ -1790,7 +2060,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 });
             }
         }
-
+ 
         updatePreview() {
             if (!this.previewWindow && this.canvas.canvas) {
                 this.createPreviewWindow();
@@ -1810,7 +2080,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }
             }
         }
-
+ 
         scrollPreviewToBottom() {
             if (this.previewContainer) {
                 setTimeout(() => {
@@ -1818,7 +2088,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 }, 50);
             }
         }
-
+ 
         async updateImageInfo() {
             if (!this.canvas.canvas || !this.infoExpanded) return;
             
@@ -1854,7 +2124,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 if (saveFormatEl) saveFormatEl.textContent = `${saveFormat.toUpperCase()}${saveFormat !== 'png' ? ` (${Math.round(saveQuality * 100)}%)` : ''}`;
             }
         }
-
+ 
         formatFileSize(bytes) {
             if (bytes === 0) return '0 B';
             const k = 1024;
@@ -1862,7 +2132,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
-
+ 
         createPreviewWindow() {
             this.previewContainer = document.createElement('div');
             this.previewContainer.id = 'vbm-preview-container';
@@ -1881,7 +2151,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             });
             this.previewWindow.show();
         }
-
+ 
         updateActionButtons() {
             if (!this.toolbarContainer) return;
             
@@ -1915,7 +2185,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
             if (saveBtn) saveBtn.disabled = !hasCanvas;
             if (clearBtn) clearBtn.disabled = !hasCanvas;
         }
-
+ 
         undo() {
             if (this.canvas.undo()) {
                 this.updatePreview();
@@ -1923,7 +2193,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.scrollPreviewToBottom();
             }
         }
-
+ 
         redo() {
             if (this.canvas.redo()) {
                 this.updatePreview();
@@ -1931,7 +2201,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 this.scrollPreviewToBottom();
             }
         }
-
+ 
         async copyToClipboard() {
             try {
                 const finalCanvas = await this.generateFinalCanvas('copy');
@@ -1963,7 +2233,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 });
             }
         }
-
+ 
         async saveToFile() {
             try {
                 const format = this.settings.get('saveFormat');
@@ -1994,7 +2264,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 });
             }
         }
-
+ 
         async clearCanvas() {
             const confirmed = await Utils.ui.confirm({
                 title: '确认清空',
@@ -2041,7 +2311,7 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
                 shadow: true
             });
         }
-
+ 
         cleanup() {
             this.removeHighlightOverlay();
             this.removeRangeOverlay();
@@ -2056,5 +2326,5 @@ if (typeof unsafeWindow === 'undefined' || !unsafeWindow) {
     }
     const app = new VideoBarpicMaker();
     app.init();
-
+ 
 })(unsafeWindow, document);
